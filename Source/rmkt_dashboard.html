@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMKT Customer Analysis Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@3.1.0/dist/chartjs-chart-treemap.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #6366f1;
+    --green: #22c55e; --red: #ef4444; --orange: #f59e0b; --blue: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  .header { background: linear-gradient(135deg,#1e1b4b,#312e81); padding: 32px 40px; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 26px; font-weight: 700; }
+  .header p  { color: var(--muted); margin-top: 6px; font-size: 14px; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+  .section-title { font-size: 18px; font-weight: 600; color: var(--text); margin: 32px 0 16px;
+                    padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; margin-bottom: 8px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .kpi .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .kpi .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
+  .kpi .sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .charts-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .charts-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-card h3 { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 260px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #0f1117; color: var(--muted); font-weight: 500; padding: 10px 12px; text-align: left;
+        border-bottom: 1px solid var(--border); }
+  td { padding: 9px 12px; border-bottom: 1px solid #1e2130; }
+  tr:hover td { background: #1e2130; }
+  .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+                 overflow: hidden; margin-bottom: 20px; }
+  .table-title { padding: 16px 20px; font-size: 14px; font-weight: 600; color: var(--muted);
+                  border-bottom: 1px solid var(--border); background: #14171f; }
+  .corr-box { display: flex; gap: 16px; margin-bottom: 20px; }
+  .corr-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+                padding: 16px 24px; flex: 1; text-align: center; }
+  .corr-item .cv { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .corr-item .cl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  @media(max-width:900px) { .charts-2,.charts-3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>RMKT Customer Lifetime Analysis</h1>
+  <p>Data range: Jun 2025 – present &nbsp;|&nbsp; Generated 2026-05-22 23:37 &nbsp;|&nbsp; 2,156,934 customers</p>
+</div>
+<div class="container">
+
+<!-- KPIs -->
+<div class="section-title">Key Metrics</div>
+<div class="kpi-grid">
+  <div class="kpi"><div class="label">Total Customers</div><div class="value" style="color:var(--blue)">2,156,934</div></div>
+  <div class="kpi"><div class="label">Total Revenue</div><div class="value" style="color:var(--green)">$152,544,480</div></div>
+  <div class="kpi"><div class="label">Avg LTV</div><div class="value">$70.72</div><div class="sub">per customer</div></div>
+  <div class="kpi"><div class="label">Avg Orders</div><div class="value">1.35</div><div class="sub">per customer</div></div>
+  <div class="kpi"><div class="label">Repeat Customers</div><div class="value" style="color:var(--accent)">21.8%</div><div class="sub">471,268 customers</div></div>
+  <div class="kpi"><div class="label">Emails Sent</div><div class="value">65,247,938</div><div class="sub">30.3 avg/customer</div></div>
+  <div class="kpi"><div class="label">Overall Return Rate</div><div class="value" style="color:var(--orange)">10.1%</div></div>
+  <div class="kpi"><div class="label">High Returners (≥50%)</div><div class="value" style="color:var(--red)">11.2%</div><div class="sub">241,240 customers</div></div>
+</div>
+
+<!-- RFM -->
+<div class="section-title">Customer Segmentation (RFM)</div>
+<div class="charts-2">
+  <div class="chart-card">
+    <h3>Segments by Customer Count — size = # customers, color = avg LTV</h3>
+    <div class="chart-wrap" style="height:320px"><canvas id="rfmCount"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>Segments by Revenue — size = total revenue, color = avg LTV</h3>
+    <div class="chart-wrap" style="height:320px"><canvas id="rfmRevenue"></canvas></div>
+  </div>
+</div>
+
+<!-- LTV Tiers -->
+<div class="section-title">LTV Tiers</div>
+<div class="charts-2">
+  <div class="chart-card">
+    <h3>LTV Tier — Customer Count</h3>
+    <div class="chart-wrap"><canvas id="ltvCount"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>LTV Tier — Avg Remarketing Emails Received</h3>
+    <div class="chart-wrap"><canvas id="ltvEmails"></canvas></div>
+  </div>
+</div>
+
+<!-- Email Engagement -->
+<div class="section-title">Email Engagement vs. Purchase Behavior</div>
+<div class="corr-box">
+  <div class="corr-item"><div class="cv">+0.115</div><div class="cl">Emails Sent ↔ Total Revenue (Pearson r)</div></div>
+  <div class="corr-item"><div class="cv">+0.167</div><div class="cl">Emails Sent ↔ Total Orders (Pearson r)</div></div>
+</div>
+<div class="charts-2">
+  <div class="chart-card">
+    <h3>Avg Revenue by Email Volume Bucket</h3>
+    <div class="chart-wrap"><canvas id="emailRevenue"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>% Repeat Purchasers by Email Volume Bucket</h3>
+    <div class="chart-wrap"><canvas id="emailRepeat"></canvas></div>
+  </div>
+</div>
+<div class="table-card">
+  <div class="table-title">Email Engagement Detail</div>
+  <table>
+    <thead><tr><th>Emails Sent</th><th>Customers</th><th>Avg Revenue</th><th>Avg Orders</th><th>% Repeat</th><th>Avg Return Rate</th></tr></thead>
+    <tbody><tr>
+        <td>0</td>
+        <td>206,221</td>
+        <td>$69.66</td>
+        <td>1.17</td>
+        <td>12.6%</td>
+        <td>8.0%</td>
+    </tr><tr>
+        <td>1–10</td>
+        <td>427,071</td>
+        <td>$65.44</td>
+        <td>1.27</td>
+        <td>18.7%</td>
+        <td>12.0%</td>
+    </tr><tr>
+        <td>11–25</td>
+        <td>422,927</td>
+        <td>$65.64</td>
+        <td>1.29</td>
+        <td>19.6%</td>
+        <td>9.0%</td>
+    </tr><tr>
+        <td>26–50</td>
+        <td>365,421</td>
+        <td>$75.39</td>
+        <td>1.37</td>
+        <td>24.3%</td>
+        <td>10.0%</td>
+    </tr><tr>
+        <td>51–100</td>
+        <td>403,865</td>
+        <td>$75.57</td>
+        <td>1.50</td>
+        <td>29.7%</td>
+        <td>9.0%</td>
+    </tr><tr>
+        <td>100+</td>
+        <td>103,847</td>
+        <td>$94.72</td>
+        <td>1.84</td>
+        <td>41.2%</td>
+        <td>8.0%</td>
+    </tr></tbody>
+  </table>
+</div>
+
+<!-- Return Rate -->
+<div class="section-title">Return Rate Analysis</div>
+<div class="charts-2">
+  <div class="chart-card">
+    <h3>Return Rate by Product Line</h3>
+    <div class="chart-wrap"><canvas id="retProduct"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>Return Rate by Store</h3>
+    <div class="chart-wrap"><canvas id="retStore"></canvas></div>
+  </div>
+</div>
+<div class="charts-2">
+  <div class="table-card">
+    <div class="table-title">Return Rate by Product Line</div>
+    <table>
+      <thead><tr><th>Product Line</th><th>Customers</th><th>Total Orders</th><th>Return Rate</th></tr></thead>
+      <tbody><tr>
+        <td>Bra</td>
+        <td>964,438</td>
+        <td>1,328,987</td>
+        <td style="color:#16a34a;font-weight:600">12.0%</td>
+    </tr><tr>
+        <td>Pant</td>
+        <td>855,584</td>
+        <td>1,158,437</td>
+        <td style="color:#16a34a;font-weight:600">9.7%</td>
+    </tr><tr>
+        <td>Accessories</td>
+        <td>271,322</td>
+        <td>330,645</td>
+        <td style="color:#16a34a;font-weight:600">4.5%</td>
+    </tr><tr>
+        <td>Panties</td>
+        <td>60,346</td>
+        <td>78,893</td>
+        <td style="color:#16a34a;font-weight:600">6.7%</td>
+    </tr><tr>
+        <td>T-shirt</td>
+        <td>5,228</td>
+        <td>6,608</td>
+        <td style="color:#16a34a;font-weight:600">6.4%</td>
+    </tr><tr>
+        <td>Shapewear</td>
+        <td>15</td>
+        <td>18</td>
+        <td style="color:#16a34a;font-weight:600">0.0%</td>
+    </tr><tr>
+        <td>Dress</td>
+        <td>1</td>
+        <td>2</td>
+        <td style="color:#16a34a;font-weight:600">0.0%</td>
+    </tr></tbody>
+    </table>
+  </div>
+  <div class="table-card">
+    <div class="table-title">Return Rate by Store</div>
+    <table>
+      <thead><tr><th>Store</th><th>Customers</th><th>Total Orders</th><th>Return Rate</th></tr></thead>
+      <tbody><tr>
+        <td>lynsiecharm.com</td>
+        <td>98,788</td>
+        <td>105,767</td>
+        <td style="color:#16a34a;font-weight:600">3.3%</td>
+    </tr><tr>
+        <td>ellymuse.com</td>
+        <td>86,682</td>
+        <td>106,646</td>
+        <td style="color:#16a34a;font-weight:600">11.4%</td>
+    </tr><tr>
+        <td>comfysfit.com</td>
+        <td>77,975</td>
+        <td>100,273</td>
+        <td style="color:#16a34a;font-weight:600">7.5%</td>
+    </tr><tr>
+        <td>erebloom.com</td>
+        <td>72,176</td>
+        <td>91,979</td>
+        <td style="color:#16a34a;font-weight:600">4.9%</td>
+    </tr><tr>
+        <td>lisacharm.com</td>
+        <td>56,084</td>
+        <td>63,788</td>
+        <td style="color:#16a34a;font-weight:600">12.6%</td>
+    </tr><tr>
+        <td>mencomfy.com</td>
+        <td>45,852</td>
+        <td>53,778</td>
+        <td style="color:#16a34a;font-weight:600">7.9%</td>
+    </tr><tr>
+        <td>texwix.com</td>
+        <td>45,852</td>
+        <td>52,473</td>
+        <td style="color:#16a34a;font-weight:600">10.5%</td>
+    </tr><tr>
+        <td>evybliss.com</td>
+        <td>37,549</td>
+        <td>52,029</td>
+        <td style="color:#16a34a;font-weight:600">11.5%</td>
+    </tr><tr>
+        <td>senistyle.com</td>
+        <td>35,740</td>
+        <td>46,854</td>
+        <td style="color:#16a34a;font-weight:600">9.4%</td>
+    </tr><tr>
+        <td>beeswan.com</td>
+        <td>33,432</td>
+        <td>52,340</td>
+        <td style="color:#16a34a;font-weight:600">7.3%</td>
+    </tr><tr>
+        <td>mixicharm.com</td>
+        <td>31,210</td>
+        <td>37,893</td>
+        <td style="color:#16a34a;font-weight:600">14.1%</td>
+    </tr><tr>
+        <td>jeadora.com</td>
+        <td>30,391</td>
+        <td>35,027</td>
+        <td style="color:#16a34a;font-weight:600">13.6%</td>
+    </tr><tr>
+        <td>caralush.com</td>
+        <td>28,308</td>
+        <td>34,842</td>
+        <td style="color:#16a34a;font-weight:600">11.3%</td>
+    </tr><tr>
+        <td>mayaloom.com</td>
+        <td>27,367</td>
+        <td>45,195</td>
+        <td style="color:#16a34a;font-weight:600">6.0%</td>
+    </tr><tr>
+        <td>jetjeans.us</td>
+        <td>26,961</td>
+        <td>35,374</td>
+        <td style="color:#16a34a;font-weight:600">10.5%</td>
+    </tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Store / Product Breakdown -->
+<div class="section-title">Store & Product Line Breakdown</div>
+<div class="charts-2">
+  <div class="chart-card">
+    <h3>Top Stores — Customers</h3>
+    <div class="chart-wrap"><canvas id="storeCustomers"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>Top Stores — Avg LTV</h3>
+    <div class="chart-wrap"><canvas id="storeLTV"></canvas></div>
+  </div>
+</div>
+<div class="charts-2">
+  <div class="chart-card">
+    <h3>Top Product Lines — Customers</h3>
+    <div class="chart-wrap"><canvas id="productCustomers"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>Top Product Lines — Avg LTV</h3>
+    <div class="chart-wrap"><canvas id="productLTV"></canvas></div>
+  </div>
+</div>
+<div class="charts-2">
+  <div class="table-card">
+    <div class="table-title">Store Summary (Top 15)</div>
+    <table>
+      <thead><tr><th>Store</th><th>Customers</th><th>Total Revenue</th><th>Avg LTV</th><th>Avg Orders</th></tr></thead>
+      <tbody><tr>
+        <td>lynsiecharm.com</td>
+        <td>98,788</td>
+        <td>$4,313,737</td>
+        <td>$43.67</td>
+        <td>1.07</td>
+    </tr><tr>
+        <td>ellymuse.com</td>
+        <td>86,682</td>
+        <td>$4,334,177</td>
+        <td>$50.00</td>
+        <td>1.23</td>
+    </tr><tr>
+        <td>comfysfit.com</td>
+        <td>77,975</td>
+        <td>$6,351,232</td>
+        <td>$81.45</td>
+        <td>1.29</td>
+    </tr><tr>
+        <td>erebloom.com</td>
+        <td>72,176</td>
+        <td>$3,710,131</td>
+        <td>$51.40</td>
+        <td>1.27</td>
+    </tr><tr>
+        <td>lisacharm.com</td>
+        <td>56,084</td>
+        <td>$2,447,797</td>
+        <td>$43.65</td>
+        <td>1.14</td>
+    </tr><tr>
+        <td>mencomfy.com</td>
+        <td>45,852</td>
+        <td>$3,341,219</td>
+        <td>$72.87</td>
+        <td>1.17</td>
+    </tr><tr>
+        <td>texwix.com</td>
+        <td>45,852</td>
+        <td>$3,732,155</td>
+        <td>$81.40</td>
+        <td>1.14</td>
+    </tr><tr>
+        <td>evybliss.com</td>
+        <td>37,549</td>
+        <td>$2,253,106</td>
+        <td>$60.00</td>
+        <td>1.39</td>
+    </tr><tr>
+        <td>senistyle.com</td>
+        <td>35,740</td>
+        <td>$2,954,453</td>
+        <td>$82.67</td>
+        <td>1.31</td>
+    </tr><tr>
+        <td>beeswan.com</td>
+        <td>33,432</td>
+        <td>$3,302,358</td>
+        <td>$98.78</td>
+        <td>1.57</td>
+    </tr><tr>
+        <td>mixicharm.com</td>
+        <td>31,210</td>
+        <td>$1,795,963</td>
+        <td>$57.54</td>
+        <td>1.21</td>
+    </tr><tr>
+        <td>jeadora.com</td>
+        <td>30,391</td>
+        <td>$1,561,548</td>
+        <td>$51.38</td>
+        <td>1.15</td>
+    </tr><tr>
+        <td>caralush.com</td>
+        <td>28,308</td>
+        <td>$1,658,339</td>
+        <td>$58.58</td>
+        <td>1.23</td>
+    </tr><tr>
+        <td>mayaloom.com</td>
+        <td>27,367</td>
+        <td>$2,400,294</td>
+        <td>$87.71</td>
+        <td>1.65</td>
+    </tr><tr>
+        <td>jetjeans.us</td>
+        <td>26,961</td>
+        <td>$2,217,855</td>
+        <td>$82.26</td>
+        <td>1.31</td>
+    </tr></tbody>
+    </table>
+  </div>
+  <div class="table-card">
+    <div class="table-title">Product Line Summary (Top 15)</div>
+    <table>
+      <thead><tr><th>Product Line</th><th>Customers</th><th>Total Revenue</th><th>Avg LTV</th></tr></thead>
+      <tbody><tr>
+        <td>Bra</td>
+        <td>964,438</td>
+        <td>$59,323,617</td>
+        <td>$61.51</td>
+    </tr><tr>
+        <td>Pant</td>
+        <td>855,584</td>
+        <td>$75,272,653</td>
+        <td>$87.98</td>
+    </tr><tr>
+        <td>Accessories</td>
+        <td>271,322</td>
+        <td>$13,539,411</td>
+        <td>$49.90</td>
+    </tr><tr>
+        <td>Panties</td>
+        <td>60,346</td>
+        <td>$3,998,536</td>
+        <td>$66.26</td>
+    </tr><tr>
+        <td>T-shirt</td>
+        <td>5,228</td>
+        <td>$409,103</td>
+        <td>$78.25</td>
+    </tr><tr>
+        <td>Shapewear</td>
+        <td>15</td>
+        <td>$1,065</td>
+        <td>$71.03</td>
+    </tr><tr>
+        <td>Dress</td>
+        <td>1</td>
+        <td>$95</td>
+        <td>$95.05</td>
+    </tr></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+const PALETTE = ['#6366f1','#38bdf8','#22c55e','#f59e0b','#ef4444','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa','#facc15','#4ade80','#c084fc','#f87171','#94a3b8'];
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#2a2d3a';
+
+function hbar(id, labels, data, label, color) {
+  new Chart(document.getElementById(id), {
+    type:'bar',
+    data: { labels, datasets:[{ label, data, backgroundColor: color || PALETTE, borderRadius:4 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ color:'#2a2d3a' } }, y:{ grid:{ display:false } } } }
+  });
+}
+
+function vbar(id, labels, data, label, color) {
+  new Chart(document.getElementById(id), {
+    type:'bar',
+    data: { labels, datasets:[{ label, data, backgroundColor: color || PALETTE, borderRadius:4 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'#2a2d3a' } } } }
+  });
+}
+
+function donut(id, labels, data) {
+  new Chart(document.getElementById(id), {
+    type:'doughnut',
+    data: { labels, datasets:[{ data, backgroundColor:PALETTE, borderWidth:0, hoverOffset:6 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } }
+  });
+}
+
+const seg   = {"labels": ["Loyal", "Lost", "Need Attention", "Potential Loyalist", "At Risk", "Lost Champions", "New Customers", "Champions"], "counts": [356844, 297302, 279082, 264821, 260151, 241932, 237262, 219540], "revenue": [28031105.0, 15153581.0, 14580302.0, 14419163.0, 20819795.0, 16608024.0, 13385982.0, 29546529.0]};
+const ltv   = {"labels": ["Low (<$100)", "Mid ($100\u2013$300)", "High ($300\u2013$700)", "VIP ($700+)"], "counts": [1781053, 356559, 18345, 977], "revenue": [91918088.0, 52448208.0, 7222284.0, 955900.0]};
+const email = {"labels": ["0", "1\u201310", "11\u201325", "26\u201350", "51\u2013100", "100+"], "customers": [206221, 427071, 422927, 365421, 403865, 103847], "avg_revenue": [69.66, 65.44, 65.64, 75.39, 75.57, 94.72], "avg_orders": [1.17, 1.27, 1.29, 1.37, 1.5, 1.84], "pct_repeat": [12.57, 18.74, 19.55, 24.31, 29.72, 41.2]};
+const retp  = {"labels": ["Bra", "Pant", "Accessories", "Panties", "T-shirt", "Shapewear", "Dress"], "customers": [964438, 855584, 271322, 60346, 5228, 15, 1], "return_rate": [12.02, 9.71, 4.5, 6.7, 6.4, 0.0, 0.0]};
+const rets  = {"labels": ["lynsiecharm.com", "ellymuse.com", "comfysfit.com", "erebloom.com", "lisacharm.com", "mencomfy.com", "texwix.com", "evybliss.com", "senistyle.com", "beeswan.com", "mixicharm.com", "jeadora.com", "caralush.com", "mayaloom.com", "jetjeans.us"], "customers": [98788, 86682, 77975, 72176, 56084, 45852, 45852, 37549, 35740, 33432, 31210, 30391, 28308, 27367, 26961], "return_rate": [3.33, 11.37, 7.46, 4.91, 12.56, 7.91, 10.48, 11.53, 9.41, 7.26, 14.07, 13.62, 11.28, 6.02, 10.49]};
+const store = {"labels": ["lynsiecharm.com", "ellymuse.com", "comfysfit.com", "erebloom.com", "lisacharm.com", "mencomfy.com", "texwix.com", "evybliss.com", "senistyle.com", "beeswan.com", "mixicharm.com", "jeadora.com", "caralush.com", "mayaloom.com", "jetjeans.us"], "customers": [98788, 86682, 77975, 72176, 56084, 45852, 45852, 37549, 35740, 33432, 31210, 30391, 28308, 27367, 26961], "revenue": [4313737.0, 4334177.0, 6351232.0, 3710131.0, 2447797.0, 3341219.0, 3732155.0, 2253106.0, 2954453.0, 3302358.0, 1795963.0, 1561548.0, 1658339.0, 2400294.0, 2217855.0], "avg_ltv": [43.67, 50.0, 81.45, 51.4, 43.65, 72.87, 81.4, 60.0, 82.67, 98.78, 57.54, 51.38, 58.58, 87.71, 82.26]};
+const prod  = {"labels": ["Bra", "Pant", "Accessories", "Panties", "T-shirt", "Shapewear", "Dress"], "customers": [964438, 855584, 271322, 60346, 5228, 15, 1], "revenue": [59323617.0, 75272653.0, 13539411.0, 3998536.0, 409103.0, 1065.0, 95.0], "avg_ltv": [61.51, 87.98, 49.9, 66.26, 78.25, 71.03, 95.05]};
+const ltvEmailsData = {"Low (<$100)": 28.7, "Mid ($100\u2013$300)": 36.8, "High ($300\u2013$700)": 52.4, "VIP ($700+)": 59.7};
+
+// RFM Treemaps
+(function() {
+  const segAvgLtv = {"Loyal": 78.55, "Lost": 50.97, "Need Attention": 52.24, "Potential Loyalist": 54.45, "At Risk": 80.03, "Lost Champions": 68.65, "New Customers": 56.42, "Champions": 134.58};
+  const maxLtv = Math.max(...Object.values(segAvgLtv));
+
+  function rfmColor(avgLtv) {
+    const t = avgLtv / maxLtv;
+    const r = Math.round(99  + (239 - 99)  * (1 - t));
+    const g = Math.round(102 + (68  - 102) * (1 - t));
+    const b = Math.round(241 + (68  - 241) * (1 - t));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function makeTreemap(id, key) {
+    const treeData = seg.labels.map((l, i) => ({
+      g: l, count: seg.counts[i], revenue: seg.revenue[i], avgLtv: segAvgLtv[l] || 0
+    }));
+    new Chart(document.getElementById(id), {
+      type: 'treemap',
+      data: {
+        datasets: [{
+          label: 'RFM',
+          tree: treeData,
+          key: key,
+          groups: ['g'],
+          backgroundColor(ctx) {
+            if (!ctx.raw) return '#6366f1';
+            return rfmColor(ctx.raw._data?.avgLtv || 0);
+          },
+          borderWidth: 1,
+          borderColor: '#0f1117',
+          labels: {
+            display: true,
+            overflow: 'fit',
+            color: '#fff',
+            font: [{ size: 13, weight: '600' }, { size: 11 }],
+            formatter(ctx) {
+              if (!ctx.raw) return '';
+              const d = ctx.raw._data || {};
+              const val = key === 'count'
+                ? (d.count || 0).toLocaleString()
+                : '$' + ((d.revenue || 0) / 1e6).toFixed(2) + 'M';
+              return [d.g || '', val];
+            }
+          }
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title(items) { return items[0]?.raw?._data?.g || ''; },
+              label(item) {
+                const d = item.raw._data || {};
+                return [
+                  `Customers: ${(d.count||0).toLocaleString()}`,
+                  `Revenue: $${(d.revenue||0).toLocaleString(undefined,{maximumFractionDigits:0})}`,
+                  `Avg LTV: $${(d.avgLtv||0).toFixed(2)}`
+                ];
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+  makeTreemap('rfmCount',   'count');
+  makeTreemap('rfmRevenue', 'revenue');
+})();
+donut('ltvCount',   ltv.labels,  ltv.counts);
+vbar('ltvEmails',   ltv.labels,  ltv.labels.map(l => ltvEmailsData[l] || 0), 'Avg Emails', '#6366f1');
+vbar('emailRevenue',email.labels, email.avg_revenue, 'Avg Revenue ($)', '#22c55e');
+vbar('emailRepeat', email.labels, email.pct_repeat,  '% Repeat',        '#38bdf8');
+hbar('retProduct',  retp.labels, retp.return_rate, 'Return Rate %', '#ef4444');
+hbar('retStore',    rets.labels, rets.return_rate, 'Return Rate %', '#f59e0b');
+hbar('storeCustomers', store.labels, store.customers, 'Customers', '#6366f1');
+hbar('storeLTV',    store.labels, store.avg_ltv, 'Avg LTV ($)', '#22c55e');
+hbar('productCustomers', prod.labels, prod.customers, 'Customers', '#38bdf8');
+hbar('productLTV',  prod.labels, prod.avg_ltv, 'Avg LTV ($)', '#f59e0b');
+</script>
+</body>
+</html>
