@@ -1,0 +1,1251 @@
+Delivered-To: son.nln@crossian.com
+Received: by 2002:a05:7300:e785:b0:2a4:51a3:ba4a with SMTP id nx5csp3263999dyb;
+        Wed, 26 Nov 2025 02:48:29 -0800 (PST)
+X-Google-Smtp-Source: AGHT+IE3LWyLvC8PWRB2iYKcNBstaMTMjSqK57bn9xOB14bQWo9/dp0yRkK5BAsGAxVgOTU/B1ke
+X-Received: by 2002:ad4:5bc4:0:b0:880:4c2d:dc8c with SMTP id 6a1803df08f44-8847c497a1dmr275162966d6.18.1764154109197;
+        Wed, 26 Nov 2025 02:48:29 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1764154109; cv=none;
+        d=google.com; s=arc-20240605;
+        b=WlpQM5Yz5+W5vSQ1ddTK3FxyazlKk1lAvf3m0xi80k7ux5grNqdm+3L7BXN72lMLAR
+         23XSRI0FSkpPqEPYaQa0v+Lj8f2ajlARhH+rERtJI/mIlgsiLP6tPPqgbWpmlcjZD/gd
+         P0TYajc8b6kEEDR3g0rEUkvHJAJRFKKJkc1G3LbtUVO0Yb1TQCPqvG8H2Jn4GyUsmdCZ
+         W78pnzTewBnADBFosiQHkw8tesSmMKaz0e7vsvPnBwBn2P9J0LUqnaBTZTb7guzkHwpc
+         ByS/AcEgT7+/3UJP4DukIYvOJhkD9FutS64TAsZnRrf4MEAElIH6mjBHKv3poe0vrdGU
+         Q3Gw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=list-unsubscribe-post:list-unsubscribe:to:subject:message-id
+         :mime-version:from:date:dkim-signature;
+        bh=FR9h6Lwe7gaIqTQzRZjr/v4hC/CqWntez9R3zd0oCOw=;
+        fh=r2idR9MiZkTVC1Dd58UR7gT3jNE9biBT4T/CZs0Xe2s=;
+        b=jKr+NODEoqPVOndav1tTWcdPylgo9m/2dd5kHFbkJ4S8VeVZC7Znd4dUiBcLsSxVJY
+         nTCeQaEjIghMYe9e8h3W7n57C8/yqpN9P5aT3jROGwTNYUajffDWDOBl4qjfNJzH1Aog
+         UpNxcpXuGEUQXiqCTcKEsr46QpKMb5zhKXvutP+15cxcinEjb2fSeQUHnPZol8wcgFC0
+         Qcx1nzWj+IRrBQ8nrKpc8UbcjDJZ2SKMvBWzCXqqYE8olfgx4wyf5vSdkaTx7YJWSqP0
+         0d0exU4Td9c+d8u1825HJfwmOEJhdADMxNHB/5sk3IZLQrb39Q/Uey2B5B5C5kHOi9ib
+         /3rg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@shophelp.org header.s=s1 header.b=S94WcSaV;
+       spf=pass (google.com: domain of bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org designates 159.183.178.182 as permitted sender) smtp.mailfrom="bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=shophelp.org
+Return-Path: <bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org>
+Received: from o18.sg.shophelp.org (o18.sg.shophelp.org. [159.183.178.182])
+        by mx.google.com with ESMTPS id 6a1803df08f44-8846e62fb4csi68789446d6.869.2025.11.26.02.48.28
+        for <son.nln@crossian.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Wed, 26 Nov 2025 02:48:29 -0800 (PST)
+Received-SPF: pass (google.com: domain of bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org designates 159.183.178.182 as permitted sender) client-ip=159.183.178.182;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@shophelp.org header.s=s1 header.b=S94WcSaV;
+       spf=pass (google.com: domain of bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org designates 159.183.178.182 as permitted sender) smtp.mailfrom="bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=shophelp.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=shophelp.org;
+	h=content-type:date:from:mime-version:subject:to:list-unsubscribe:
+	list-unsubscribe-post:cc:content-type:date:from:subject:to;
+	s=s1; bh=FR9h6Lwe7gaIqTQzRZjr/v4hC/CqWntez9R3zd0oCOw=;
+	b=S94WcSaVnveKM6AlVQ+R0ppbCFe8v5setVGmTW/i/EdRh/1vKrcF0MepJA0leUwpWtYX
+	0ghktpiBoNxI2O9boexxCj5TcTOJiOsFfGwAr0THKpVkre0dFNWPLckfXCoMh69eh0STaD
+	EOXJJoAfwu0+MM/xkNuCv5/9BpwBlWgNt3udWoUUGweZ8xBtbyat7XphcstZ8CzIp7v9ic
+	gjNmu+v5lQXJWadtdEv/RnFq0r+FuSS1E8+sJg2RNbzkhMXVfVHJSF1qbIAfoNK+sV0r3u
+	Sk0C99ztsM83tjNG/+M28KJcCxM5VLE/CoAcBaFvJ++s8Pw1j8+sLAdcq6yqdDTA==
+Received: by recvd-59c5cbbc7-fjxss with SMTP id recvd-59c5cbbc7-fjxss-1-6926DAFC-1D
+	2025-11-26 10:48:28.431917032 +0000 UTC m=+7229014.732678811
+Received: from MTAzNzgwNjk (unknown)
+	by geopod-ismtpd-6 (SG) with HTTP
+	id CHJDzzHwQGiIA6CZaEKTUw
+	Wed, 26 Nov 2025 10:48:28.291 +0000 (UTC)
+Content-Type: multipart/alternative; boundary=225f7dd4b61fd16c33bc3b854f96a9a6bbccc2cd68af0769c5c2f286dd3d
+Date: Wed, 26 Nov 2025 10:48:28 +0000 (UTC)
+From: "Sandra @ Bra Goddess" <support@shophelp.org>
+Mime-Version: 1.0
+Message-ID: <CHJDzzHwQGiIA6CZaEKTUw@geopod-ismtpd-6>
+Subject: Hello, Have you missed this 67% O.F.F?
+X-SG-EID: 
+ =?us-ascii?Q?u001=2EHVq8j79czPrhnV44XU0XRpNpVcnAuawlt8TMy2n1lB4Bi9463p0C39HGZ?=
+ =?us-ascii?Q?1EOpx4ZO7tqnSjOaMJYegOOuLpx6OKAEQG1jZjd?=
+ =?us-ascii?Q?G2KZlGnXz4fMnM1vZjJi1exwPfpYRw7ipjkCDP4?=
+ =?us-ascii?Q?c951xT4UxArw+VIzp=2FR3Bsp0RWjzkk6jSvEF47S?=
+ =?us-ascii?Q?f7BhBVIdNSI=2FEjbyvik=2F3vzyhEJ+hzTU2Ud2Bwj?=
+ =?us-ascii?Q?PnsCVDD54WbE1ambxS8KF8jKo4b0288Xg5V=2FZjG?=
+ =?us-ascii?Q?DWc=2F?=
+X-SG-ID: 
+ =?us-ascii?Q?u001=2ESdBcvi+Evd=2FbQef8eZF3BqBarUoop7wAbNFkFpgDGG3Cdod2o+zFGNIi5?=
+ =?us-ascii?Q?RAYLzsgZ72NOVmED2IN9royP6JNnzF+w9Aign8m?=
+ =?us-ascii?Q?2FiQTfnH3XLjOnLeFfNC+qtkef0LRX9UkgJb0Ch?=
+ =?us-ascii?Q?yNf+iO0Iljh2xXfqnot4Vfs+OHGnOHIatR=2F8R03?=
+ =?us-ascii?Q?XQCPTHg80Sydc539gu=2FgIySq7Lt9iQvISFQ9rf4?=
+ =?us-ascii?Q?gJbuuI9FQm+lqvNlgRf3mmJ9pjv5lK9WW51EpCP?= =?us-ascii?Q?Bwfi?=
+To: son.nln@crossian.com
+X-Entity-ID: u001.4Wm0Sc5Qptf3cjwdGhQsZA==
+List-Unsubscribe: 
+ =?us-ascii?Q?=3Chttps=3A=2F=2Fu10378069=2Ect=2Esendgrid=2Enet=2Flu=2Funsubscribe=3Foc=3Du001=2Eq8l-?=
+ =?us-ascii?Q?rYZrD00N33UXVjYEXD4zOp2fd3cp-6aI6bXVQyB?=
+ =?us-ascii?Q?srJSvIF23UF1Ms0t190UkUT6cdVNpZC80rQOBEX?=
+ =?us-ascii?Q?=5FMjTmVcX1IQL526HOEQLtYwgWUUdSUzftr-Rwy9?=
+ =?us-ascii?Q?P0K8QOQgQJ3zGUypCuE6pejZ8xU62wxTkrb-Z0N?=
+ =?us-ascii?Q?RqxlE3PWl9Mt1Z36IFiZ8aLDG0UXpY0F7Xmrd9M?=
+ =?us-ascii?Q?A5GoDUR3Io6csXbsqNTcC0GwRctSITBGgy-Oulq?=
+ =?us-ascii?Q?yZmNpGZRoMoAT=5F4NHI6R40wpUlQ6f8=5FM=5FmFkWui?=
+ =?us-ascii?Q?Rz=5FlLSTapCXuzYynG7Qi3hqsV4cxf52LAlklOI7?=
+ =?us-ascii?Q?XEqeCH2YVKNM5lXonW4VN3HJdqMqoClKKnjJsJ3?=
+ =?us-ascii?Q?BBo4aJ0RWNOJr6tfX7WjKK32XwTL=5FKannH-a5YG?=
+ =?us-ascii?Q?hqLRLAdiQMQIq1te9cpvqw5pSLJBPngqGbrju6t?=
+ =?us-ascii?Q?3Ob76vbXV5FNGT5mB7evhmh0MkGm-lVjo25Af-9?=
+ =?us-ascii?Q?LfTl9HzzttmurNMso0hyf0N0warYzQXTC=5FLuDGH?=
+ =?us-ascii?Q?0y=5FIVrg3=5FiLDs-o2efHq6Nx9BwgRbuZcX4pvobq?=
+ =?us-ascii?Q?o4Fx0sEwLw465z8mzA9Syzl0Os8AJjSVN4PGGCi?=
+ =?us-ascii?Q?D7TCR=5Fvv8q3qo=5Fhjs0hDoWxpptJdhygRMIVIWl7?=
+ =?us-ascii?Q?bd2nUr0xC1RwD8ts0EsqTzAY=5F2DdzjjWfS3VNqq?=
+ =?us-ascii?Q?SI7b1e8Q80TYqMJ7-ZXr-KXnNFEq1y1Z=5F8Q6Hjs?=
+ =?us-ascii?Q?ceudmIwMqCnkuxK9TctnaZPFXeuqscv-wtDVbRV?=
+ =?us-ascii?Q?RvhmvhGBJpCl0ljTjs4qjtT=3E=2C=3Cmailto=3Aunsubs?=
+ =?us-ascii?Q?cribe=40em9986=2Eshophelp=2Eorg=3Fsubject=3Dhttp=3A?=
+ =?us-ascii?Q?=2F=2Furl2723=2Eshophelp=2Eorg=2Fmt=2Fu=2Fu001=2EWa6xqA?=
+ =?us-ascii?Q?HjIDgtovYkhZpfbXGamlpBn1fdlUZERpV=5FHBI=2F4?=
+ =?us-ascii?Q?lx=2Fu001=2EPLy42Xvx=2Fu001=2EIuzJaLZ4d87G-2Fe5?=
+ =?us-ascii?Q?By9ZpLLd00WGq0sGgoqBkYblw8M5pki8XL33xBq?=
+ =?us-ascii?Q?fAf7CUFPeZeTmmYKIHiSgWJchOH1ALt6nFGnXkX?=
+ =?us-ascii?Q?TKBrtUKOboFDECO91J6r4FrR5kZ29zlUMTttRPu?=
+ =?us-ascii?Q?Gs83H2sliPBDQFSVo7DBKr9Kla0IgsryyihsC9E?=
+ =?us-ascii?Q?sC2dmtvjnkCML2jgi-2BZ-2BV27Dvd3Ad-2BSjn?=
+ =?us-ascii?Q?Rw2pjnHswNpNCI4BJ7bYBct58E6OZkiQLs-2FOJ?=
+ =?us-ascii?Q?WGxThXfypu-2FHYYeRapSrstx-2FjndhtHhdZMX?=
+ =?us-ascii?Q?xxYqByXhOGWLiG1tHCgpB1lMAHrJEHuyH6OOOco?=
+ =?us-ascii?Q?1jdB-2Fz58JpBEVcmzTKjoLWjVKLa-2BpAlyO0w?=
+ =?us-ascii?Q?Q9pl5YPS1PmcJwSEf2OyVePEGrOgr9lKHZnmCzW?=
+ =?us-ascii?Q?CMl-2Bn-2BF-2B34WM49xIHsYmXnQ7wQdiX-2Bg?=
+ =?us-ascii?Q?sts7Ju7AHkX0LTSXnJwbADdeksL6gvj27P-2BmP?=
+ =?us-ascii?Q?X5LAt747PVyyA-3D-3D=2Fu001=2EACPxnExa=3E?=
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+
+--225f7dd4b61fd16c33bc3b854f96a9a6bbccc2cd68af0769c5c2f286dd3d
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0
+
+=F0=9F=A5=87The MVP of Bras=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=
+=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C
+
+BraGoddess ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbH=
+CFgewpk81-2FwOsPWwVnAO4ScbV7B5Tmi0A3fLJmk-2FB89507cmUxo6fXe2tV5KFFOPNpvB4dl=
+mJOEjad43JajANFPekmIG4V-2FodISDjcK-2BOZmXIR-2FNCTCZBO1MyzRsBldySuUQHJYf2-2B=
+0elPQdcw0S6swZcR0C7Zn4CdlZ8VXkSJ-2FuPtIczQAzcELtmu-2FruAdu3A7HEq2XkYH0m-2F-=
+2FMiLsWgiG6kEgMjRdo-2BE3AxBcw7ZO4S160oH-2Ba7gEMLWB9zxP-2Bkd9o-2FivFjqESrKSx=
+baJhPBLAs0WJzHtncHCnrPJ4tf8H8fMCtaUnWy_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVu=
+AbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxKVW-2Bw4L=
+9AM2u7ObwOzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oyNASQqxp6=
+ZpozS1624t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5FUKVLPV54=
+-2Fhr4b-2FGP-2BrmMs-2BAyw0uEIC1SN3sFyt-2BfcWiFF99RU5V3Gd3uVbegKZ-2BPFGWybkA=
+Gn3eHJOZmOKB688UfMTf5WzhjwAZmJ9HIR5mWAmbRpBJ0UhxAxRlON64CsQoVu5b9B8NxllbncJ=
+gAJRm912vET3rMOl-2BCc0yNJLNcRz49CVcJi18-2FMzKrywaq2W1a0SFmjtOAe )
+
+*Hello son.nln,*
+I'm so excited to share that *our #1 Customer Choice Bustella Bra* ( http:/=
+/url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFgewpk81-2FwOsPWwV=
+nAO4ScbV7B5R7nlX3t1Cko8oesd6UWiJiz1I0zaPm-2Bsd3epDzobu4utGU8pzoZOt0Ee2cSpwO=
+YgnTzm2csfzNxVM-2Bodr0LspIzD1wK3FTLafwjA6x2ZemrtMHMYeJb5F7gTS0RM0qplAKHU9-2=
+BXnheDfpmluBFemfUer-2BHTpCTOif5lo54LJqn98kQimxRssOoga3Qic0vDGrkz5Dln0Oum2kH=
+vY8L0gNPU50pjFze5Gireb6Tk48E2IH2ZUMASMyKGE28tg4z5nSxQ3vaiJIyFOp026aAMBMwxWC=
+W9gRyGpyrNYeH2kGltw-3D-3D16Fg_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI=
+27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxKVW-2Bw4L9AM2u7Obw=
+OzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oyNASQqxp6ZpozS1624=
+t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5FUKVLPV54-2Fhr4baV=
+EBeH6HcBb0dnkab4lMLpPa4xRSB1sBNboyV9zwjC0dMt7-2FVJskJ4V7YyZQXcAbDqgLbOd0hsu=
+VPUMSYeLUsGJfKxV3rccWxVBm1anzCR6u-2B8wcQxmeGR5oz2vlzb1IQiZzm4Yf58s1eXDVcz5p=
+-2FuvSzfTUsQwazpbyUP8C9RqPgGgCgYLrev-2Ftvn-2Feicbh ) - is now available at =
+*67% O.F.F,* but this ends in just 24 HOURS.
+Like so many women our age, I'd given up hope of finding a bra that actuall=
+y understood my body's needs. But *this powerful shaping bra* delivers what=
+ others only promise: *posture support* that makes you stand taller, *invis=
+ible smoothing* that flatters every curve, and *comfortable lift* that work=
+s for every size.
+
+Bustella ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCF=
+gewpk81-2FwOsPWwVnAO4ScbV7B5R7nlX3t1Cko8oesd6UWiJiz1I0zaPm-2Bsd3epDzobu4utG=
+U8pzoZOt0Ee2cSpwOYgnTzm2csfzNxVM-2Bodr0LspIzD1wK3FTLafwjA6x2ZemrtMHMYeJb5F7=
+gTS0RM0qplAKHU9-2BXnheDfpmluBFemfUer-2BHTpCTOif5lo54LJqn98kQimxRssOoga3Qic0=
+vDGrkz5Dln0Oum2kHvY8L0gNPU50pjFze5Gireb6Tk48E2IH2ZUMASMyKGE28tg4z5nSxQ3vaiJ=
+IyFOp026aAMBMwxWCW9gRyGpyrNYeH2kGltw-3D-3D_gd4_qGIucZ-2Fyx7YhjSEgcJS03zCp-2=
+F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxK=
+VW-2Bw4L9AM2u7ObwOzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oy=
+NASQqxp6ZpozS1624t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5F=
+UKVLPV54-2Fhr4bkb4mIbxKKyb5fbKOVTonFMQ82z-2BVL7LRBv8Ch-2BSA9E-2FtuFqnhBoir5=
+82aCrYe4yJfeoQx5C-2FjOYMIMN5ILw0ileoS6tRcbQrdlUbjizOVY96qiHErH5F0cGW3MDdSAR=
+oC1mh0f-2F4TpiMgflxCCZeNfNmZqUvNFXCmj3SdnVl3GrMpYNRpCGXnIiFpprts3XM )
+
+Daisy Bra ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHC=
+Fgewpk81-2FwOsPWwVnAO4ScbV7B5T7klDZ4u5Vwi-2FBiKUbBn-2BKH-2F9lf8cvefublDliHk=
+10kash0ooNOR5waaN5prBu9EXvels1SACw7JQEcGyhkp4No14TX9ysEZKKjv551zP9XY8jSyys6=
+H0FmNpx8qjRLp-2FRKjSf9QbkTaMnX2mSq8lz5pBMiDDGzZzdulr5lmAkhBk6eI-2Fsl7uYHt8s=
+47MtTN7f3DySncIBT00zFkj44jJAqCLL7r3NDj8-2Fj-2FaoZ14Nh8pOQCcNRJDwQ05I-2BSY2-=
+2BAnKfON2DJNC2GDmmNTf1z3JL6qEUIrGGcOKPQcOhAf1QA-3D-3DXdVv_qGIucZ-2Fyx7YhjSE=
+gcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw=
+-2BSIB2yDxKVW-2Bw4L9AM2u7ObwOzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc=
+0SWvpcGy8oyNASQqxp6ZpozS1624t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4U=
+DFxsCuNjS5FUKVLPV54-2Fhr4bBOE54-2Fk0K2XdFxYZnLNTUxN4Hq2JxeL4WEtU1iZS-2FGuwB=
+hyTZFbA2aXmAfVeatDJBbCiUmJrqZUC1CYs8sRZdOG039wGPCHUajmZecCOUQnaoDnkXRtvCk-2=
+BGF-2FAivAWU-2BCcsCQB9XyyiNHl4amaW-2FG4EP4SqUyooidDRuBJXj-2B0eLmi9PInR8RM-2=
+FyP0v-2F88u )
+
+Activa Bra ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbH=
+CFgewpk81-2FwOsPWwVnAO4ScbV7B5SzHkt5HWh3pm3JbTVl8bXLWPwKyusHnFY-2Fu4pGCq2Hm=
+shoubaT3EaaqVi8pMPiEkMVYo4TXzffN5oTxN1Pl-2BTl-2BGc-2B4ka4mWuLCMsH6hLP5XWr-2=
+FZoH30a5jH0VanQHD1KHZTy2thXbch0-2BuCUARbf7qbBYibXlkkeflSAJmKQWqQbrSu879JV7b=
+b36OE3j78-2BSDXBJ1Q55MrvUjJVLsxdhJTd0XDoKhgF2Ly-2Fhl8TDUrxp4nt5O3fh66Mxni-2=
+BIys8mdC-2FjBm6p-2FVJahOtv7DDsUWHs7PdW0GJgTf-2F65m7bUg-3D-3DT5dK_qGIucZ-2Fy=
+x7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgw=
+DEcJDWw-2BSIB2yDxKVW-2Bw4L9AM2u7ObwOzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTW=
+F5cJmLc0SWvpcGy8oyNASQqxp6ZpozS1624t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ=
+0k7RS4UDFxsCuNjS5FUKVLPV54-2Fhr4bnAEMPWiSY03YjQ2h0jB6KE0-2F6KRhXHbNe4A087MN=
+tXyCFH125P-2FboztY7H8sYI28Sk2E7t7m4PsucPolJoTON0FekhUrQ02zK0DZZQrVx3qZV0-2F=
+H6T3dKIaeE3UEkpCyWjj74-2BT1S5X4PfaekWcjzieSnWGeKdKJoDeTJlNwC82iyOdcWi2nuHAj=
+cUL3awTv )
+
+LushFitting ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6Pb=
+HCFgewpk81-2FwOsPWwVnAO4ScbV7B5SYciGQswPgIBw198QFcz3hyq4vve1ZefHqzaSkZll0Cx=
+9icOQB3cW7chbhfAh0jVLCWIOKbYjydqDjdItY0FQKrmZfAys9KP-2FdfMf-2BZIFECSH-2FoT3=
+v6MYu1WX558ZuMWqhJzAx3bD7JsGHdEqIqMFsvdHs72ngQXef8JVbwNEOOIkouQRgrgQ9xaUNPe=
+zk-2B6xayEGkUB5It00qvRBD15cv8zNKBdqTcKzmffKeWVaShpcWrQquHJ6l8mvYn0UDR0MAskv=
+5AMIj82qWYlPR46woFXFK9dHhI-2B8Wtuw7qhiQJQ-3D-3DLy6D_qGIucZ-2Fyx7YhjSEgcJS03=
+zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB=
+2yDxKVW-2Bw4L9AM2u7ObwOzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpc=
+Gy8oyNASQqxp6ZpozS1624t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCu=
+NjS5FUKVLPV54-2Fhr4beFve9A1G3oLT-2FxRJfLNy88-2FoJp8kKrY-2BMgfs02Qskue5M9YjK=
+YlxVYX3G1eUHrvtGPRbBgmutpsH1b-2BWmeCs3Mh2kgyNXxysg2r7lFKx12aXHUEHoHIbi0Onpt=
+m5rPCAJRUWYOwmsiVeyLbhp09Bh9MkIl9tw7FTz3TWR1UquASM3PbUGdXDCfTiFeJhO1nc )
+
+Yesterday *my neighbor Dorothy* stopped by: 'Sandra, my chiropractor asked =
+what changed=E2=80=94I haven't slouched in weeks!'
+Stop suffering in uncomfortable bras when *50-70% O.F.F comfort* ( http://u=
+rl2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFgewpk81-2FwOsPWwVnA=
+O4ScbV7B5Tmi0A3fLJmk-2FB89507cmUxo6fXe2tV5KFFOPNpvB4dlmJOEjad43JajANFPekmIG=
+4V-2FodISDjcK-2BOZmXIR-2FNCTCZBO1MyzRsBldySuUQHJYf2-2B0elPQdcw0S6swZcR0C7Zn=
+4CdlZ8VXkSJ-2FuPtIczQAzcELtmu-2FruAdu3A7HEq2XkYH0m-2F-2FMiLsWgiG6kEgMjRdo-2=
+BE3AxBcw7ZO4S160oH-2Ba7gEMLWB9zxP-2Bkd9o-2FivFjqESrKSxbaJhPBLAs0WJzHtncHCnr=
+PJ4tf8H8fMCta8LsF_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jd=
+UlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxKVW-2Bw4L9AM2u7ObwOzWNmXX7Qs45=
+1ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oyNASQqxp6ZpozS1624t3yYPbTaiiTo=
+szyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5FUKVLPV54-2Fhr4bg82md2pb9j-2Fs=
+86vN80uG51DXG7ZmImsFC98Goi9nj89oCITVq88LGZv1-2FYLXRuYziLzIwqE-2BqjX29ps97zo=
+-2BM00WTs82Ypgpoydbuh42Kolv5VXlpKc5lztrOg6aR-2FRw8SHSKj1L-2F-2FuFxN0dVjRKF6=
+thmwsz0FlFp9AuZbNV61vfyzAQg95jCnWTec9EjD73 ) is waiting for you RIGHT NOW.
+Warmly,
+Sandra
+
+Senobra ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFg=
+ewpk81-2FwOsPWwVnAO4ScbV7B5Tu0WQk2xQgD8oAtrWZQRmJQDslpwrWTKaHy2L9dQZE3p04w1=
+vosXWm-2F9D8d4H3WI8Vdav9iLsUxoDHNjqcNm2ZJ3L6HaYnLi42amKAF-2BmgqL-2BxRxJkjIj=
+Xx1jXMrLsXkYH1-2BRr8ZqbAplcOoqZz8EeU0bUWHIWUV0wqCav6egsbMHr8ZfPM4htoDLhGQut=
+SxNG2sm5Q-2BP6XLlN-2Bwki8e0MgbJd0qcPL2XYe54-2FA8AiMLhzVQgC0Sq-2F47sN3BO6ETE=
+Om0veORcWhyA4s4qP9-2Fty5Lrm_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27=
+TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxKVW-2Bw4L9AM2u7ObwOz=
+WNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oyNASQqxp6ZpozS1624t3=
+yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5FUKVLPV54-2Fhr4bNmyL=
+QMqAk-2F4QunVdO8sNj3UKLbyDzF8ZVZc1ibynPhtyGnmRXisiA3krTBWk2l9sjvaemyHqS-2Fd=
+n1Rb9Ha-2BZwGag0-2BHgX-2FNA5IHefjwjTnZv-2FUPhuX8ljBsKyA-2BN1lwBET61LLXhFlYQ=
+lpZ2bqP54ggbDOqMYMGdljz8K253pf1fSCCMPEpaThJlEKp3Ozc-2F )
+
+UpLacy ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFge=
+wpk81-2FwOsPWwVnAO4ScbV7B5S7ql4dMS9QiIoFXnIoevQQKjB335ty175-2Fm6DwGnKshdVa7=
+jTPJcPajaI4hUyN0V-2FfNcyFw7n1cgsJ5L6nWsQKLWVPUbMFhKbgFN-2FginiFzIC1vGuhnXEY=
+Di39HzuCG3ietPFGlXrHQFy7eoSaTwicyWNbztx03fDdTMw4LLn2M9NBJebMWtHP2uN37j2tEAm=
+qCnrqMwAScbdkYwZfurYh8X0I4itVbKl0qMAPapn-2F72YtPA18Jw9T1mxAIoDp004jC15Taa8F=
+WzBWGmwB0B23UA0n_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdU=
+lX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxKVW-2Bw4L9AM2u7ObwOzWNmXX7Qs451=
+ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oyNASQqxp6ZpozS1624t3yYPbTaiiTos=
+zyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5FUKVLPV54-2Fhr4bEtx86vpPWKv-2BE=
+pII3USHAC-2B4VPevy93m3idZAWeq18si8crWy28rTlyGWH5AmqO7yAysUXutBNixBKWwICAqbx=
+A-2FmvclLSl5Z00q9TImblLBt1ksI2TxqNpiWwAcLcrogFqJPfLq0roEgGp6ZN9Wbcv10U8VFFd=
+rOfcmpDvym0VoesUFJDoZqDeeEsDlwdys )
+
+P.S. Wanna maximize your saving? *Shipping is on us* for orders over=F0=9F=
+=92=B239!
+
+=F0=9F=92=8C Thanks for shopping at BraGoddess
+You're part of the family! We hope you love your test_label from 05 Sep 202=
+5 (#81-487).
+Want exclusive deals & comfort tips? We'd love to keep in touch! But if you=
+=E2=80=99d rather not hear from us (we=E2=80=99ll be sad, but we understand=
+), you can opt out below.
+Reply with questions - Sandra or our experts are ready to help! Add us to y=
+our email contacts list to stay in the loop.
+BraGoddess.com ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL=
+6PbHCFgewpk81-2FwOsPWwVnAO4ScbV7B5Tmi0A3fLJmk-2FB89507cmUxo6fXe2tV5KFFOPNpv=
+B4dlmJOEjad43JajANFPekmIG4V-2FodISDjcK-2BOZmXIR-2FNCTCZBO1MyzRsBldySuUQHJYf=
+2-2B0elPQdcw0S6swZcR0C7Zn4CdlZ8VXkSJ-2FuPtIczQAzcELtmu-2FruAdu3A7HEq2XkYH0m=
+-2F-2FMiLsWgiG6kEgMjRdo-2BE3AxBcw7ZO4S160oH-2Ba7gEMLWB9zxP-2Bkd9o-2FivFjqES=
+rKSxbaJhPBLAs0WJzHtncHCnrPJ4tf8H8fMCtaV_Fh_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70i=
+NwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxKVW-2=
+Bw4L9AM2u7ObwOzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oyNASQ=
+qxp6ZpozS1624t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5FUKVL=
+PV54-2Fhr4bztBF8-2Fs0nA6HGZbRBX7Xv2JHSxIKMo4jcTBLyBSwqn-2F-2B-2BFv9hmLFoR3Y=
+-2BwQSZdNB2LnX0utm5QxZlBYf8YMZlx6Gv-2BeJmeLIX8S4L3EEZQ2K4Xe4mtSVCSHViWNvV7L=
+61oAXcQRRwR-2FxOeSlJpX9pAFkMeFIb6i6zKdOuPK7f0pVA7fSo0Vz1VYf4AFA5h4-2F )
+770 Walnut Creek Dr NW, Lilburn, GA 30047
+=C2=A9 2025 | Privacy Policy ( http://url2723.shophelp.org/ls/click?upn=3Du=
+001.rNQi58ybmL6PbHCFgewpk81-2FwOsPWwVnAO4ScbV7B5QIU5G2BQxHQ0DbJKphs7daQb5BY=
+dIYfbah8MlSuZr6pVu24dnEdcOsx9-2FQnB7zVSHAy-2FOE6auVAjgtEOdLJerZ6o0JJ9Zp-2B7=
+qvlp2HbQHukkI-2BTCNn1vmt-2FcYbhJkh75lzIFnE6chwDCvIBSG-2Bb45kqubLq-2Bc9JC5so=
+-2FjafvyNAAhaOHIRkRsxKYRNJTDRpVqAJRuacb3yW9I6eXYEV7WHGqsvnGxbe-2FHAOYPBBOLn=
+ll8glaXQc-2BpkfNrbMG-2BdnSvrgmShuAi6P7-2B29UQDc-2F16DP6x-2FCIPFUJjdBJUuX3Sk=
+A-3D-3DK9GW_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03j=
+M5tMrhYDO52BTuWmo4tMgwDEcJDWw-2BSIB2yDxKVW-2Bw4L9AM2u7ObwOzWNmXX7Qs451ilxZa=
+6t8aAeejHn8GRigqJj3TTWF5cJmLc0SWvpcGy8oyNASQqxp6ZpozS1624t3yYPbTaiiToszyLtW=
+sTXo0qhnkhmpvYrczfYfkJ0k7RS4UDFxsCuNjS5FUKVLPV54-2Fhr4b1ORxxOs2bF82W9sk5bus=
+zyQKuBfTCYFpaiVnSDOkUcgnYymzzWN5Vd2q5ksY1hfSwvXlKE7r-2F2unrwsVFIXfrlOc2h6ji=
+yOIJ6752I8-2Fl9UZij1xXrVWQpS37TDW-2BSsg7iuhrBlHnuPXjfoXKg2r7Q5Uzxu9HrGnjgXs=
+N-2BS7QCZiyjP1B-2F2S70Hlo3YiRDr9 ) | Exchanges & Returns ( http://url2723.s=
+hophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFgewpk81-2FwOsPWwVnAO4ScbV7B=
+5TeH8G4ysOsJ2PUswBwe1pXlGI1Ra76kHFk1-2BChUAbWB8q9txcnQ3hI0BH1UrmMNXALm9sYn-=
+2FfQ-2FRzgja9K4xKmYhRkdaN0NmeVXGb0EgWEWUhWy-2BDw8EiGfxU9gHc7pW0-2FL-2BT1-2B=
+L6TWgpGCI-2Bh6fc-2BUXKYIXP7zQWq1CLf7hkYxo-2B-2BjTX5oRZqqosJFlbw-2BqNnAL-2Fm=
+HE-2BwT-2FuTMO-2Buyd4ig-2BbysRkuJ9qdRpTglgwl9RzXjBksKHgc0DNQUYe0KZm62CvhqyA=
+jK1i0tyGIZYi43jOa0LNErGIUSgTNg2JhFvvx7-2BDDIqR9CFiy0c-2B3UfQ-3DRD9l_qGIucZ-=
+2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYDO52BTuWmo4t=
+MgwDEcJDWw-2BSIB2yDxKVW-2Bw4L9AM2u7ObwOzWNmXX7Qs451ilxZa6t8aAeejHn8GRigqJj3=
+TTWF5cJmLc0SWvpcGy8oyNASQqxp6ZpozS1624t3yYPbTaiiToszyLtWsTXo0qhnkhmpvYrczfY=
+fkJ0k7RS4UDFxsCuNjS5FUKVLPV54-2Fhr4bVp9pmhpae6F0QCrzfM7DsuivfhICnHjR9BYCnj0=
+Toq3gyzfoMVLw97rPvFsfvtBN4HsmERkT4mThJ0akAz0ivLx4RACKGoKWDEDdqh9GN47hoC2nA2=
+co3Dq2WFwNHKXo-2BhurIk0q5pr6uFwl6Q4wHuZNsDA2Laq2vmCVMgNStuJGA-2BTckE75yLDY2=
+T8qN0iM )
+--225f7dd4b61fd16c33bc3b854f96a9a6bbccc2cd68af0769c5c2f286dd3d
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html; charset=utf-8
+Mime-Version: 1.0
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org=
+/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html data-editor-version=3D"2" class=3D"sg-campaigns" xmlns=3D"http://www.=
+w3.org/1999/xhtml">
+    <head>
+      <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dutf=
+-8">
+      <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scal=
+e=3D1, minimum-scale=3D1, maximum-scale=3D1">
+      <!--[if !mso]><!-->
+      <meta http-equiv=3D"X-UA-Compatible" content=3D"IE=3DEdge">
+      <!--<![endif]-->
+      <!--[if (gte mso 9)|(IE)]>
+      <xml>
+        <o:OfficeDocumentSettings>
+          <o:AllowPNG/>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+      </xml>
+      <![endif]-->
+      <!--[if (gte mso 9)|(IE)]>
+  <style type=3D"text/css">
+    body {width: 600px;margin: 0 auto;}
+    table {border-collapse: collapse;}
+    table, td {mso-table-lspace: 0pt;mso-table-rspace: 0pt;}
+    img {-ms-interpolation-mode: bicubic;}
+  </style>
+<![endif]-->
+      <style type=3D"text/css">
+    body, p, div {
+      font-family: arial,helvetica,sans-serif;
+      font-size: 16px;
+    }
+    body {
+      color: #000000;
+    }
+    body a {
+      color: #606060;
+      text-decoration: none;
+    }
+    p { margin: 0; padding: 0; }
+    table.wrapper {
+      width:100% !important;
+      table-layout: fixed;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      -moz-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    img.max-width {
+      max-width: 100% !important;
+    }
+    .column.of-2 {
+      width: 50%;
+    }
+    .column.of-3 {
+      width: 33.333%;
+    }
+    .column.of-4 {
+      width: 25%;
+    }
+    ul ul ul ul  {
+      list-style-type: disc !important;
+    }
+    ol ol {
+      list-style-type: lower-roman !important;
+    }
+    ol ol ol {
+      list-style-type: lower-latin !important;
+    }
+    ol ol ol ol {
+      list-style-type: decimal !important;
+    }
+    @media screen and (max-width:480px) {
+      .preheader .rightColumnContent,
+      .footer .rightColumnContent {
+        text-align: left !important;
+      }
+      .preheader .rightColumnContent div,
+      .preheader .rightColumnContent span,
+      .footer .rightColumnContent div,
+      .footer .rightColumnContent span {
+        text-align: left !important;
+      }
+      .preheader .rightColumnContent,
+      .preheader .leftColumnContent {
+        font-size: 80% !important;
+        padding: 5px 0;
+      }
+      table.wrapper-mobile {
+        width: 100% !important;
+        table-layout: fixed;
+      }
+      img.max-width {
+        height: auto !important;
+        max-width: 100% !important;
+      }
+      a.bulletproof-button {
+        display: block !important;
+        width: auto !important;
+        font-size: 80%;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+      .columns {
+        width: 100% !important;
+      }
+      .column {
+        display: block !important;
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      .social-icon-column {
+        display: inline-block !important;
+      }
+    }
+  </style>
+      <!--user entered Head Start--><!--End Head user entered-->
+    </head>
+    <body>
+    <span class=3D"preheader" style=3D"color: transparent; display: none; h=
+eight: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hi=
+de: all; visibility: hidden; width: 0;">=F0=9F=A5=87The MVP of Bras&zwnj;&n=
+bsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp=
+;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&z=
+wnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj=
+;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&n=
+bsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp=
+;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&z=
+wnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj=
+;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&n=
+bsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp=
+;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&z=
+wnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj=
+;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&n=
+bsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp=
+;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&z=
+wnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj=
+;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&n=
+bsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp=
+;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&z=
+wnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj=
+;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&n=
+bsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp=
+;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&z=
+wnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj=
+;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&n=
+bsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp=
+;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&z=
+wnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj=
+;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</span>
+      <center class=3D"wrapper" data-link-color=3D"#606060" data-body-style=
+=3D"font-size:16px; font-family:arial,helvetica,sans-serif; color:#000000; =
+background-color:#FFFFFF;">
+        <div class=3D"webkit">
+          <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" width=3D"=
+100%" class=3D"wrapper" bgcolor=3D"#FFFFFF">
+            <tr>
+              <td valign=3D"top" bgcolor=3D"#FFFFFF" width=3D"100%">
+                <table width=3D"100%" role=3D"content-container" class=3D"o=
+uter" align=3D"center" cellpadding=3D"0" cellspacing=3D"0" border=3D"0">
+                  <tr>
+                    <td width=3D"100%">
+                      <table width=3D"100%" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0">
+                        <tr>
+                          <td>
+                            <!--[if mso]>
+    <center>
+    <table><tr><td width=3D"600">
+  <![endif]-->
+                                    <table width=3D"100%" cellpadding=3D"0"=
+ cellspacing=3D"0" border=3D"0" style=3D"width:100%; max-width:600px;" alig=
+n=3D"center">
+                                      <tr>
+                                        <td role=3D"modules-container" styl=
+e=3D"padding:0px 0px 0px 0px; color:#000000; text-align:left;" bgcolor=3D"#=
+FFFFFF" width=3D"100%" align=3D"left"><table class=3D"module preheader preh=
+eader-hide" role=3D"module" data-type=3D"preheader" border=3D"0" cellpaddin=
+g=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"display: none !important;=
+ mso-hide: all; visibility: hidden; opacity: 0; color: transparent; height:=
+ 0; width: 0;">
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:0px 9px 9px 9px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"564" style=3D"wi=
+dth:564px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 9=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"7R8ArZ4tyYJJcqCQZ4Xxpx">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 0px 0=
+px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://bragoddess.com/?utm_source=
+=3Dselless&utm_medium=3De_bragoddess_20251126_D_8_tid&utm_campaign=3D&utm_c=
+ontent=3De_bragoddess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5sob5yr&ex=
+piry=3D1764374400000&po_id=3D"><img class=3D"max-width" border=3D"0" style=
+=3D"display:block; color:#000000; text-decoration:none; font-family:Helveti=
+ca, arial, sans-serif; font-size:16px; max-width:100% !important; width:100=
+%; height:auto !important;" width=3D"564" alt=3D"BraGoddess" data-proportio=
+nally-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.mcaut=
+o-images-production.sendgrid.net/620c172d5dfc1e89/3589d634-7220-4394-9332-d=
+10a547ef295/650x913.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:9px 18px 18px 18px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"528" style=3D"wi=
+dth:528px; border-spacing:0; border-collapse:collapse; margin:0px 18px 0px =
+18px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgco=
+lor=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"module" role=3D"module" data-type=3D"text" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"3c1ee5ee-c561-4beb-9c30-b6da08b3d425.1.1" data-mc-module-version=
+=3D"2019-10-22">
+    <tbody>
+      <tr>
+        <td style=3D"padding:0px 0px 0px 0px; line-height:24px; text-align:=
+inherit; background-color:#FFFFFF;" height=3D"100%" valign=3D"top" bgcolor=
+=3D"#FFFFFF" role=3D"module-content"><div><div style=3D"font-family: inheri=
+t; text-align: inherit"><span style=3D"font-style: normal; font-variant-lig=
+atures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing=
+: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: n=
+one; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-sp=
+ace-collapse: preserve; text-decoration-thickness: initial; text-decoration=
+-style: initial; text-decoration-color: initial; float: none; display: inli=
+ne; font-family: arial, helvetica, sans-serif; font-size: 16px; color: #a02=
+338"><strong>Hello son.nln,</strong></span></div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"fon=
+t-style: normal; font-variant-ligatures: normal; font-variant-caps: normal;=
+ font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; te=
+xt-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit=
+-text-stroke-width: 0px; white-space-collapse: preserve; text-decoration-th=
+ickness: initial; text-decoration-style: initial; text-decoration-color: in=
+itial; float: none; display: inline; font-family: arial, helvetica, sans-se=
+rif; font-size: 16px">I'm so excited to share that </span><a clicktracking=
+=3Doff href=3D"https://bragoddess.com/bustella?utm_source=3Dselless&utm_med=
+ium=3De_bragoddess_20251126_D_8_tid&utm_campaign=3D&utm_content=3De_bragodd=
+ess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5sob5yr&expiry=3D17643744000=
+00&po_id=3D"><span style=3D"font-style: normal; font-variant-ligatures: nor=
+mal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; o=
+rphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows=
+: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space-collaps=
+e: preserve; text-decoration-thickness: initial; text-decoration-style: ini=
+tial; text-decoration-color: initial; float: none; display: inline; font-fa=
+mily: arial, helvetica, sans-serif; font-size: 16px; color: #a02338"><stron=
+g>our #1 Customer Choice Bustella Bra</strong></span></a><span style=3D"fon=
+t-style: normal; font-variant-ligatures: normal; font-variant-caps: normal;=
+ font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; te=
+xt-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit=
+-text-stroke-width: 0px; white-space-collapse: preserve; text-decoration-th=
+ickness: initial; text-decoration-style: initial; text-decoration-color: in=
+itial; float: none; display: inline; font-family: arial, helvetica, sans-se=
+rif; font-size: 16px"> - is now available at</span><span style=3D"font-styl=
+e: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-=
+weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-ind=
+ent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-=
+stroke-width: 0px; white-space-collapse: preserve; text-decoration-thicknes=
+s: initial; text-decoration-style: initial; text-decoration-color: initial;=
+ float: none; display: inline; font-family: arial, helvetica, sans-serif; f=
+ont-size: 16px; color: #a02338"> </span><span style=3D"font-style: normal; =
+font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400=
+; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; t=
+ext-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-widt=
+h: 0px; white-space-collapse: preserve; text-decoration-thickness: initial;=
+ text-decoration-style: initial; text-decoration-color: initial; float: non=
+e; display: inline; font-family: arial, helvetica, sans-serif; font-size: 1=
+6px; color: #a02338"><strong>67% O.F.F, </strong></span><span style=3D"font=
+-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; =
+font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; tex=
+t-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-=
+text-stroke-width: 0px; white-space-collapse: preserve; text-decoration-thi=
+ckness: initial; text-decoration-style: initial; text-decoration-color: ini=
+tial; float: none; display: inline; font-family: arial, helvetica, sans-ser=
+if; font-size: 16px">but this ends in just 24 HOURS.</span></div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"fon=
+t-style: normal; font-variant-ligatures: normal; font-variant-caps: normal;=
+ font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; te=
+xt-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit=
+-text-stroke-width: 0px; white-space-collapse: preserve; text-decoration-th=
+ickness: initial; text-decoration-style: initial; text-decoration-color: in=
+itial; float: none; display: inline; font-family: arial, helvetica, sans-se=
+rif; font-size: 16px">Like so many women our age, I'd given up hope of find=
+ing a bra that actually understood my body's needs. But </span><span style=
+=3D"font-style: normal; font-variant-ligatures: normal; font-variant-caps: =
+normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: l=
+eft; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; white-space-collapse: preserve; text-decora=
+tion-thickness: initial; text-decoration-style: initial; text-decoration-co=
+lor: initial; float: none; display: inline; font-family: arial, helvetica, =
+sans-serif; font-size: 16px; color: #a02338"><strong>this powerful shaping =
+bra</strong></span><span style=3D"font-style: normal; font-variant-ligature=
+s: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: nor=
+mal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; =
+widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space-c=
+ollapse: preserve; text-decoration-thickness: initial; text-decoration-styl=
+e: initial; text-decoration-color: initial; float: none; display: inline; f=
+ont-family: arial, helvetica, sans-serif; font-size: 16px"> delivers what o=
+thers only promise: </span><span style=3D"font-style: normal; font-variant-=
+ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spac=
+ing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform=
+: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white=
+-space-collapse: preserve; text-decoration-thickness: initial; text-decorat=
+ion-style: initial; text-decoration-color: initial; float: none; display: i=
+nline; font-family: arial, helvetica, sans-serif; font-size: 16px; color: #=
+a02338"><strong>posture support </strong></span><span style=3D"font-style: =
+normal; font-variant-ligatures: normal; font-variant-caps: normal; font-wei=
+ght: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent=
+: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-str=
+oke-width: 0px; white-space-collapse: preserve; text-decoration-thickness: =
+initial; text-decoration-style: initial; text-decoration-color: initial; fl=
+oat: none; display: inline; font-family: arial, helvetica, sans-serif; font=
+-size: 16px">that makes you stand taller,</span><span style=3D"font-style: =
+normal; font-variant-ligatures: normal; font-variant-caps: normal; font-wei=
+ght: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent=
+: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-str=
+oke-width: 0px; white-space-collapse: preserve; text-decoration-thickness: =
+initial; text-decoration-style: initial; text-decoration-color: initial; fl=
+oat: none; display: inline; font-family: arial, helvetica, sans-serif; font=
+-size: 16px; color: #a02338"> </span><span style=3D"font-style: normal; fon=
+t-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; l=
+etter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text=
+-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: =
+0px; white-space-collapse: preserve; text-decoration-thickness: initial; te=
+xt-decoration-style: initial; text-decoration-color: initial; float: none; =
+display: inline; font-family: arial, helvetica, sans-serif; font-size: 16px=
+; color: #a02338"><strong>invisible smoothing</strong></span><span style=3D=
+"font-style: normal; font-variant-ligatures: normal; font-variant-caps: nor=
+mal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left=
+; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -we=
+bkit-text-stroke-width: 0px; white-space-collapse: preserve; text-decoratio=
+n-thickness: initial; text-decoration-style: initial; text-decoration-color=
+: initial; float: none; display: inline; font-family: arial, helvetica, san=
+s-serif; font-size: 16px"> that flatters every curve, and </span><span styl=
+e=3D"font-style: normal; font-variant-ligatures: normal; font-variant-caps:=
+ normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: =
+left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px;=
+ -webkit-text-stroke-width: 0px; white-space-collapse: preserve; text-decor=
+ation-thickness: initial; text-decoration-style: initial; text-decoration-c=
+olor: initial; float: none; display: inline; font-family: arial, helvetica,=
+ sans-serif; font-size: 16px; color: #a02338"><strong>comfortable lift </st=
+rong></span><span style=3D"font-style: normal; font-variant-ligatures: norm=
+al; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; or=
+phans: 2; text-align: left; text-indent: 0px; text-transform: none; widows:=
+ 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space-collapse=
+: preserve; text-decoration-thickness: initial; text-decoration-style: init=
+ial; text-decoration-color: initial; float: none; display: inline; font-fam=
+ily: arial, helvetica, sans-serif; font-size: 16px">that works for every si=
+ze.&nbsp;</span></div><div></div></div></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:18px 9px 18px 9px;" bgcolor=3D"" data-distribution=3D"1,1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"282" style=3D"wi=
+dth:282px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 0=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"9c640d54-97c7-4d7a-a636-5bacb09011e4.1.2">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 18px =
+0px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://bragoddess.com/bustella?utm_=
+source=3Dselless&utm_medium=3De_bragoddess_20251126_D_8_tid&utm_campaign=3D=
+&utm_content=3De_bragoddess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5sob=
+5yr&expiry=3D1764374400000&po_id=3D"><img class=3D"max-width" border=3D"0" =
+style=3D"display:block; color:#000000; text-decoration:none; font-family:He=
+lvetica, arial, sans-serif; font-size:16px; max-width:100% !important; widt=
+h:100%; height:auto !important;" width=3D"282" alt=3D"Bustella" data-propor=
+tionally-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.mc=
+auto-images-production.sendgrid.net/620c172d5dfc1e89/a700a154-e7ca-4287-b5a=
+c-a0102b395ba1/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table><table width=3D"282" style=3D"width:282px; border-spacing:0; bo=
+rder-collapse:collapse; margin:0px 0px 0px 9px;" cellpadding=3D"0" cellspac=
+ing=3D"0" align=3D"left" border=3D"0" bgcolor=3D"" class=3D"column column-1=
+">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"f0e5dc80-f7b8-4c64-87b5-a288bde69423">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 0px 0=
+px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://bragoddess.com/daisybra?utm_=
+source=3Dselless&utm_medium=3De_bragoddess_20251126_D_8_tid&utm_campaign=3D=
+&utm_content=3De_bragoddess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5sob=
+5yr&expiry=3D1764374400000&po_id=3D"><img class=3D"max-width" border=3D"0" =
+style=3D"display:block; color:#000000; text-decoration:none; font-family:He=
+lvetica, arial, sans-serif; font-size:16px; max-width:100% !important; widt=
+h:100%; height:auto !important;" width=3D"282" alt=3D"Daisy Bra" data-propo=
+rtionally-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.m=
+cauto-images-production.sendgrid.net/620c172d5dfc1e89/d1e1e9d7-5077-4f94-8a=
+62-464f9e6744eb/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:0px 9px 18px 9px;" bgcolor=3D"" data-distribution=3D"1,1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"282" style=3D"wi=
+dth:282px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 0=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"9c640d54-97c7-4d7a-a636-5bacb09011e4.1.2.3.2">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 18px =
+0px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://bragoddess.com/activabra?utm=
+_source=3Dselless&utm_medium=3De_bragoddess_20251126_D_8_tid&utm_campaign=
+=3D&utm_content=3De_bragoddess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5=
+sob5yr&expiry=3D1764374400000&po_id=3D"><img class=3D"max-width" border=3D"=
+0" style=3D"display:block; color:#000000; text-decoration:none; font-family=
+:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; w=
+idth:100%; height:auto !important;" width=3D"282" alt=3D"Activa Bra" data-p=
+roportionally-constrained=3D"true" data-responsive=3D"true" src=3D"http://c=
+dn.mcauto-images-production.sendgrid.net/620c172d5dfc1e89/5eb75ea3-bd95-4bf=
+b-9079-5c718947dc4f/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table><table width=3D"282" style=3D"width:282px; border-spacing:0; bo=
+rder-collapse:collapse; margin:0px 0px 0px 9px;" cellpadding=3D"0" cellspac=
+ing=3D"0" align=3D"left" border=3D"0" bgcolor=3D"" class=3D"column column-1=
+">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"f0e5dc80-f7b8-4c64-87b5-a288bde69423.3.1">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 0px 0=
+px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://bragoddess.com/lushfitting?u=
+tm_source=3Dselless&utm_medium=3De_bragoddess_20251126_D_8_tid&utm_campaign=
+=3D&utm_content=3De_bragoddess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5=
+sob5yr&expiry=3D1764374400000&po_id=3D"><img class=3D"max-width" border=3D"=
+0" style=3D"display:block; color:#000000; text-decoration:none; font-family=
+:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; w=
+idth:100%; height:auto !important;" width=3D"282" alt=3D"LushFitting" data-=
+proportionally-constrained=3D"true" data-responsive=3D"true" src=3D"http://=
+cdn.mcauto-images-production.sendgrid.net/620c172d5dfc1e89/76da3eb9-a187-47=
+52-8de9-b11ad2c45443/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:9px 18px 18px 18px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"528" style=3D"wi=
+dth:528px; border-spacing:0; border-collapse:collapse; margin:0px 18px 0px =
+18px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgco=
+lor=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"module" role=3D"module" data-type=3D"text" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"3c1ee5ee-c561-4beb-9c30-b6da08b3d425.1.1.1" data-mc-module-version=
+=3D"2019-10-22">
+    <tbody>
+      <tr>
+        <td style=3D"padding:0px 0px 0px 0px; line-height:24px; text-align:=
+inherit; background-color:#FFFFFF;" height=3D"100%" valign=3D"top" bgcolor=
+=3D"#FFFFFF" role=3D"module-content"><div><div style=3D"font-family: inheri=
+t; text-align: inherit">Yesterday <span style=3D"color: #a02338"><strong>my=
+ neighbor Dorothy</strong></span> stopped by: <span style=3D"color: #a02338=
+"><em>'Sandra, my chiropractor asked what changed=E2=80=94I haven't slouche=
+d in weeks!'</em></span><br>
+Stop suffering in uncomfortable bras when <a clicktracking=3Doff href=3D"ht=
+tps://bragoddess.com/?utm_source=3Dselless&utm_medium=3De_bragoddess_202511=
+26_D_8_tid&utm_campaign=3D&utm_content=3De_bragoddess_20251126_D_8_tid&scli=
+d=3D6wbdkv0wx8sc14kf5e5sob5yr&expiry=3D1764374400000&po_id=3D"><span style=
+=3D"color: #a02338"><strong>50-70% O.F.F comfort</strong></span></a> is wai=
+ting for you RIGHT NOW.<br>
+Warmly,<br>
+<em>Sandra</em></div><div></div></div></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:0px 9px 18px 9px;" bgcolor=3D"" data-distribution=3D"1,1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"282" style=3D"wi=
+dth:282px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 0=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"9c640d54-97c7-4d7a-a636-5bacb09011e4.1.2.3">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 18px =
+0px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://bragoddess.com/senobra?utm_s=
+ource=3Dselless&utm_medium=3De_bragoddess_20251126_D_8_tid&utm_campaign=3D&=
+utm_content=3De_bragoddess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5sob5=
+yr&expiry=3D1764374400000&po_id=3D"><img class=3D"max-width" border=3D"0" s=
+tyle=3D"display:block; color:#000000; text-decoration:none; font-family:Hel=
+vetica, arial, sans-serif; font-size:16px; max-width:100% !important; width=
+:100%; height:auto !important;" width=3D"282" alt=3D"Senobra" data-proporti=
+onally-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.mcau=
+to-images-production.sendgrid.net/620c172d5dfc1e89/bb71d390-c9f4-4eb8-befe-=
+eb6a3066f473/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table><table width=3D"282" style=3D"width:282px; border-spacing:0; bo=
+rder-collapse:collapse; margin:0px 0px 0px 9px;" cellpadding=3D"0" cellspac=
+ing=3D"0" align=3D"left" border=3D"0" bgcolor=3D"" class=3D"column column-1=
+">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"f0e5dc80-f7b8-4c64-87b5-a288bde69423.3">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 0px 0=
+px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://bragoddess.com/uplacy?utm_so=
+urce=3Dselless&utm_medium=3De_bragoddess_20251126_D_8_tid&utm_campaign=3D&u=
+tm_content=3De_bragoddess_20251126_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5sob5y=
+r&expiry=3D1764374400000&po_id=3D"><img class=3D"max-width" border=3D"0" st=
+yle=3D"display:block; color:#000000; text-decoration:none; font-family:Helv=
+etica, arial, sans-serif; font-size:16px; max-width:100% !important; width:=
+100%; height:auto !important;" width=3D"282" alt=3D"UpLacy" data-proportion=
+ally-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.mcauto=
+-images-production.sendgrid.net/620c172d5dfc1e89/7cad925b-d314-4025-9ac9-7e=
+35013742c8/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:9px 18px 18px 18px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"528" style=3D"wi=
+dth:528px; border-spacing:0; border-collapse:collapse; margin:0px 18px 0px =
+18px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgco=
+lor=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"module" role=3D"module" data-type=3D"text" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"3c1ee5ee-c561-4beb-9c30-b6da08b3d425.1.1.1.2" data-mc-module-versi=
+on=3D"2019-10-22">
+    <tbody>
+      <tr>
+        <td style=3D"padding:0px 0px 0px 0px; line-height:24px; text-align:=
+inherit; background-color:#FFFFFF;" height=3D"100%" valign=3D"top" bgcolor=
+=3D"#FFFFFF" role=3D"module-content"><div><div style=3D"font-family: inheri=
+t; text-align: center"><span style=3D"color: #000000">P.S. Wanna maximize y=
+our saving? </span><span style=3D"color: #a02338"><strong>Shipping is on us=
+</strong></span><span style=3D"color: #000000"> for orders over=F0=9F=92=B2=
+39!</span></div><div></div></div></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:9px 0px 0px 0px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"564" style=3D"wi=
+dth:564px; border-spacing:0; border-collapse:collapse; margin:0px 18px 0px =
+18px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgco=
+lor=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"module" role=3D"module" data-type=3D"text" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"c2563ba7-95bd-4412-8c1c-65e0630c3306" data-mc-module-version=3D"20=
+19-10-22">
+    <tbody>
+      <tr>
+        <td style=3D"padding:0px 9px 0px 9px; line-height:20px; text-align:=
+inherit; background-color:#FFFFFF;" height=3D"100%" valign=3D"top" bgcolor=
+=3D"#FFFFFF" role=3D"module-content"><div><div style=3D"font-family: inheri=
+t; text-align: center"><span style=3D"box-sizing: border-box; font-style: i=
+nherit; font-variant-ligatures: inherit; font-variant-caps: inherit; font-v=
+ariant-numeric: inherit; font-variant-east-asian: inherit; font-variant-alt=
+ernates: inherit; font-weight: inherit; font-stretch: inherit; line-height:=
+ inherit; font-optical-sizing: inherit; font-kerning: inherit; font-feature=
+-settings: inherit; font-variation-settings: inherit; vertical-align: basel=
+ine; border-image-source: initial; border-image-slice: initial; border-imag=
+e-width: initial; border-image-outset: initial; border-image-repeat: initia=
+l; text-align: center; letter-spacing: normal; orphans: 2; text-indent: 0px=
+; text-transform: none; white-space-collapse: preserve; widows: 2; word-spa=
+cing: 0px; -webkit-text-stroke-width: 0px; text-decoration-thickness: initi=
+al; text-decoration-style: initial; text-decoration-color: initial; padding=
+-top: 0px; padding-right: 0px; padding-bottom: 0px; padding-left: 0px; marg=
+in-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font-=
+family: arial, helvetica, sans-serif; font-size: 12px">=F0=9F=92=8C Thanks =
+for shopping at BraGoddess</span></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; font-style: inherit; font-variant-ligatures: inherit; f=
+ont-variant-caps: inherit; font-variant-numeric: inherit; font-variant-east=
+-asian: inherit; font-variant-alternates: inherit; font-weight: inherit; fo=
+nt-stretch: inherit; line-height: inherit; font-optical-sizing: inherit; fo=
+nt-kerning: inherit; font-feature-settings: inherit; font-variation-setting=
+s: inherit; vertical-align: baseline; border-image-source: initial; border-=
+image-slice: initial; border-image-width: initial; border-image-outset: ini=
+tial; border-image-repeat: initial; text-align: center; letter-spacing: nor=
+mal; orphans: 2; text-indent: 0px; text-transform: none; white-space-collap=
+se: preserve; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px;=
+ text-decoration-thickness: initial; text-decoration-style: initial; text-d=
+ecoration-color: initial; padding-top: 0px; padding-right: 0px; padding-bot=
+tom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bot=
+tom: 0px; margin-left: 0px; font-family: arial, helvetica, sans-serif; font=
+-size: 12px">You're part of the family! We hope you love your test_label fr=
+om 05 Sep 2025 (#81-487).</span></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; font-style: inherit; font-variant-ligatures: inherit; f=
+ont-variant-caps: inherit; font-variant-numeric: inherit; font-variant-east=
+-asian: inherit; font-variant-alternates: inherit; font-weight: inherit; fo=
+nt-stretch: inherit; line-height: inherit; font-optical-sizing: inherit; fo=
+nt-kerning: inherit; font-feature-settings: inherit; font-variation-setting=
+s: inherit; vertical-align: baseline; border-image-source: initial; border-=
+image-slice: initial; border-image-width: initial; border-image-outset: ini=
+tial; border-image-repeat: initial; text-align: center; letter-spacing: nor=
+mal; orphans: 2; text-indent: 0px; text-transform: none; white-space-collap=
+se: preserve; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px;=
+ text-decoration-thickness: initial; text-decoration-style: initial; text-d=
+ecoration-color: initial; padding-top: 0px; padding-right: 0px; padding-bot=
+tom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bot=
+tom: 0px; margin-left: 0px; font-family: arial, helvetica, sans-serif; font=
+-size: 12px">Want exclusive deals &amp; comfort tips? We'd love to keep in =
+touch! But if you=E2=80=99d rather not hear from us (we=E2=80=99ll be sad, =
+but we understand), you can opt out below.</span></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; font-style: inherit; font-variant-ligatures: inherit; f=
+ont-variant-caps: inherit; font-variant-numeric: inherit; font-variant-east=
+-asian: inherit; font-variant-alternates: inherit; font-weight: inherit; fo=
+nt-stretch: inherit; line-height: inherit; font-optical-sizing: inherit; fo=
+nt-kerning: inherit; font-feature-settings: inherit; font-variation-setting=
+s: inherit; vertical-align: baseline; border-image-source: initial; border-=
+image-slice: initial; border-image-width: initial; border-image-outset: ini=
+tial; border-image-repeat: initial; text-align: center; letter-spacing: nor=
+mal; orphans: 2; text-indent: 0px; text-transform: none; white-space-collap=
+se: preserve; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px;=
+ text-decoration-thickness: initial; text-decoration-style: initial; text-d=
+ecoration-color: initial; padding-top: 0px; padding-right: 0px; padding-bot=
+tom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bot=
+tom: 0px; margin-left: 0px; font-family: arial, helvetica, sans-serif; font=
+-size: 12px">Reply with questions - Sandra or our experts are ready to help=
+! Add us to your email contacts list to stay in the loop.</span></div>
+<div style=3D"font-family: inherit; text-align: center"><a clicktracking=3D=
+off href=3D"https://bragoddess.com/?utm_source=3Dselless&utm_medium=3De_bra=
+goddess_20251126_D_8_tid&utm_campaign=3D&utm_content=3De_bragoddess_2025112=
+6_D_8_tid&sclid=3D6wbdkv0wx8sc14kf5e5sob5yr&expiry=3D1764374400000&po_id=3D=
+"><span style=3D"box-sizing: border-box; font-style: inherit; font-variant-=
+ligatures: inherit; font-variant-caps: inherit; font-variant-numeric: inher=
+it; font-variant-east-asian: inherit; font-variant-alternates: inherit; fon=
+t-weight: inherit; font-stretch: inherit; line-height: inherit; font-optica=
+l-sizing: inherit; font-kerning: inherit; font-feature-settings: inherit; f=
+ont-variation-settings: inherit; vertical-align: baseline; border-image-sou=
+rce: initial; border-image-slice: initial; border-image-width: initial; bor=
+der-image-outset: initial; border-image-repeat: initial; text-align: center=
+; letter-spacing: normal; orphans: 2; text-indent: 0px; text-transform: non=
+e; white-space-collapse: preserve; widows: 2; word-spacing: 0px; -webkit-te=
+xt-stroke-width: 0px; text-decoration-thickness: initial; text-decoration-s=
+tyle: initial; text-decoration-color: initial; padding-top: 0px; padding-ri=
+ght: 0px; padding-bottom: 0px; padding-left: 0px; margin-top: 0px; margin-r=
+ight: 0px; margin-bottom: 0px; margin-left: 0px; font-family: arial, helvet=
+ica, sans-serif; font-size: 12px">BraGoddess.com</span></a></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; font-style: inherit; font-variant-ligatures: inherit; f=
+ont-variant-caps: inherit; font-variant-numeric: inherit; font-variant-east=
+-asian: inherit; font-variant-alternates: inherit; font-weight: inherit; fo=
+nt-stretch: inherit; line-height: inherit; font-optical-sizing: inherit; fo=
+nt-kerning: inherit; font-feature-settings: inherit; font-variation-setting=
+s: inherit; vertical-align: baseline; border-image-source: initial; border-=
+image-slice: initial; border-image-width: initial; border-image-outset: ini=
+tial; border-image-repeat: initial; text-align: center; letter-spacing: nor=
+mal; orphans: 2; text-indent: 0px; text-transform: none; white-space-collap=
+se: preserve; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px;=
+ text-decoration-thickness: initial; text-decoration-style: initial; text-d=
+ecoration-color: initial; padding-top: 0px; padding-right: 0px; padding-bot=
+tom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bot=
+tom: 0px; margin-left: 0px; font-family: arial, helvetica, sans-serif; font=
+-size: 12px">770 Walnut Creek Dr NW, Lilburn, GA 30047</span></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; font-style: inherit; font-variant-ligatures: inherit; f=
+ont-variant-caps: inherit; font-variant-numeric: inherit; font-variant-east=
+-asian: inherit; font-variant-alternates: inherit; font-weight: inherit; fo=
+nt-stretch: inherit; line-height: inherit; font-optical-sizing: inherit; fo=
+nt-kerning: inherit; font-feature-settings: inherit; font-variation-setting=
+s: inherit; vertical-align: baseline; border-image-source: initial; border-=
+image-slice: initial; border-image-width: initial; border-image-outset: ini=
+tial; border-image-repeat: initial; text-align: center; letter-spacing: nor=
+mal; orphans: 2; text-indent: 0px; text-transform: none; white-space-collap=
+se: preserve; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px;=
+ text-decoration-thickness: initial; text-decoration-style: initial; text-d=
+ecoration-color: initial; padding-top: 0px; padding-right: 0px; padding-bot=
+tom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bot=
+tom: 0px; margin-left: 0px; font-family: arial, helvetica, sans-serif; font=
+-size: 12px">=C2=A9 2025 | </span><a clicktracking=3Doff href=3D"https://br=
+agoddess.com/static/privacy?utm_source=3Dselless&utm_medium=3De_bragoddess_=
+20251126_D_8_tid&utm_campaign=3D&utm_content=3De_bragoddess_20251126_D_8_ti=
+d&sclid=3D6wbdkv0wx8sc14kf5e5sob5yr&expiry=3D1764374400000&po_id=3D"><span =
+style=3D"box-sizing: border-box; font-style: inherit; font-variant-ligature=
+s: inherit; font-variant-caps: inherit; font-variant-numeric: inherit; font=
+-variant-east-asian: inherit; font-variant-alternates: inherit; font-weight=
+: inherit; font-stretch: inherit; line-height: inherit; font-optical-sizing=
+: inherit; font-kerning: inherit; font-feature-settings: inherit; font-vari=
+ation-settings: inherit; vertical-align: baseline; border-image-source: ini=
+tial; border-image-slice: initial; border-image-width: initial; border-imag=
+e-outset: initial; border-image-repeat: initial; text-align: center; letter=
+-spacing: normal; orphans: 2; text-indent: 0px; text-transform: none; white=
+-space-collapse: preserve; widows: 2; word-spacing: 0px; -webkit-text-strok=
+e-width: 0px; text-decoration-thickness: initial; text-decoration-style: in=
+itial; text-decoration-color: initial; padding-top: 0px; padding-right: 0px=
+; padding-bottom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0p=
+x; margin-bottom: 0px; margin-left: 0px; font-family: arial, helvetica, san=
+s-serif; font-size: 12px"><u>Privacy Policy</u></span></a><span style=3D"bo=
+x-sizing: border-box; font-style: inherit; font-variant-ligatures: inherit;=
+ font-variant-caps: inherit; font-variant-numeric: inherit; font-variant-ea=
+st-asian: inherit; font-variant-alternates: inherit; font-weight: inherit; =
+font-stretch: inherit; line-height: inherit; font-optical-sizing: inherit; =
+font-kerning: inherit; font-feature-settings: inherit; font-variation-setti=
+ngs: inherit; vertical-align: baseline; border-image-source: initial; borde=
+r-image-slice: initial; border-image-width: initial; border-image-outset: i=
+nitial; border-image-repeat: initial; text-align: center; letter-spacing: n=
+ormal; orphans: 2; text-indent: 0px; text-transform: none; white-space-coll=
+apse: preserve; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0p=
+x; text-decoration-thickness: initial; text-decoration-style: initial; text=
+-decoration-color: initial; padding-top: 0px; padding-right: 0px; padding-b=
+ottom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-b=
+ottom: 0px; margin-left: 0px; font-family: arial, helvetica, sans-serif; fo=
+nt-size: 12px"> | </span><a clicktracking=3Doff href=3D"https://bragoddess.=
+com/static/exchanges-returns?utm_source=3Dselless&utm_medium=3De_bragoddess=
+_20251126_D_8_tid&utm_campaign=3D&utm_content=3De_bragoddess_20251126_D_8_t=
+id&sclid=3D6wbdkv0wx8sc14kf5e5sob5yr&expiry=3D1764374400000&po_id=3D"><span=
+ style=3D"box-sizing: border-box; font-style: inherit; font-variant-ligatur=
+es: inherit; font-variant-caps: inherit; font-variant-numeric: inherit; fon=
+t-variant-east-asian: inherit; font-variant-alternates: inherit; font-weigh=
+t: inherit; font-stretch: inherit; line-height: inherit; font-optical-sizin=
+g: inherit; font-kerning: inherit; font-feature-settings: inherit; font-var=
+iation-settings: inherit; vertical-align: baseline; border-image-source: in=
+itial; border-image-slice: initial; border-image-width: initial; border-ima=
+ge-outset: initial; border-image-repeat: initial; text-align: center; lette=
+r-spacing: normal; orphans: 2; text-indent: 0px; text-transform: none; whit=
+e-space-collapse: preserve; widows: 2; word-spacing: 0px; -webkit-text-stro=
+ke-width: 0px; text-decoration-thickness: initial; text-decoration-style: i=
+nitial; text-decoration-color: initial; padding-top: 0px; padding-right: 0p=
+x; padding-bottom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0=
+px; margin-bottom: 0px; margin-left: 0px; font-family: arial, helvetica, sa=
+ns-serif; font-size: 12px"><u>Exchanges &amp; Returns</u></span></a></div><=
+div></div></div></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table></td>
+                                      </tr>
+                                    </table>
+                                    <!--[if mso]>
+                                  </td>
+                                </tr>
+                              </table>
+                            </center>
+                            <![endif]-->
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </center>
+    <p style=3D"font-size:11px; color:#717171;"><a href=3D"http://url2723.s=
+hophelp.org/wf/unsubscribe?upn=3Du001.ht-2FktIIqvIiyIXvVRAfhSERW3kZ7if8l7nZ=
+DZRCW2a5IXGKKZ0XHRg7DFq5yuio-2F2ylMMVUTKALhOWiQWgntHBu9QiZut-2B66FyW2DaiLoa=
+BvJGHzhVhqC5XdBSt5w7WtnufKIY7tl-2BCyBOE36m-2BAwH-2FXJ9MD59Xm8I97w7syNN4AZvn=
+GDfhTlMpYdd3ecODSYC5OPFcT48SQat8FxAsM07kluRKy-2FkC3Q2uyUwOA903W-2FwpJ5NgE10=
+agrjl06ddwUS-2BVTPO9S1VILwixhn9TkjSkX7sC3Nn-2FEyO63oxciViJiSunfGbfQO-2B5uSf=
+dAB0-2BoR0fLjMardkrOx8nZ9AbBsTzLmrR5Q7c4kKGL4DhaPRzR-2Fd035H7vvAkxR2ckviZn2=
+s4tZnheUpHLQ57to1QVBCFP64KNbt5ZsqigWagYg9KUkygNwanwy3Sf46NWBdmwYkfN3AqA-2By=
+Q50CFJpRs1w-3D-3D"> Unsubscribe </a></p>
+<img src=3D"http://url2723.shophelp.org/wf/open?upn=3Du001.ht-2FktIIqvIiyIX=
+vVRAfhSERW3kZ7if8l7nZDZRCW2a5IXGKKZ0XHRg7DFq5yuio-2F2ylMMVUTKALhOWiQWgntHBu=
+9QiZut-2B66FyW2DaiLoaBvJGHzhVhqC5XdBSt5w7WtnufKIY7tl-2BCyBOE36m-2BAwH-2FXJ9=
+MD59Xm8I97w7syNN4AZvnGDfhTlMpYdd3ecODSYC5OPFcT48SQat8FxAsM07kluRKy-2FkC3Q2u=
+yUwOA903W-2FwpJ5NgE10agrjl06ddwzPeBjEkeItV5jL2MmNMJ6yiATipZNY4qCDBSGuL6lzj5=
+DztWEY-2FdsKidqY32GE-2FZD0viLntCT0xo0nz3MOKnOcKPC67khZZ5v0J0BEeRgG49YfWqgos=
+g8jq06c-2Bg7vSWGojRa-2FKWYJkj7boIWnLUxet3THwD0-2FxG0MSr81-2BzA3Pi7dvlSyqBTG=
+8UFRHYFYQ3kyL1QvoIEvxpSQSZYOJKqA-3D-3D" alt=3D"" width=3D"1" height=3D"1" b=
+order=3D"0" style=3D"height:1px !important;width:1px !important;border-widt=
+h:0 !important;margin-top:0 !important;margin-bottom:0 !important;margin-ri=
+ght:0 !important;margin-left:0 !important;padding-top:0 !important;padding-=
+bottom:0 !important;padding-right:0 !important;padding-left:0 !important;"/=
+></body>
+  </html>
+--225f7dd4b61fd16c33bc3b854f96a9a6bbccc2cd68af0769c5c2f286dd3d--

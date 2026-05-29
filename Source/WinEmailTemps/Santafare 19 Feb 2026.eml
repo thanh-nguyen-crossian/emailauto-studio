@@ -1,0 +1,1190 @@
+Delivered-To: son.nln@crossian.com
+Received: by 2002:a05:7301:4007:b0:2ba:9ea2:1e60 with SMTP id pr7csp1771309dyb;
+        Mon, 16 Feb 2026 05:47:32 -0800 (PST)
+X-Received: by 2002:a05:622a:292:b0:501:147a:a215 with SMTP id d75a77b69052e-506a83944edmr123260271cf.73.1771249651780;
+        Mon, 16 Feb 2026 05:47:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1771249651; cv=none;
+        d=google.com; s=arc-20240605;
+        b=cHkPhKuwsjaNiOos/0LhzVdBje5n2/LbYu/TKPIqHm48RJXkysoyV89k0MGAHm8OZx
+         xpgaF/eB7lm2gvQYmvlIYO00yRYLhjTc6qJeI/N1tZwOdc3GOC7Jh6h6EkakIyUJoa8j
+         UD1g738WPgeTrdTVioO2z/V4Jah4HiWlvljYKyf5ApqdcjL3I+DHLNksPOWwNoUtBzix
+         LcwTTNe6JENIXVWMMMxDtRZFI/RW8LUiLX9auXrUngORbGB/JNSP+KkRcvLqzSqcn0eJ
+         D63HeeLCHdX7ooRktH731lj2+EHPCu46PAkwPw7GgbMrxDnjvrsLeeSs7mxAy/7WJt5e
+         7cjg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=list-unsubscribe-post:list-unsubscribe:to:subject:message-id
+         :mime-version:from:date:dkim-signature;
+        bh=Hc9TR6beszAZcXkX8qsi4GA9yLA8qkkRtxsorzbRNTY=;
+        fh=r2idR9MiZkTVC1Dd58UR7gT3jNE9biBT4T/CZs0Xe2s=;
+        b=WaqGJKvxh7g4vXZLaWWWPMiLM+voS3bWL5RbmWC+z/f6mJ4qI1qOgUR5+MLsftEliF
+         mb6pdlGC3YlmLn1QGEFDz9OMI6rOwBAd3yi6esm6FJSOy5dwK5QWGEox2CpQJWDok1aD
+         N0D+KwZlR6dSTPcBUDhBi8nuVuiAcBnVY1QzTvg5mabRRQbZuYKHqMKgozKDI1B3/CFi
+         fjCNLISv+YhKlM95oNK1RbIQYCk1TkA8I4DeZAjSVZefZZmm7cWKGl2SCjrqLuCi0Frq
+         MfBFQ9WoHPVbcGlVtlUPErVsNE2EiA6PTq7kz1ZFx8K5XriuJbfdZearwa7Uns4jNSBA
+         JRXw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@shophelp.org header.s=s1 header.b=pKtlzIyE;
+       spf=pass (google.com: domain of bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org designates 159.183.207.89 as permitted sender) smtp.mailfrom="bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=shophelp.org
+Return-Path: <bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org>
+Received: from o28.ptr6926.shophelp.org (o28.ptr6926.shophelp.org. [159.183.207.89])
+        by mx.google.com with ESMTPS id d75a77b69052e-506b66ca5e2si74953201cf.217.2026.02.16.05.47.31
+        for <son.nln@crossian.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Mon, 16 Feb 2026 05:47:31 -0800 (PST)
+Received-SPF: pass (google.com: domain of bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org designates 159.183.207.89 as permitted sender) client-ip=159.183.207.89;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@shophelp.org header.s=s1 header.b=pKtlzIyE;
+       spf=pass (google.com: domain of bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org designates 159.183.207.89 as permitted sender) smtp.mailfrom="bounces+10378069-552e-son.nln=crossian.com@em9986.shophelp.org";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=shophelp.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=shophelp.org;
+	h=content-type:date:from:mime-version:subject:to:list-unsubscribe:
+	list-unsubscribe-post:cc:content-type:date:from:subject:to;
+	s=s1; bh=Hc9TR6beszAZcXkX8qsi4GA9yLA8qkkRtxsorzbRNTY=;
+	b=pKtlzIyEufxcjmMezbQM0Mwy/Z7sd5sD0GI4se4a2tz8W6YLGR98rPwJC590/aiz5Q/4
+	TcF8+VT0hBBEE/BlsjorKaHcHj6YrOwQBvC1O11PlctNCbo3iFxoeKuSIEHjDmuhTG8a1S
+	1Ye26FvFIhwn6Ukafv3YM7pEcvPc4lm7nRoDCpFvZmiB9FFOTbYQ7nEXUy97B/CXZe+V09
+	kai7+Z/F69fovfJaOH0K3iGfcuVBvEPWfpaN/RGCartuOD1lMscaZNI4pe8Y/ipWSTdZ9w
+	Y2bSnpvyOSYteuAwzaPbjoukaktydkTZQiJjuChoeY7qQqvmpPf74+j2NN71vZuw==
+Received: by recvd-canary-d745844b5-gk6c8 with SMTP id recvd-canary-d745844b5-gk6c8-1-69931FF3-58
+	2026-02-16 13:47:31.368070048 +0000 UTC m=+5241355.157226142
+Received: from MTAzNzgwNjk (unknown)
+	by geopod-ismtpd-4 (SG) with HTTP
+	id wI7qPN9bSyefcln2okC7ZA
+	Mon, 16 Feb 2026 13:47:31.241 +0000 (UTC)
+Content-Type: multipart/alternative; boundary=2323c7c9871e8e8977ff8bd7f5166a0e390a9cb7cecd93e74fad74d490ed
+Date: Mon, 16 Feb 2026 13:47:31 +0000 (UTC)
+From: "Mary @ SantaFare" <support@shophelp.org>
+Mime-Version: 1.0
+Message-ID: <wI7qPN9bSyefcln2okC7ZA@geopod-ismtpd-4>
+Subject: Awww =?UTF-8?B?8J+lsA==?= Thanks for your trust, son.nln!
+X-SG-EID: 
+ =?us-ascii?Q?u001=2EVJfJyxqkdqpg06OcKYRPrfbbLdkv3Gl7d7b1cIaZZV0eQymBJEYwCuS2i?=
+ =?us-ascii?Q?a+F=2FfYI5cm4wx9twEL4T3w7BT485mkCaJS8pwjN?=
+ =?us-ascii?Q?TCIGfv4DYPW6jtjwTLpAZ=2FfzujghV+oN1DFSAgt?=
+ =?us-ascii?Q?n+=2FGLML0RAevQ9ChKJO6ZukTnmu5yZsRRIOCtJn?=
+ =?us-ascii?Q?pXJyrmSHaQDdlkMcfXutaOJ2CR+aIXjtMx3Op3i?=
+ =?us-ascii?Q?NnpMAAbZ5UF7LDbKpHrOE4u1z6nlrZYff6waDq3?= =?us-ascii?Q?zxmw?=
+X-SG-ID: 
+ =?us-ascii?Q?u001=2ESdBcvi+Evd=2FbQef8eZF3BvKUQJGkqk0X1r8EApSmVzdHio5RprWgIQEkI?=
+ =?us-ascii?Q?xRr=2FvLmHxACFkds6QZB4ySgbcarFNaqDtNnU+I+?=
+ =?us-ascii?Q?tjFigwmIt+ZLmZE1=2Fn9cIPoNV8GISTwGEyQsM8W?=
+ =?us-ascii?Q?EgCUMxBIJ4H5bWBvDU9BAsO77+ytOK+acFDB1Q3?=
+ =?us-ascii?Q?iRje9GnHdjt6tiQ695QsLXm0qUcrHDr5kC1EuNc?=
+ =?us-ascii?Q?Q=3D=3D?=
+To: son.nln@crossian.com
+X-Entity-ID: u001.4Wm0Sc5Qptf3cjwdGhQsZA==
+List-Unsubscribe: 
+ =?us-ascii?Q?=3Chttps=3A=2F=2Fu10378069=2Ect=2Esendgrid=2Enet=2Flu=2Funsubscribe=3Foc=3Du001=2Eq8l-?=
+ =?us-ascii?Q?rYZrD00N33UXVjYEXD4zOp2fd3cp-6aI6bXVQyB?=
+ =?us-ascii?Q?srJSvIF23UF1Ms0t190UkUT6cdVNpZC80rQOBEX?=
+ =?us-ascii?Q?=5FMjTmVcX1IQL526HOEQLtYwgWUUdSUzftr-Rwy9?=
+ =?us-ascii?Q?P0K8QOQgQJ3zGUypCuE6pejZ8xU62wxTkrb-Z0N?=
+ =?us-ascii?Q?RqxlE3PWl9NcVYUtv388qvDexzXdA4b7=5FCpsqSh?=
+ =?us-ascii?Q?RTLl=5Fk-wJEymv1mjpMfNtN3iY=5F4qKbKUFbNTAoD?=
+ =?us-ascii?Q?1vytVeatZhE30NuhDjFULBnwAlveB23LLM1iXRD?=
+ =?us-ascii?Q?BUtEmh35htXsZeB50ymZ0nw9D3y2sPKiopdEeon?=
+ =?us-ascii?Q?fFqKMqlzUAGGW=5F3uHElmFcPNSweOOs7PPyqcL66?=
+ =?us-ascii?Q?1Jl0Y8lQfq-JJg1a3nZY53ZhQX17Rud2eSvEyZJ?=
+ =?us-ascii?Q?sfZq7JiAOZUkZK-KoPud7EHI-5ch1bxQkyrAh8a?=
+ =?us-ascii?Q?1BjezOABK1fK6yIy5CbJWMsjqd8chtmuFXbVHcw?=
+ =?us-ascii?Q?vnywbPihxxajVkkes8iwBtlpfpXJBKmoaps=5FCq4?=
+ =?us-ascii?Q?XorHeIXjLs1HnaiUTdoSi3EDj=5FHkjBKNCb-Gxj3?=
+ =?us-ascii?Q?xJdGrNtgIbSSun4GJqO9utpcHo8d9TZaxy-hjY8?=
+ =?us-ascii?Q?90C1UiN4pWBSd5cExXECunLnHvQz2-pbK4BtwW2?=
+ =?us-ascii?Q?XvYhnm3drCGZhypLDlJvJnUBiZjC=5FxQNmhxJnO3?=
+ =?us-ascii?Q?O0dpdzLEil-3EgPL=5FpfRGv79tKz2XQPw-gyWA=3E=2C?=
+ =?us-ascii?Q?=3Cmailto=3Aunsubscribe=40em9986=2Eshophelp=2Eorg?=
+ =?us-ascii?Q?=3Fsubject=3Dhttp=3A=2F=2Furl2723=2Eshophelp=2Eorg=2Fmt?=
+ =?us-ascii?Q?=2Fu=2Fu001=2EWa6xqAHjIDgtovYkhZpfbXGamlpBn1f?=
+ =?us-ascii?Q?dlUZERpV=5FHBI=2F4o7=2Fu001=2En1kKDIZR=2Fu001=2EIuz?=
+ =?us-ascii?Q?JaLZ4d87G-2Fe5By9ZpLLd00WGq0sGgoqBkYblw?=
+ =?us-ascii?Q?8M5pki8XL33xBqfAf7CUFPeZDk-2Fvi9lGJnXsV?=
+ =?us-ascii?Q?5nXUw-2Fl7vU9nzs5SX7anlc9YAEJXdJIMMrQwK?=
+ =?us-ascii?Q?8-2FzPsNrzzKqjFk-2Bro3Ac7EMpg7a9JXglYp-?=
+ =?us-ascii?Q?2BYukeJg2MNt67ujM91wrLvJO-2BfipK-2FvT9L?=
+ =?us-ascii?Q?NYJtAg8CkESSnICnqin4xr61fPLlFoSZX5qTZVy?=
+ =?us-ascii?Q?ssqV84QEBs4imoZbDq0pRrc7yMzWm89AcLY5Nrr?=
+ =?us-ascii?Q?oHlc-2BHTotJtcGItoV5gnZAgx-2ByXK1HouQi9?=
+ =?us-ascii?Q?az8rZhDuDwCxhkF5Q7ZGm5SOQe-2BJ9EeaWC4cU?=
+ =?us-ascii?Q?cH0tODe7coiBev1SEMffQhPskadNHeJGNs9C5-2?=
+ =?us-ascii?Q?BsgqzGgFM27OuD5yvm7aUaODEpTWfJf5x2pBl2A?=
+ =?us-ascii?Q?GPzGnryjwOh-2FAwOh5BY-3D=2Fu001=2EUwO5mQXs=3E?=
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+
+--2323c7c9871e8e8977ff8bd7f5166a0e390a9cb7cecd93e74fad74d490ed
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0
+
+So this is how we make your day =F0=9F=92=AB=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=
+=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C=C2=A0=E2=80=8C
+
+Santafare ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHC=
+Fgewpk2rv0zPmRiTNPeTHJ8COx2P8T2G0mgUu-2FrVlsqdgQWAYaHF-2F6UjKKNCRpSAsYXL-2B=
+QOl5k0p26UaIwsbgg7wTsCy3Pr-2BwrPe0fHLkwZgqBTb3-2BZ6xYfnVfHKq6vJJ3xc6baTlCND=
+L7pvoE-2F-2FIycaM0nG6S0j6RnN-2BgQF84ttH-2B2q-2FMijWjfpqiXvk-2F5m0NSGW3-2Be-=
+2Fy19vxsvAgaTaaGvsGsayl03JVKO1yBVkJnMCfmZQa-2FmNy8vfvc3dlNNzJfh9xLeMokYbTAz=
+eMOOcPQJ5THbN5XGjeM0wXS-2Bd-2BPav70ots_uV_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iN=
+wVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl3-2F=
+O802Xuy2R9NgUpoTCzXzdqF4WBD689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID-2BC=
+6raSqY2uc6GnPvFL-2ByYhSrbMWf1S9kkrZqJy78CIXZVDKNN0d-2FyTK2waz63nuVd-2BX-2Fu=
+qndfvwKucCSJ0vRiI0UIz641b91-2BPDJIV6fDtVdfi1eut7GrxLYOQVQT46Arzp2x-2By-2FpF=
+l87-2FkwepvhaCSEKr44wRn2ANdJ0mg8c7JlUIriwIRm6-2FQ3mlUIpCC6VsGfSLwSftzhPNRYn=
+52HX-2B8mGiRlxm6BNyRYQrEFtotMqnMY-2F2ZgE-2F0gY0KyqUS9SUaU-3D )
+
+Hey son.nln!
+*We couldn't be happier you chose SantaFare!* And here's the amazing part..=
+. Those beautiful personalized goodies you've been thinking about? Starting=
+ at *just $ 8.95!* (That's a whopping 70% O.F.F)
+My sister Anna grabbed that *magnetic TimelessMark* ( http://url2723.shophe=
+lp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFgewpk9GufT9TRtLAbmTRYf2LHUBjqG2U=
+ZkCe3oPoVQ4RIivVbucddOxGJjv-2BSdI3IrIK3ZILGfWzzDGJ3Iba0fQnRwXmm7M5Jokf1fSRC=
+JqOBvUntBmFHs2GK7R9xxGVRPQMKDvb4GvxmxFfyanJdW9Nj88OaOWh8nL9bF3JscbZgCrFdn88=
+4oPX-2BAGIOK3InXx2oOJs-2FwmEgYdGoMKejWsNilDDbBk8Wm8ANwOL2LaUj8fJ-2FIkmpJn4U=
+x1mgR1Mk5b-2Fsi0hyDUklky02pgDooNKz6rAq9pecbLacY5zzlZVH5JBIMDtSuXdcbIjK4nBOP=
+LqiQ-3D-3DaPvN_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX=
+03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl3-2FO802Xuy2R9NgUpoTCzXzdqF4WBD=
+689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID-2BC6raSqY2uc6GnPvFL-2ByYhSrbMW=
+f1S9kkrZqJy78CIXZVDOYCpMOSTvgRUnJBBsKJ4Byg3wWgYMPd-2BFduse1QDIkFFs5gA0PYgQk=
+M-2BQBG8o72bAqNnAIu8sRwA0oq2BkC28a1H94u24fVqIyhbbwy4U-2FR2yhpyJMo-2FsBU3qhV=
+rV4ZAux1jbkFzY-2FPUdbBkhpq1-2F2-2BBzSqIe6ZOfgrX3cKn17Y8AUIw9oAteoFD4yTfxR7r=
+RoIBWTiQqRLUCgWWYs2TuU-3D ) last month and now her whole book club is jealo=
+us. And that *leather organizer (the second item below)?* Total game-change=
+r for my messy purse situation!
+
+TimelessMark ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6P=
+bHCFgewpk9GufT9TRtLAbmTRYf2LHUBjqG2UZkCe3oPoVQ4RIivVbucddOxGJjv-2BSdI3IrIK3=
+ZILGfWzzDGJ3Iba0fQnRwXmm7M5Jokf1fSRCJqOBvUntBmFHs2GK7R9xxGVRPQMKDvb4GvxmxFf=
+yanJdW9Nj88OaOWh8nL9bF3JscbZgCrFdn884oPX-2BAGIOK3InXx2oOJs-2FwmEgYdGoMKejWs=
+NilDDbBk8Wm8ANwOL2LaUj8fJ-2FIkmpJn4Ux1mgR1Mk5b-2Fsi0hyDUklky02pgDooNKz6rAq9=
+pecbLacY5zzlZVH5JBIMDtSuXdcbIjK4nBOPLqiQ-3D-3D54s1_qGIucZ-2Fyx7YhjSEgcJS03z=
+Cp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu=
+-2FRl3-2FO802Xuy2R9NgUpoTCzXzdqF4WBD689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlz=
+XcJID-2BC6raSqY2uc6GnPvFL-2ByYhSrbMWf1S9kkrZqJy78CIXZVDJRSv0RI1k-2FoG-2BiAr=
+MKX4PC7Hg4SgOvYST9Sn3NrEriIvz-2Fn5b-2BiYizGuKUHyPM6SzXrn8TA5xiNoVtFexbmEpTY=
+0-2FijFGkhojH8bzJ1EJC3kJ6rVQI74AIbvShQUMSv0EbNJmO7zvWaybc73Fu6zCjvzgcpUKYC8=
+RwgoBBnMcX6iMYWlInDoikzWAVNuMn0jZriXCZO5BJed2cEnmm5HUQ-3D )
+
+Pouchic ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFg=
+ewpkw8NabaMYJobxSmwh27Co-2Fpi5MA0Sw3lLuwJwC1yDg92qf3AFAHSQ82CJLztfyS7qDvTKd=
+GzMRdZw9LiGd6Jekn1pthn47pODM1r-2FlP2F82I-2BkeJQooTzZyClB6itlEC0rqjGmOFMTI7J=
+G2ge7kgIx3EMN1DWoD61aICL0lCI9bXT1eqPsGSUO-2FdEEWAHy1qkxKrcdEzI-2FGaqh08UJ-2=
+BhTVGD27gV43qFHqk67jIj6-2F5Dr2e3XZg9wxb-2BU2dNNIEsx0-2BBLuZdpLDIGvY3NMHnBw4=
+FcCUFmaDcYP0MzNFBIS6HZk1Q_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27Tu=
+D-2Bm9jdUlX03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl3-2FO802Xuy2R9NgUpoT=
+CzXzdqF4WBD689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID-2BC6raSqY2uc6GnPvFL=
+-2ByYhSrbMWf1S9kkrZqJy78CIXZVDKgqHsDvOGPs7nVFnKRyFXpx1UnkeAK2lnjkwrHY7t-2B1=
+-2BPzCpeo7YG7h5hTcTCgikdjP9OxI6CumGGSKc3t4YlvBSQl9kspV7As1kT-2BjtGXIhs3PScE=
+mF63rmeVfN5PAArcFoVfjhy8aFoOqaEv2Mav-2FJiGLE08CYdsmVE0aiIeJJFIZ-2FG5nQU0l1G=
+ck1cAwkrMgw6o-2Fef-2ByyCPwcTpcdmM-3D )
+
+These little items make the PER-FECT "just because" gifts.
+I mean, where else can you find something this special with your initial or=
+ a cute little paw print for under 9 bucks?
+But hurry, *these flash deals just last till midnight tonight.* ( http://ur=
+l2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHCFgewpk2rv0zPmRiTNPeTH=
+J8COx2P8T2G0mgUu-2FrVlsqdgQWAYaHF-2F6UjKKNCRpSAsYXL-2BQOl5k0p26UaIwsbgg7wTs=
+Cy3Pr-2BwrPe0fHLkwZgqBTb3-2BZ6xYfnVfHKq6vJJ3xc6baTlCNDL7pvoE-2F-2FIycaM0nG6=
+S0j6RnN-2BgQF84ttH-2B2q-2FMijWjfpqiXvk-2F5m0NSGW3-2Be-2Fy19vxsvAgaTaaGvsGsa=
+yl03JVKO1yBVkJnMCfmZQa-2FmNy8vfvc3dlNNzJfh9xLeMokYbTAzeMOOcPQJ5THbN5XGjeM0w=
+XS-2Bd-2BPav70otXxQ4_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm=
+9jdUlX03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl3-2FO802Xuy2R9NgUpoTCzXzd=
+qF4WBD689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID-2BC6raSqY2uc6GnPvFL-2ByY=
+hSrbMWf1S9kkrZqJy78CIXZVDEVNfMHA2j2v009Sz6BmwX5tv-2Bxtic4K-2BP6z1nMmVhEzNNO=
+9ctTS3sinJpM07plrePSNAghwonGF8eqL18Y8HT4oFgTOgJs0c5brmLaBkMU1nUg1fQvMZZa13g=
+NW8404Mgr-2BE7ttjDC-2FJPpn2KYuR9RE8jFqJTvYWtDmuhed6SE2kJxkCgYEGT-2FmK85MFyq=
+gIhPoiXxWLn6BWtJEoEut4rI-3D )
+Warmly,
+Mary
+
+BygoneMark ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbH=
+CFgewpk4Cnrm27zzV55rzaT4tsvjSMtN7-2FKg8fpUqsc8iJ04mIdN2yFWSOr1zhUOrWpMcAfG-=
+2BNBifqHe2QLL7a0g6L-2B-2F1Ncp8raqjAJ8zr-2By-2BYbktBkoM0o21jKOzQe51qBXyh6GwJ=
+qQELz-2FLyEiLi2IP8Xn00vIJEZgNv5PVr69CMB67LTsHCsvRDX-2BA-2B-2BUwUQSFbVTdSxUw=
+hh5qu8r7ko73ah4mzzGgxuZlczY9Jtt6-2BaWKblu9VVKnuSzvIoDuNujDgAmYbznDW5RVdOMsd=
+wy-2BSY9-2F-2BhtG0SOD1OgVBv-2F4kbd2-2BREY7_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70i=
+NwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl3-2=
+FO802Xuy2R9NgUpoTCzXzdqF4WBD689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID-2B=
+C6raSqY2uc6GnPvFL-2ByYhSrbMWf1S9kkrZqJy78CIXZVDChYvE-2BCVHE9GZ1Mbb7by8qpjJ2=
+r4IqJsPC-2Bp-2BZa0swpLDzi4Xf8uvGwDJmkmTTgTXqobG9veZWMGszp16c8znbGftjTlt7HTL=
+1gwusLFlfphDx6BHrgl5qnTnjtsQ32t-2FzvlSPLbkEqZRAYET6cLTfBJWByeO8oYWe09fWRa-2=
+B2GcIjA-2BGvaLjpXSyIf-2ByghZd5KB8luzG7bQaf4cQIqM9E-3D )
+
+Snowflake ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6PbHC=
+FgewpkxzX5sJ8Sv-2FCBPfNKHzZuP8aNc5yRBaWWZOE-2Fuzr5Ks2pbb0agVqLOMJYzepY66-2B=
+RUoJeq7xMLk5kMaa-2BvuKkzU4CzAv7-2B1WbOMtgBy5mC-2FMWksh-2BAoTNnaY0SCz35lydEJ=
+mvGa90xqvDYkUfZJX9rSZALz5ta-2Fv0yull0pVcnCbKT1t19ZMoCT5vz-2Ft6BH69p4paOXAun=
+zj0XcmjjeyzyGwrAxkDR5d42Ll5iz2-2BJfBZf34hmDbr3KsyOMbIWs2X727uD4kVKzHGdEcTo-=
+2FrXOQUBjv-2FgMKd9Gn9WI2E6CpZ2abz_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT=
+95JI27TuD-2Bm9jdUlX03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl3-2FO802Xuy2=
+R9NgUpoTCzXzdqF4WBD689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID-2BC6raSqY2u=
+c6GnPvFL-2ByYhSrbMWf1S9kkrZqJy78CIXZVDJSkYyWfiVJJwiwuJxe-2FmJmox7uZtCa0qk7t=
+5gI6Gvo3QzjGxNW5XoYwl-2FXZOYgGLs6fNrWGe5gFcZVo-2BdTTx4F5Sr91OgZhFcOOo-2Bccx=
+59xKiIftqW-2FVIEzp9YGbX3MxUxalh-2BH6JINZ6VE1tdZyeKJK45uQNoGqHjOACWxN-2BVMDk=
+R3vtWrxzc3qSSxyKYDRjtLeSts-2B7x0nLKTTDQezvw-3D )
+
+=F0=9F=92=8C Thanks for shopping at SantaFare!
+You're part of the family! We hope you love your test_label from 29 Nov 202=
+5 (#38-773).
+Want exclusive deals & comfort tips? We'd love to keep in touch! But if you=
+=E2=80=99d rather not hear from us (we=E2=80=99ll be sad, but we understand=
+), you can opt out below.
+Reply with questions - Mary or our experts are ready to help! Add us to you=
+r email contacts list to stay in the loop.
+SantaFare.com ( http://url2723.shophelp.org/ls/click?upn=3Du001.rNQi58ybmL6=
+PbHCFgewpk2rv0zPmRiTNPeTHJ8COx2P8T2G0mgUu-2FrVlsqdgQWAYaHF-2F6UjKKNCRpSAsYX=
+L-2BQOl5k0p26UaIwsbgg7wTsCy3Pr-2BwrPe0fHLkwZgqBTb3-2BZ6xYfnVfHKq6vJJ3xc6baT=
+lCNDL7pvoE-2F-2FIycaM0nG6S0j6RnN-2BgQF84ttH-2B2q-2FMijWjfpqiXvk-2F5m0NSGW3-=
+2Be-2Fy19vxsvAgaTaaGvsGsayl03JVKO1yBVkJnMCfmZQa-2FmNy8vfvc3dlNNzJfh9xLeMokY=
+bTAzeMOOcPQJ5THbN5XGjeM0wXS-2Bd-2BPav70otqcbO_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F=
+70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl=
+3-2FO802Xuy2R9NgUpoTCzXzdqF4WBD689GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID=
+-2BC6raSqY2uc6GnPvFL-2ByYhSrbMWf1S9kkrZqJy78CIXZVDC9AowDnMJE8iOj0Eb-2F-2F3c=
+7XOTOZ4LKQcr5FKMO-2Bh-2F-2FepRhQ4ETIUSezHnS2cCxuidXG7MJrAwy6YVnOImnSiy-2Fx5=
+-2BTlYxX6ydXgKpXCQh0eVmHvY5zTjJXz0ndBgqouXMGc3yjleGT7freIQPcyEZ4-2BbhJBFhsz=
+AS2Cngf-2B1He-2BhPD20k4qdTru0Jf2Bxjtkdqj2-2Btp2xGyVlCzXRK1-2BwE-3D )
+770 Walnut Creek Dr NW, Lilburn, GA 30047
+=C2=A9 2026 | Privacy Policy ( http://url2723.shophelp.org/ls/click?upn=3Du=
+001.rNQi58ybmL6PbHCFgewpkxzX5sJ8Sv-2FCBPfNKHzZuP9QRhSwyKW3PmxXp9njq3Qb5hheT=
+AYGYkdK6F0-2FWVkswBl44UuFPBr3gbktSgL97RMX-2FEGRxyNDvZjgWNJAVfbGJlq1HlAKeX-2=
+Fr2XzYHFspbTecptHBiHgPjTIddSrwOQSST3tTJSZ8jkIW5v1cx41p3B8tFwK8Y2mhvaZXBg1af=
+naDVXQGzcjFTEyzqrSryOUA6HTNjfgeLwA8Ppiniwo1aqvJFMseba3yMCftH-2F8IVTIe6ELjZH=
+pvelVJDBPv9EbcJwpWR7myYfHJwIWP-2BAZn8yOI5n3sxFEr-2Bx1r-2BG8yJA-3D-3DCZcg_qG=
+IucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX03jM5tMrhYurYieZi=
+S1mvtRjKlYq1XWLO8XkUOu-2FRl3-2FO802Xuy2R9NgUpoTCzXzdqF4WBD689GYd-2FtTZk78iW=
+VBfbuPTtARaHsqhhGjWWlzXcJID-2BC6raSqY2uc6GnPvFL-2ByYhSrbMWf1S9kkrZqJy78CIXZ=
+VDOd9OvOmcedbqJ7iZVvnl3sJs3m2Ks-2FnTW-2BHu7UDlEBiglbvhs4sAhH1lEiIauxXVAr1Nd=
+Q-2FTBBXsn81IdQeLgi9pBbSIP590NL7HHMR-2BjeAHtgHyNZBSq78xiRaem1m4GQdLd92WpY65=
+JfkR1jNwI3-2BcFQKJdsWDAfluqLC7RxlN63j1fIoYaPt4gLquHsWu-2FcZD-2Br7S9lLVnSQja=
+ces2k-3D ) | Exchanges & Returns ( http://url2723.shophelp.org/ls/click?upn=
+=3Du001.rNQi58ybmL6PbHCFgewpkxzX5sJ8Sv-2FCBPfNKHzZuP-2BQG1dCcMD73J9sGqORpmx=
+TDIhZQwjs-2FhiZkWbvolKiS95Ebg5smd12anNvkNVIKG5dI8EBJpFUzAK6UHotRI-2FTGnVxDQ=
+D7LMUEw2O3N50c58Rodu4XZUJnxlYCdLEjEiTzNM7UvTgCIoqcw8PfmjkeLMgHNsvtOeRUtxfTv=
+zMk9uVEFCva61NWD-2Fbrhz12-2Bt7diUDWtqpg2hs8-2BLMaaJjfvOP-2B-2ByvfPK6w9ksDhD=
+DFETgnwse6Rvi-2FG-2BUowO4Ct12codIFhlUS5lfqSzb-2Biu-2BDE5MNBRovRqHgRQug-2BXQ=
+fBA-3D-3DJdM4_qGIucZ-2Fyx7YhjSEgcJS03zCp-2F70iNwVuAbLxT95JI27TuD-2Bm9jdUlX0=
+3jM5tMrhYurYieZiS1mvtRjKlYq1XWLO8XkUOu-2FRl3-2FO802Xuy2R9NgUpoTCzXzdqF4WBD6=
+89GYd-2FtTZk78iWVBfbuPTtARaHsqhhGjWWlzXcJID-2BC6raSqY2uc6GnPvFL-2ByYhSrbMWf=
+1S9kkrZqJy78CIXZVDC1T3lkaoHOy4UljDbPZ8eqqCz3wCevQzAkPA9sPb7keqr9MR-2BRdtQdG=
+OvPaonFPl3JdBW-2F28tF2y0lONy5qkEBqKrVWpY0pf-2BSVD-2FoTiykuSOETEh-2F0jFKS-2F=
+R-2F2EKmPBswpON94wBOn0cuT9jjAAdSaRq6Mf1jU24U0YcUKAFHoWdNpinBAhMweFmFuBtZGWG=
+iqkJNELEcTXJDKi39dbn0-3D )
+--2323c7c9871e8e8977ff8bd7f5166a0e390a9cb7cecd93e74fad74d490ed
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html; charset=utf-8
+Mime-Version: 1.0
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org=
+/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html data-editor-version=3D"2" class=3D"sg-campaigns" xmlns=3D"http://www.=
+w3.org/1999/xhtml">
+    <head>
+      <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dutf=
+-8">
+      <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scal=
+e=3D1, minimum-scale=3D1, maximum-scale=3D1">
+      <!--[if !mso]><!-->
+      <meta http-equiv=3D"X-UA-Compatible" content=3D"IE=3DEdge">
+      <!--<![endif]-->
+      <!--[if (gte mso 9)|(IE)]>
+      <xml>
+        <o:OfficeDocumentSettings>
+          <o:AllowPNG/>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+      </xml>
+      <![endif]-->
+      <!--[if (gte mso 9)|(IE)]>
+  <style type=3D"text/css">
+    body {width: 600px;margin: 0 auto;}
+    table {border-collapse: collapse;}
+    table, td {mso-table-lspace: 0pt;mso-table-rspace: 0pt;}
+    img {-ms-interpolation-mode: bicubic;}
+  </style>
+<![endif]-->
+      <style type=3D"text/css">
+    body, p, div {
+      font-family: arial,helvetica,sans-serif;
+      font-size: 16px;
+    }
+    body {
+      color: #000000;
+    }
+    body a {
+      color: #606060;
+      text-decoration: none;
+    }
+    p { margin: 0; padding: 0; }
+    table.wrapper {
+      width:100% !important;
+      table-layout: fixed;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      -moz-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    img.max-width {
+      max-width: 100% !important;
+    }
+    .column.of-2 {
+      width: 50%;
+    }
+    .column.of-3 {
+      width: 33.333%;
+    }
+    .column.of-4 {
+      width: 25%;
+    }
+    ul ul ul ul  {
+      list-style-type: disc !important;
+    }
+    ol ol {
+      list-style-type: lower-roman !important;
+    }
+    ol ol ol {
+      list-style-type: lower-latin !important;
+    }
+    ol ol ol ol {
+      list-style-type: decimal !important;
+    }
+    @media screen and (max-width:480px) {
+      .preheader .rightColumnContent,
+      .footer .rightColumnContent {
+        text-align: left !important;
+      }
+      .preheader .rightColumnContent div,
+      .preheader .rightColumnContent span,
+      .footer .rightColumnContent div,
+      .footer .rightColumnContent span {
+        text-align: left !important;
+      }
+      .preheader .rightColumnContent,
+      .preheader .leftColumnContent {
+        font-size: 80% !important;
+        padding: 5px 0;
+      }
+      table.wrapper-mobile {
+        width: 100% !important;
+        table-layout: fixed;
+      }
+      img.max-width {
+        height: auto !important;
+        max-width: 100% !important;
+      }
+      a.bulletproof-button {
+        display: block !important;
+        width: auto !important;
+        font-size: 80%;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+      .columns {
+        width: 100% !important;
+      }
+      .column {
+        display: block !important;
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      .social-icon-column {
+        display: inline-block !important;
+      }
+    }
+  </style>
+      <!--user entered Head Start--><!--End Head user entered-->
+    </head>
+    <body>
+    <span class=3D"preheader" style=3D"color: transparent; display: none; h=
+eight: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hi=
+de: all; visibility: hidden; width: 0;">So this is how we make your day =F0=
+=9F=92=AB&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;=
+&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nb=
+sp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;=
+&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zw=
+nj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;=
+&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nb=
+sp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;=
+&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zw=
+nj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;=
+&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nb=
+sp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;=
+&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zw=
+nj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;=
+&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nb=
+sp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;=
+&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zw=
+nj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;=
+&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nb=
+sp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;=
+&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zw=
+nj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;=
+&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nb=
+sp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;=
+&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zw=
+nj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;=
+&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nb=
+sp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;=
+&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</span>
+      <center class=3D"wrapper" data-link-color=3D"#606060" data-body-style=
+=3D"font-size:16px; font-family:arial,helvetica,sans-serif; color:#000000; =
+background-color:#FFFDFE;">
+        <div class=3D"webkit">
+          <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" width=3D"=
+100%" class=3D"wrapper" bgcolor=3D"#FFFDFE">
+            <tr>
+              <td valign=3D"top" bgcolor=3D"#FFFDFE" width=3D"100%">
+                <table width=3D"100%" role=3D"content-container" class=3D"o=
+uter" align=3D"center" cellpadding=3D"0" cellspacing=3D"0" border=3D"0">
+                  <tr>
+                    <td width=3D"100%">
+                      <table width=3D"100%" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0">
+                        <tr>
+                          <td>
+                            <!--[if mso]>
+    <center>
+    <table><tr><td width=3D"600">
+  <![endif]-->
+                                    <table width=3D"100%" cellpadding=3D"0"=
+ cellspacing=3D"0" border=3D"0" style=3D"width:100%; max-width:600px;" alig=
+n=3D"center">
+                                      <tr>
+                                        <td role=3D"modules-container" styl=
+e=3D"padding:0px 0px 0px 0px; color:#000000; text-align:left;" bgcolor=3D"#=
+FFFDFE" width=3D"100%" align=3D"left"><table class=3D"module preheader preh=
+eader-hide" role=3D"module" data-type=3D"preheader" border=3D"0" cellpaddin=
+g=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"display: none !important;=
+ mso-hide: all; visibility: hidden; opacity: 0; color: transparent; height:=
+ 0; width: 0;">
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:0px 0px 9px 0px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"582" style=3D"wi=
+dth:582px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 9=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"7R8ArZ4tyYJJcqCQZ4Xxpx">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 0px 0=
+px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://santafare.com/?utm_source=3D=
+selless&utm_medium=3De_santafare_20260219_A_1_tid&utm_campaign=3D&utm_conte=
+nt=3De_santafare_20260219_A_1_tid&sclid=3D2f2877p55g15wy5iasp74znuj&expiry=
+=3D1771459200000&po_id=3D"><img class=3D"max-width" border=3D"0" style=3D"d=
+isplay:block; color:#000000; text-decoration:none; font-family:Helvetica, a=
+rial, sans-serif; font-size:16px; max-width:100% !important; width:100%; he=
+ight:auto !important;" width=3D"582" alt=3D"Santafare" data-proportionally-=
+constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.mcauto-imag=
+es-production.sendgrid.net/620c172d5dfc1e89/895d02b1-cd49-416f-bb4d-0336b26=
+dab3b/650x900.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:18px 18px 9px 18px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"546" style=3D"wi=
+dth:546px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 9=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"module" role=3D"module" data-type=3D"text" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"3c1ee5ee-c561-4beb-9c30-b6da08b3d425.1.1" data-mc-module-version=
+=3D"2019-10-22">
+    <tbody>
+      <tr>
+        <td style=3D"padding:0px 0px 0px 0px; line-height:24px; text-align:=
+inherit; background-color:#FFFDFE;" height=3D"100%" valign=3D"top" bgcolor=
+=3D"#FFFDFE" role=3D"module-content"><div><div style=3D"font-family: inheri=
+t; text-align: inherit"><span style=3D"font-style: normal; font-variant-lig=
+atures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing=
+: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: n=
+one; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-sp=
+ace-collapse: preserve; text-wrap-mode: wrap; text-wrap-style: initial; tex=
+t-decoration-thickness: initial; text-decoration-style: initial; text-decor=
+ation-color: initial; float: none; display: inline; font-family: arial, hel=
+vetica, sans-serif; font-size: 16px">Hey son.nln!</span></div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"fon=
+t-style: normal; font-variant-ligatures: normal; font-variant-caps: normal;=
+ font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; te=
+xt-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit=
+-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode: wr=
+ap; text-wrap-style: initial; text-decoration-thickness: initial; text-deco=
+ration-style: initial; text-decoration-color: initial; float: none; display=
+: inline; font-family: arial, helvetica, sans-serif; font-size: 16px; color=
+: #a5072b"><strong>We couldn't be happier you chose SantaFare!</strong></sp=
+an><span style=3D"font-style: normal; font-variant-ligatures: normal; font-=
+variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2;=
+ text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-=
+spacing: 0px; -webkit-text-stroke-width: 0px; white-space-collapse: preserv=
+e; text-wrap-mode: wrap; text-wrap-style: initial; text-decoration-thicknes=
+s: initial; text-decoration-style: initial; text-decoration-color: initial;=
+ float: none; display: inline; font-family: arial, helvetica, sans-serif; f=
+ont-size: 16px"> And here's the amazing part... Those beautiful personalize=
+d goodies you've been thinking about? Starting at </span><span style=3D"fon=
+t-style: normal; font-variant-ligatures: normal; font-variant-caps: normal;=
+ font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; te=
+xt-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit=
+-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode: wr=
+ap; text-wrap-style: initial; text-decoration-thickness: initial; text-deco=
+ration-style: initial; text-decoration-color: initial; float: none; display=
+: inline; font-family: arial, helvetica, sans-serif; font-size: 16px; color=
+: #a5072b"><strong>just $ 8.95!</strong></span><span style=3D"font-style: n=
+ormal; font-variant-ligatures: normal; font-variant-caps: normal; font-weig=
+ht: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent:=
+ 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stro=
+ke-width: 0px; white-space-collapse: preserve; text-wrap-mode: wrap; text-w=
+rap-style: initial; text-decoration-thickness: initial; text-decoration-sty=
+le: initial; text-decoration-color: initial; float: none; display: inline; =
+font-family: arial, helvetica, sans-serif; font-size: 16px"> (That's a whop=
+ping 70% O.F.F)</span></div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"fon=
+t-style: normal; font-variant-ligatures: normal; font-variant-caps: normal;=
+ font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; te=
+xt-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit=
+-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode: wr=
+ap; text-wrap-style: initial; text-decoration-thickness: initial; text-deco=
+ration-style: initial; text-decoration-color: initial; float: none; display=
+: inline; font-family: arial, helvetica, sans-serif; font-size: 16px">My si=
+ster Anna grabbed that </span><a clicktracking=3Doff href=3D"https://santaf=
+are.com/timelessmark?utm_source=3Dselless&utm_medium=3De_santafare_20260219=
+_A_1_tid&utm_campaign=3D&utm_content=3De_santafare_20260219_A_1_tid&sclid=
+=3D2f2877p55g15wy5iasp74znuj&expiry=3D1771459200000&po_id=3D"><span style=
+=3D"font-style: normal; font-variant-ligatures: normal; font-variant-caps: =
+normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: l=
+eft; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-m=
+ode: wrap; text-wrap-style: initial; text-decoration-thickness: initial; te=
+xt-decoration-style: initial; text-decoration-color: initial; float: none; =
+display: inline; font-family: arial, helvetica, sans-serif; font-size: 16px=
+; color: #a5072b"><strong>magnetic TimelessMark</strong></span></a><span st=
+yle=3D"font-style: normal; font-variant-ligatures: normal; font-variant-cap=
+s: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align=
+: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0p=
+x; -webkit-text-stroke-width: 0px; white-space-collapse: preserve; text-wra=
+p-mode: wrap; text-wrap-style: initial; text-decoration-thickness: initial;=
+ text-decoration-style: initial; text-decoration-color: initial; float: non=
+e; display: inline; font-family: arial, helvetica, sans-serif; font-size: 1=
+6px"> last month and now her whole book club is jealous. And that </span><s=
+pan style=3D"font-style: normal; font-variant-ligatures: normal; font-varia=
+nt-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text=
+-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spaci=
+ng: 0px; -webkit-text-stroke-width: 0px; white-space-collapse: preserve; te=
+xt-wrap-mode: wrap; text-wrap-style: initial; text-decoration-thickness: in=
+itial; text-decoration-style: initial; text-decoration-color: initial; floa=
+t: none; display: inline; font-family: arial, helvetica, sans-serif; font-s=
+ize: 16px; color: #a5072b"><strong>leather organizer (the second item below=
+)?</strong></span><span style=3D"font-style: normal; font-variant-ligatures=
+: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: norm=
+al; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; w=
+idows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space-co=
+llapse: preserve; text-wrap-mode: wrap; text-wrap-style: initial; text-deco=
+ration-thickness: initial; text-decoration-style: initial; text-decoration-=
+color: initial; float: none; display: inline; font-family: arial, helvetica=
+, sans-serif; font-size: 16px"> Total game-changer for my messy purse situa=
+tion!</span></div><div></div></div></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:18px 9px 18px 9px;" bgcolor=3D"" data-distribution=3D"1,1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"282" style=3D"wi=
+dth:282px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 0=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"9c640d54-97c7-4d7a-a636-5bacb09011e4.1.2">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 18px =
+0px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://santafare.com/timelessmark?u=
+tm_source=3Dselless&utm_medium=3De_santafare_20260219_A_1_tid&utm_campaign=
+=3D&utm_content=3De_santafare_20260219_A_1_tid&sclid=3D2f2877p55g15wy5iasp7=
+4znuj&expiry=3D1771459200000&po_id=3D"><img class=3D"max-width" border=3D"0=
+" style=3D"display:block; color:#000000; text-decoration:none; font-family:=
+Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; wi=
+dth:100%; height:auto !important;" width=3D"282" alt=3D"TimelessMark" data-=
+proportionally-constrained=3D"true" data-responsive=3D"true" src=3D"http://=
+cdn.mcauto-images-production.sendgrid.net/620c172d5dfc1e89/c8941082-4a81-47=
+00-be02-6c1bab3b3939/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table><table width=3D"282" style=3D"width:282px; border-spacing:0; bo=
+rder-collapse:collapse; margin:0px 0px 0px 9px;" cellpadding=3D"0" cellspac=
+ing=3D"0" align=3D"left" border=3D"0" bgcolor=3D"" class=3D"column column-1=
+">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"f0e5dc80-f7b8-4c64-87b5-a288bde69423">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 0px 0=
+px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://santafare.com/pouchic?utm_so=
+urce=3Dselless&utm_medium=3De_santafare_20260219_A_1_tid&utm_campaign=3D&ut=
+m_content=3De_santafare_20260219_A_1_tid&sclid=3D2f2877p55g15wy5iasp74znuj&=
+expiry=3D1771459200000&po_id=3D"><img class=3D"max-width" border=3D"0" styl=
+e=3D"display:block; color:#000000; text-decoration:none; font-family:Helvet=
+ica, arial, sans-serif; font-size:16px; max-width:100% !important; width:10=
+0%; height:auto !important;" width=3D"282" alt=3D"Pouchic" data-proportiona=
+lly-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.mcauto-=
+images-production.sendgrid.net/620c172d5dfc1e89/2c84897a-f0e8-4ff5-a2f0-ac9=
+a4c9b3a4d/512x512.png"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:0px 18px 18px 18px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"546" style=3D"wi=
+dth:546px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 9=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"module" role=3D"module" data-type=3D"text" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"3c1ee5ee-c561-4beb-9c30-b6da08b3d425.1.1.1.2" data-mc-module-versi=
+on=3D"2019-10-22">
+    <tbody>
+      <tr>
+        <td style=3D"padding:0px 0px 0px 0px; line-height:24px; text-align:=
+inherit; background-color:#FFFDFE;" height=3D"100%" valign=3D"top" bgcolor=
+=3D"#FFFDFE" role=3D"module-content"><div><div style=3D"font-family: inheri=
+t; text-align: inherit"><span style=3D"color: #000000; font-family: arial, =
+helvetica, sans-serif; font-size: 16px; font-style: normal; font-variant-li=
+gatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacin=
+g: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: =
+none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-s=
+pace-collapse: preserve; text-wrap-mode: wrap; background-color: rgb(255, 2=
+53, 254); text-decoration-thickness: initial; text-decoration-style: initia=
+l; text-decoration-color: initial; float: none; display: inline">These litt=
+le items make the PER-FECT "just because" gifts.</span></div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"col=
+or: #000000; font-family: arial, helvetica, sans-serif; font-size: 16px; fo=
+nt-style: normal; font-variant-ligatures: normal; font-variant-caps: normal=
+; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; t=
+ext-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webki=
+t-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode: w=
+rap; background-color: rgb(255, 253, 254); text-decoration-thickness: initi=
+al; text-decoration-style: initial; text-decoration-color: initial; float: =
+none; display: inline">I mean, where else can you find something this speci=
+al with your initial or a cute little paw print for under 9 bucks?</span></=
+div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"col=
+or: #000000; font-family: arial, helvetica, sans-serif; font-size: 16px; fo=
+nt-style: normal; font-variant-ligatures: normal; font-variant-caps: normal=
+; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; t=
+ext-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webki=
+t-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode: w=
+rap; background-color: rgb(255, 253, 254); text-decoration-thickness: initi=
+al; text-decoration-style: initial; text-decoration-color: initial; float: =
+none; display: inline">But hurry, </span><a clicktracking=3Doff href=3D"htt=
+ps://santafare.com/?utm_source=3Dselless&utm_medium=3De_santafare_20260219_=
+A_1_tid&utm_campaign=3D&utm_content=3De_santafare_20260219_A_1_tid&sclid=3D=
+2f2877p55g15wy5iasp74znuj&expiry=3D1771459200000&po_id=3D"><span style=3D"f=
+ont-family: arial, helvetica, sans-serif; font-size: 16px; font-style: norm=
+al; font-variant-ligatures: normal; font-variant-caps: normal; font-weight:=
+ 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0p=
+x; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-=
+width: 0px; white-space-collapse: preserve; text-wrap-mode: wrap; backgroun=
+d-color: rgb(255, 253, 254); text-decoration-thickness: initial; text-decor=
+ation-style: initial; text-decoration-color: initial; float: none; display:=
+ inline; color: #a5072b"><strong>these flash deals just last till midnight =
+tonight.</strong></span></a></div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"col=
+or: #000000; font-family: arial, helvetica, sans-serif; font-size: 16px; fo=
+nt-style: normal; font-variant-ligatures: normal; font-variant-caps: normal=
+; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; t=
+ext-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webki=
+t-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode: w=
+rap; background-color: rgb(255, 253, 254); text-decoration-thickness: initi=
+al; text-decoration-style: initial; text-decoration-color: initial; float: =
+none; display: inline">Warmly,</span></div>
+<div style=3D"font-family: inherit; text-align: inherit"><span style=3D"col=
+or: #000000; font-family: arial, helvetica, sans-serif; font-size: 16px; fo=
+nt-style: normal; font-variant-ligatures: normal; font-variant-caps: normal=
+; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; t=
+ext-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webki=
+t-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode: w=
+rap; background-color: rgb(255, 253, 254); text-decoration-thickness: initi=
+al; text-decoration-style: initial; text-decoration-color: initial; float: =
+none; display: inline">Mary</span></div><div></div></div></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:0px 9px 18px 9px;" bgcolor=3D"" data-distribution=3D"1,1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"282" style=3D"wi=
+dth:282px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 0=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"9c640d54-97c7-4d7a-a636-5bacb09011e4.1.2.3">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 18px =
+0px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://santafare.com/bygonemark?utm=
+_source=3Dselless&utm_medium=3De_santafare_20260219_A_1_tid&utm_campaign=3D=
+&utm_content=3De_santafare_20260219_A_1_tid&sclid=3D2f2877p55g15wy5iasp74zn=
+uj&expiry=3D1771459200000&po_id=3D"><img class=3D"max-width" border=3D"0" s=
+tyle=3D"display:block; color:#000000; text-decoration:none; font-family:Hel=
+vetica, arial, sans-serif; font-size:16px; max-width:100% !important; width=
+:100%; height:auto !important;" width=3D"282" alt=3D"BygoneMark" data-propo=
+rtionally-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.m=
+cauto-images-production.sendgrid.net/620c172d5dfc1e89/42116e61-3a4c-432b-85=
+c5-412de87c8c0c/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table><table width=3D"282" style=3D"width:282px; border-spacing:0; bo=
+rder-collapse:collapse; margin:0px 0px 0px 9px;" cellpadding=3D"0" cellspac=
+ing=3D"0" align=3D"left" border=3D"0" bgcolor=3D"" class=3D"column column-1=
+">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"wrapper" role=3D"module" data-type=3D"image" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"f0e5dc80-f7b8-4c64-87b5-a288bde69423.3">
+    <tbody>
+      <tr>
+        <td style=3D"font-size:6px; line-height:10px; padding:0px 0px 0px 0=
+px;" valign=3D"top" align=3D"center">
+         =20
+        <a clicktracking=3Doff href=3D"https://santafare.com/snowflake?utm_=
+source=3Dselless&utm_medium=3De_santafare_20260219_A_1_tid&utm_campaign=3D&=
+utm_content=3De_santafare_20260219_A_1_tid&sclid=3D2f2877p55g15wy5iasp74znu=
+j&expiry=3D1771459200000&po_id=3D"><img class=3D"max-width" border=3D"0" st=
+yle=3D"display:block; color:#000000; text-decoration:none; font-family:Helv=
+etica, arial, sans-serif; font-size:16px; max-width:100% !important; width:=
+100%; height:auto !important;" width=3D"282" alt=3D"Snowflake" data-proport=
+ionally-constrained=3D"true" data-responsive=3D"true" src=3D"http://cdn.mca=
+uto-images-production.sendgrid.net/620c172d5dfc1e89/dbeab1dd-294a-4dea-945b=
+-d24abad1ff59/650x650.jpg"></a></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" align=3D"=
+center" width=3D"100%" role=3D"module" data-type=3D"columns" style=3D"paddi=
+ng:9px 9px 18px 9px;" bgcolor=3D"" data-distribution=3D"1">
+    <tbody>
+      <tr role=3D"module-content">
+        <td height=3D"100%" valign=3D"top"><table width=3D"564" style=3D"wi=
+dth:564px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 9=
+px;" cellpadding=3D"0" cellspacing=3D"0" align=3D"left" border=3D"0" bgcolo=
+r=3D"" class=3D"column column-0">
+      <tbody>
+        <tr>
+          <td style=3D"padding:0px;margin:0px;border-spacing:0;"><table cla=
+ss=3D"module" role=3D"module" data-type=3D"text" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" width=3D"100%" style=3D"table-layout: fixed;" data=
+-muid=3D"c2563ba7-95bd-4412-8c1c-65e0630c3306" data-mc-module-version=3D"20=
+19-10-22">
+    <tbody>
+      <tr>
+        <td style=3D"padding:0px 0px 0px 0px; line-height:20px; text-align:=
+inherit; background-color:#FFFFFF;" height=3D"100%" valign=3D"top" bgcolor=
+=3D"#FFFFFF" role=3D"module-content"><div><div style=3D"font-family: inheri=
+t; text-align: center"><span style=3D"box-sizing: border-box; padding-top: =
+0px; padding-right: 0px; padding-bottom: 0px; padding-left: 0px; margin-top=
+: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font-style:=
+ inherit; font-variant-ligatures: inherit; font-variant-caps: inherit; font=
+-variant-numeric: inherit; font-variant-east-asian: inherit; font-variant-a=
+lternates: inherit; font-variant-position: inherit; font-variant-emoji: inh=
+erit; font-weight: inherit; font-stretch: inherit; line-height: inherit; fo=
+nt-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inheri=
+t; font-feature-settings: inherit; font-variation-settings: inherit; vertic=
+al-align: baseline; border-top-width: 0px; border-right-width: 0px; border-=
+bottom-width: 0px; border-left-width: 0px; border-top-style: initial; borde=
+r-right-style: initial; border-bottom-style: initial; border-left-style: in=
+itial; border-top-color: initial; border-right-color: initial; border-botto=
+m-color: initial; border-left-color: initial; border-image-source: initial;=
+ border-image-slice: initial; border-image-width: initial; border-image-out=
+set: initial; border-image-repeat: initial; text-align: center; letter-spac=
+ing: normal; orphans: 2; text-indent: 0px; text-transform: none; widows: 2;=
+ word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space-collapse: p=
+reserve; text-wrap-mode: wrap; text-decoration-thickness: initial; text-dec=
+oration-style: initial; text-decoration-color: initial; animation-iteration=
+-count: 1; scroll-behavior: auto; font-family: arial, helvetica, sans-serif=
+; font-size: 12px">=F0=9F=92=8C Thanks for shopping at SantaFare!</span></d=
+iv>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; padding-top: 0px; padding-right: 0px; padding-bottom: 0=
+px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bottom: 0=
+px; margin-left: 0px; font-style: inherit; font-variant-ligatures: inherit;=
+ font-variant-caps: inherit; font-variant-numeric: inherit; font-variant-ea=
+st-asian: inherit; font-variant-alternates: inherit; font-variant-position:=
+ inherit; font-variant-emoji: inherit; font-weight: inherit; font-stretch: =
+inherit; line-height: inherit; font-optical-sizing: inherit; font-size-adju=
+st: inherit; font-kerning: inherit; font-feature-settings: inherit; font-va=
+riation-settings: inherit; vertical-align: baseline; border-top-width: 0px;=
+ border-right-width: 0px; border-bottom-width: 0px; border-left-width: 0px;=
+ border-top-style: initial; border-right-style: initial; border-bottom-styl=
+e: initial; border-left-style: initial; border-top-color: initial; border-r=
+ight-color: initial; border-bottom-color: initial; border-left-color: initi=
+al; border-image-source: initial; border-image-slice: initial; border-image=
+-width: initial; border-image-outset: initial; border-image-repeat: initial=
+; text-align: center; letter-spacing: normal; orphans: 2; text-indent: 0px;=
+ text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-wi=
+dth: 0px; white-space-collapse: preserve; text-wrap-mode: wrap; text-decora=
+tion-thickness: initial; text-decoration-style: initial; text-decoration-co=
+lor: initial; animation-iteration-count: 1; scroll-behavior: auto; font-fam=
+ily: arial, helvetica, sans-serif; font-size: 12px">You're part of the fami=
+ly! We hope you love your test_label from 29 Nov 2025 (#38-773).</span></di=
+v>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; padding-top: 0px; padding-right: 0px; padding-bottom: 0=
+px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bottom: 0=
+px; margin-left: 0px; font-style: inherit; font-variant-ligatures: inherit;=
+ font-variant-caps: inherit; font-variant-numeric: inherit; font-variant-ea=
+st-asian: inherit; font-variant-alternates: inherit; font-variant-position:=
+ inherit; font-variant-emoji: inherit; font-weight: inherit; font-stretch: =
+inherit; line-height: inherit; font-optical-sizing: inherit; font-size-adju=
+st: inherit; font-kerning: inherit; font-feature-settings: inherit; font-va=
+riation-settings: inherit; vertical-align: baseline; border-top-width: 0px;=
+ border-right-width: 0px; border-bottom-width: 0px; border-left-width: 0px;=
+ border-top-style: initial; border-right-style: initial; border-bottom-styl=
+e: initial; border-left-style: initial; border-top-color: initial; border-r=
+ight-color: initial; border-bottom-color: initial; border-left-color: initi=
+al; border-image-source: initial; border-image-slice: initial; border-image=
+-width: initial; border-image-outset: initial; border-image-repeat: initial=
+; text-align: center; letter-spacing: normal; orphans: 2; text-indent: 0px;=
+ text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-wi=
+dth: 0px; white-space-collapse: preserve; text-wrap-mode: wrap; text-decora=
+tion-thickness: initial; text-decoration-style: initial; text-decoration-co=
+lor: initial; animation-iteration-count: 1; scroll-behavior: auto; font-fam=
+ily: arial, helvetica, sans-serif; font-size: 12px">Want exclusive deals &a=
+mp; comfort tips? We'd love to keep in touch! But if you=E2=80=99d rather n=
+ot hear from us (we=E2=80=99ll be sad, but we understand), you can opt out =
+below.</span></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; padding-top: 0px; padding-right: 0px; padding-bottom: 0=
+px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bottom: 0=
+px; margin-left: 0px; font-style: inherit; font-variant-ligatures: inherit;=
+ font-variant-caps: inherit; font-variant-numeric: inherit; font-variant-ea=
+st-asian: inherit; font-variant-alternates: inherit; font-variant-position:=
+ inherit; font-variant-emoji: inherit; font-weight: inherit; font-stretch: =
+inherit; line-height: inherit; font-optical-sizing: inherit; font-size-adju=
+st: inherit; font-kerning: inherit; font-feature-settings: inherit; font-va=
+riation-settings: inherit; vertical-align: baseline; border-top-width: 0px;=
+ border-right-width: 0px; border-bottom-width: 0px; border-left-width: 0px;=
+ border-top-style: initial; border-right-style: initial; border-bottom-styl=
+e: initial; border-left-style: initial; border-top-color: initial; border-r=
+ight-color: initial; border-bottom-color: initial; border-left-color: initi=
+al; border-image-source: initial; border-image-slice: initial; border-image=
+-width: initial; border-image-outset: initial; border-image-repeat: initial=
+; text-align: center; letter-spacing: normal; orphans: 2; text-indent: 0px;=
+ text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-wi=
+dth: 0px; white-space-collapse: preserve; text-wrap-mode: wrap; text-decora=
+tion-thickness: initial; text-decoration-style: initial; text-decoration-co=
+lor: initial; animation-iteration-count: 1; scroll-behavior: auto; font-fam=
+ily: arial, helvetica, sans-serif; font-size: 12px">Reply with questions - =
+Mary or our experts are ready to help! Add us to your email contacts list t=
+o stay in the loop.</span></div>
+<div style=3D"font-family: inherit; text-align: center"><a clicktracking=3D=
+off href=3D"https://santafare.com/?utm_source=3Dselless&utm_medium=3De_sant=
+afare_20260219_A_1_tid&utm_campaign=3D&utm_content=3De_santafare_20260219_A=
+_1_tid&sclid=3D2f2877p55g15wy5iasp74znuj&expiry=3D1771459200000&po_id=3D"><=
+span style=3D"box-sizing: border-box; padding-top: 0px; padding-right: 0px;=
+ padding-bottom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px=
+; margin-bottom: 0px; margin-left: 0px; font-style: inherit; font-variant-l=
+igatures: inherit; font-variant-caps: inherit; font-variant-numeric: inheri=
+t; font-variant-east-asian: inherit; font-variant-alternates: inherit; font=
+-variant-position: inherit; font-variant-emoji: inherit; font-weight: inher=
+it; font-stretch: inherit; line-height: inherit; font-optical-sizing: inher=
+it; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings=
+: inherit; font-variation-settings: inherit; vertical-align: baseline; bord=
+er-top-width: 0px; border-right-width: 0px; border-bottom-width: 0px; borde=
+r-left-width: 0px; border-top-style: initial; border-right-style: initial; =
+border-bottom-style: initial; border-left-style: initial; border-top-color:=
+ initial; border-right-color: initial; border-bottom-color: initial; border=
+-left-color: initial; border-image-source: initial; border-image-slice: ini=
+tial; border-image-width: initial; border-image-outset: initial; border-ima=
+ge-repeat: initial; text-align: center; letter-spacing: normal; orphans: 2;=
+ text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -web=
+kit-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode:=
+ wrap; text-decoration-thickness: initial; text-decoration-style: initial; =
+text-decoration-color: initial; animation-iteration-count: 1; scroll-behavi=
+or: auto; font-family: arial, helvetica, sans-serif; font-size: 12px"><u>Sa=
+ntaFare.com</u></span></a></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; padding-top: 0px; padding-right: 0px; padding-bottom: 0=
+px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bottom: 0=
+px; margin-left: 0px; font-style: inherit; font-variant-ligatures: inherit;=
+ font-variant-caps: inherit; font-variant-numeric: inherit; font-variant-ea=
+st-asian: inherit; font-variant-alternates: inherit; font-variant-position:=
+ inherit; font-variant-emoji: inherit; font-weight: inherit; font-stretch: =
+inherit; line-height: inherit; font-optical-sizing: inherit; font-size-adju=
+st: inherit; font-kerning: inherit; font-feature-settings: inherit; font-va=
+riation-settings: inherit; vertical-align: baseline; border-top-width: 0px;=
+ border-right-width: 0px; border-bottom-width: 0px; border-left-width: 0px;=
+ border-top-style: initial; border-right-style: initial; border-bottom-styl=
+e: initial; border-left-style: initial; border-top-color: initial; border-r=
+ight-color: initial; border-bottom-color: initial; border-left-color: initi=
+al; border-image-source: initial; border-image-slice: initial; border-image=
+-width: initial; border-image-outset: initial; border-image-repeat: initial=
+; text-align: center; letter-spacing: normal; orphans: 2; text-indent: 0px;=
+ text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-wi=
+dth: 0px; white-space-collapse: preserve; text-wrap-mode: wrap; text-decora=
+tion-thickness: initial; text-decoration-style: initial; text-decoration-co=
+lor: initial; animation-iteration-count: 1; scroll-behavior: auto; font-fam=
+ily: arial, helvetica, sans-serif; font-size: 12px">770 Walnut Creek Dr NW,=
+ Lilburn, GA 30047</span></div>
+<div style=3D"font-family: inherit; text-align: center"><span style=3D"box-=
+sizing: border-box; padding-top: 0px; padding-right: 0px; padding-bottom: 0=
+px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bottom: 0=
+px; margin-left: 0px; font-style: inherit; font-variant-ligatures: inherit;=
+ font-variant-caps: inherit; font-variant-numeric: inherit; font-variant-ea=
+st-asian: inherit; font-variant-alternates: inherit; font-variant-position:=
+ inherit; font-variant-emoji: inherit; font-weight: inherit; font-stretch: =
+inherit; line-height: inherit; font-optical-sizing: inherit; font-size-adju=
+st: inherit; font-kerning: inherit; font-feature-settings: inherit; font-va=
+riation-settings: inherit; vertical-align: baseline; border-top-width: 0px;=
+ border-right-width: 0px; border-bottom-width: 0px; border-left-width: 0px;=
+ border-top-style: initial; border-right-style: initial; border-bottom-styl=
+e: initial; border-left-style: initial; border-top-color: initial; border-r=
+ight-color: initial; border-bottom-color: initial; border-left-color: initi=
+al; border-image-source: initial; border-image-slice: initial; border-image=
+-width: initial; border-image-outset: initial; border-image-repeat: initial=
+; text-align: center; letter-spacing: normal; orphans: 2; text-indent: 0px;=
+ text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-wi=
+dth: 0px; white-space-collapse: preserve; text-wrap-mode: wrap; text-decora=
+tion-thickness: initial; text-decoration-style: initial; text-decoration-co=
+lor: initial; animation-iteration-count: 1; scroll-behavior: auto; font-fam=
+ily: arial, helvetica, sans-serif; font-size: 12px">=C2=A9 2026 | </span><a=
+ clicktracking=3Doff href=3D"https://santafare.com/static/privacy?utm_sourc=
+e=3Dselless&utm_medium=3De_santafare_20260219_A_1_tid&utm_campaign=3D&utm_c=
+ontent=3De_santafare_20260219_A_1_tid&sclid=3D2f2877p55g15wy5iasp74znuj&exp=
+iry=3D1771459200000&po_id=3D"><span style=3D"box-sizing: border-box; paddin=
+g-top: 0px; padding-right: 0px; padding-bottom: 0px; padding-left: 0px; mar=
+gin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font=
+-style: inherit; font-variant-ligatures: inherit; font-variant-caps: inheri=
+t; font-variant-numeric: inherit; font-variant-east-asian: inherit; font-va=
+riant-alternates: inherit; font-variant-position: inherit; font-variant-emo=
+ji: inherit; font-weight: inherit; font-stretch: inherit; line-height: inhe=
+rit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning:=
+ inherit; font-feature-settings: inherit; font-variation-settings: inherit;=
+ vertical-align: baseline; border-top-width: 0px; border-right-width: 0px; =
+border-bottom-width: 0px; border-left-width: 0px; border-top-style: initial=
+; border-right-style: initial; border-bottom-style: initial; border-left-st=
+yle: initial; border-top-color: initial; border-right-color: initial; borde=
+r-bottom-color: initial; border-left-color: initial; border-image-source: i=
+nitial; border-image-slice: initial; border-image-width: initial; border-im=
+age-outset: initial; border-image-repeat: initial; text-align: center; lett=
+er-spacing: normal; orphans: 2; text-indent: 0px; text-transform: none; wid=
+ows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space-coll=
+apse: preserve; text-wrap-mode: wrap; text-decoration-thickness: initial; t=
+ext-decoration-style: initial; text-decoration-color: initial; animation-it=
+eration-count: 1; scroll-behavior: auto; outline-color: initial; outline-st=
+yle: none; outline-width: initial; text-decoration-line: underline; transit=
+ion-behavior: normal; transition-duration: 0.3s; transition-timing-function=
+: ease; transition-delay: 0s; transition-property: color; font-family: aria=
+l, helvetica, sans-serif; font-size: 12px"><u>Privacy Policy</u></span></a>=
+<span style=3D"box-sizing: border-box; padding-top: 0px; padding-right: 0px=
+; padding-bottom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0p=
+x; margin-bottom: 0px; margin-left: 0px; font-style: inherit; font-variant-=
+ligatures: inherit; font-variant-caps: inherit; font-variant-numeric: inher=
+it; font-variant-east-asian: inherit; font-variant-alternates: inherit; fon=
+t-variant-position: inherit; font-variant-emoji: inherit; font-weight: inhe=
+rit; font-stretch: inherit; line-height: inherit; font-optical-sizing: inhe=
+rit; font-size-adjust: inherit; font-kerning: inherit; font-feature-setting=
+s: inherit; font-variation-settings: inherit; vertical-align: baseline; bor=
+der-top-width: 0px; border-right-width: 0px; border-bottom-width: 0px; bord=
+er-left-width: 0px; border-top-style: initial; border-right-style: initial;=
+ border-bottom-style: initial; border-left-style: initial; border-top-color=
+: initial; border-right-color: initial; border-bottom-color: initial; borde=
+r-left-color: initial; border-image-source: initial; border-image-slice: in=
+itial; border-image-width: initial; border-image-outset: initial; border-im=
+age-repeat: initial; text-align: center; letter-spacing: normal; orphans: 2=
+; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -we=
+bkit-text-stroke-width: 0px; white-space-collapse: preserve; text-wrap-mode=
+: wrap; text-decoration-thickness: initial; text-decoration-style: initial;=
+ text-decoration-color: initial; animation-iteration-count: 1; scroll-behav=
+ior: auto; font-family: arial, helvetica, sans-serif; font-size: 12px"> | <=
+/span><a clicktracking=3Doff href=3D"https://santafare.com/static/exchanges=
+-returns?utm_source=3Dselless&utm_medium=3De_santafare_20260219_A_1_tid&utm=
+_campaign=3D&utm_content=3De_santafare_20260219_A_1_tid&sclid=3D2f2877p55g1=
+5wy5iasp74znuj&expiry=3D1771459200000&po_id=3D"><span style=3D"box-sizing: =
+border-box; padding-top: 0px; padding-right: 0px; padding-bottom: 0px; padd=
+ing-left: 0px; margin-top: 0px; margin-right: 0px; margin-bottom: 0px; marg=
+in-left: 0px; font-style: inherit; font-variant-ligatures: inherit; font-va=
+riant-caps: inherit; font-variant-numeric: inherit; font-variant-east-asian=
+: inherit; font-variant-alternates: inherit; font-variant-position: inherit=
+; font-variant-emoji: inherit; font-weight: inherit; font-stretch: inherit;=
+ line-height: inherit; font-optical-sizing: inherit; font-size-adjust: inhe=
+rit; font-kerning: inherit; font-feature-settings: inherit; font-variation-=
+settings: inherit; vertical-align: baseline; border-top-width: 0px; border-=
+right-width: 0px; border-bottom-width: 0px; border-left-width: 0px; border-=
+top-style: initial; border-right-style: initial; border-bottom-style: initi=
+al; border-left-style: initial; border-top-color: initial; border-right-col=
+or: initial; border-bottom-color: initial; border-left-color: initial; bord=
+er-image-source: initial; border-image-slice: initial; border-image-width: =
+initial; border-image-outset: initial; border-image-repeat: initial; text-a=
+lign: center; letter-spacing: normal; orphans: 2; text-indent: 0px; text-tr=
+ansform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px=
+; white-space-collapse: preserve; text-wrap-mode: wrap; text-decoration-thi=
+ckness: initial; text-decoration-style: initial; text-decoration-color: ini=
+tial; animation-iteration-count: 1; scroll-behavior: auto; outline-color: i=
+nitial; outline-style: none; outline-width: initial; text-decoration-line: =
+underline; transition-behavior: normal; transition-duration: 0.3s; transiti=
+on-timing-function: ease; transition-delay: 0s; transition-property: color;=
+ font-family: arial, helvetica, sans-serif; font-size: 12px"><u>Exchanges &=
+amp; Returns</u></span></a></div><div></div></div></td>
+      </tr>
+    </tbody>
+  </table></td>
+        </tr>
+      </tbody>
+    </table></td>
+      </tr>
+    </tbody>
+  </table></td>
+                                      </tr>
+                                    </table>
+                                    <!--[if mso]>
+                                  </td>
+                                </tr>
+                              </table>
+                            </center>
+                            <![endif]-->
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </center>
+    <p style=3D"font-size:11px; color:#717171;"><a href=3D"http://url2723.s=
+hophelp.org/wf/unsubscribe?upn=3Du001.ht-2FktIIqvIiyIXvVRAfhSERW3kZ7if8l7nZ=
+DZRCW2a5IXGKKZ0XHRg7DFq5yuio-2FLgT-2BIr3jnMbkJSz4rDfbe-2BOxoBD9ZOU-2FJGYai5=
+HfLQuHVoP8ezyCw2SH4e8d6oLJdAaEWnrxOrWwUMXfNGJD3ypPNzoL8yDds8yo6gGzhHVCPtZ4t=
+1aZsK41HSstTDqq7W2e0XL7ZmquBtTcXL-2FL-2FeaV0YW7FRu8LUBE4yPKHyvoEn6o5YT3oCX7=
+1Y5bki8PjScm2v-2Fnu0j6UBoBtjN6y1qSZwY5Vn1GDg-2BVM5fhiFrFckJwUtou3Ao3-2FBcS0=
+xZ-2BPWueZjfidLNMNMHoTh4RKJRgpJjeAfZQ26y9-2B5vDFHYBG-2Fk7umJe0bpCn7wiM1798N=
+L8yqdV3kfxLnm1ifhzrnlIL8aR-2BJPlsHoeS-2FbMexs-3D"> Unsubscribe </a></p>
+<img src=3D"http://url2723.shophelp.org/wf/open?upn=3Du001.ht-2FktIIqvIiyIX=
+vVRAfhSERW3kZ7if8l7nZDZRCW2a5IXGKKZ0XHRg7DFq5yuio-2FLgT-2BIr3jnMbkJSz4rDfbe=
+-2BOxoBD9ZOU-2FJGYai5HfLQuHVoP8ezyCw2SH4e8d6oLJdAaEWnrxOrWwUMXfNGJD3ypPNzoL=
+8yDds8yo6gGzhHVCPtZ4t1aZsK41HSstTDqq7W2e0XL7ZmquBtTcXL-2FL-2FSa0CeJL0uIn4Q1=
+TpZxtx1Z-2FZd-2B5CL6T-2FETr4lf2pGQRbwyHeBzssFYMkdckAASqlvLuV1syouuYwgNVufuj=
+f07bGLgcyxjRLMrg8ECfnI7ibVov546bohva-2Brh7IE8MZNs17QDWGnd1PGtnJLsLuOkSq54-2=
+BcMuda2JSqjU2sJGTqSGIMTRKTrJJed7rNGRRgeL-2BvvsLVZtksAB5yoXTrQE-3D" alt=3D""=
+ width=3D"1" height=3D"1" border=3D"0" style=3D"height:1px !important;width=
+:1px !important;border-width:0 !important;margin-top:0 !important;margin-bo=
+ttom:0 !important;margin-right:0 !important;margin-left:0 !important;paddin=
+g-top:0 !important;padding-bottom:0 !important;padding-right:0 !important;p=
+adding-left:0 !important;"/></body>
+  </html>
+--2323c7c9871e8e8977ff8bd7f5166a0e390a9cb7cecd93e74fad74d490ed--

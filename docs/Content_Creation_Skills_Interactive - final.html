@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Content Creation Skills — Endcard Development</title>
+<style>
+  /* ====== CSS VARIABLES ====== */
+  :root {
+    --navy: #1A365D;
+    --teal: #2C7A7B;
+    --gold: #D69E2E;
+    --purple: #6B46C1;
+    --emerald: #0F766E;
+    --dark: #1F2937;
+    --muted: #64748B;
+    --bg: #FFFFFF;
+    --bg-soft: #F8FAFC;
+    --border: #E2E8F0;
+    --navy-soft: #E6F0F7;
+    --teal-soft: #E6F4F4;
+    --gold-soft: #FAF0DC;
+    --purple-soft: #F3E8FF;
+    --emerald-soft: #CCFBF1;
+    --red-soft: #FEE2E2;
+    --green-soft: #DCFCE7;
+    --red-text: #B91C1C;
+    --green-text: #166534;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  /* ====== RESET ====== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, "Be Vietnam Pro", sans-serif;
+    color: var(--dark);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.3; margin: 0 0 0.5em; color: var(--navy); }
+  h1 { font-size: 2.2rem; }
+  h2 { font-size: 1.6rem; margin-top: 1.5em; }
+  h3 { font-size: 1.2rem; margin-top: 1.2em; }
+  h4 { font-size: 1.0rem; }
+  p { margin: 0 0 0.8em; }
+  a { color: var(--teal); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, .code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.92em; background: var(--bg-soft); padding: 1px 5px; border-radius: 4px; }
+  ul, ol { padding-left: 1.4em; margin: 0 0 0.8em; }
+  li { margin-bottom: 0.3em; }
+
+  /* ====== STICKY TOP NAV ====== */
+  .topnav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--navy); color: #fff;
+    border-bottom: 3px solid var(--gold);
+    padding: 0.6em 1.2em;
+    display: flex; align-items: center; gap: 1.5em;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-md);
+  }
+  .topnav .brand { font-weight: 700; font-size: 0.95rem; letter-spacing: 0.3px; color: #fff; }
+  .topnav .brand .accent { color: var(--gold); }
+  .topnav nav { display: flex; gap: 0.4em; flex-wrap: wrap; margin-left: auto; }
+  .topnav nav a {
+    color: #CADCFC; font-size: 0.85rem; padding: 0.3em 0.7em;
+    border-radius: 6px; transition: all 0.15s;
+    text-decoration: none;
+  }
+  .topnav nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+  /* ====== HERO ====== */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, #2A4A7F 100%);
+    color: #fff;
+    padding: 3em 1.5em 2em;
+    text-align: center;
+  }
+  .hero .tagline {
+    color: var(--gold); font-size: 0.85rem; letter-spacing: 4px;
+    font-weight: 700; margin-bottom: 0.8em;
+  }
+  .hero h1 { color: #fff; font-size: 2.8rem; margin-bottom: 0.3em; }
+  .hero .subtitle { color: #CADCFC; font-size: 1.2rem; font-style: italic; margin-bottom: 1em; }
+  .hero .meta { color: var(--gold); font-size: 0.9rem; letter-spacing: 2px; }
+
+  /* ====== FLOW DIAGRAM ====== */
+  .flow-section {
+    background: var(--bg-soft);
+    padding: 2em 1em;
+    border-bottom: 1px solid var(--border);
+  }
+  .flow-section h2 { text-align: center; margin: 0 0 1.5em; font-size: 1.4rem; }
+  .flow-diagram {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap;
+    justify-content: center;
+  }
+  .flow-card {
+    flex: 1 1 180px; min-width: 170px; max-width: 220px;
+    background: #fff; border-radius: var(--radius);
+    border: 2px solid; box-shadow: var(--shadow-sm);
+    text-decoration: none; color: var(--dark);
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: flex; flex-direction: column;
+  }
+  .flow-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); text-decoration: none; }
+  .flow-card .lbl { font-size: 0.7rem; letter-spacing: 3px; padding: 0.4em; text-align: center; color: #fff; font-weight: 700; }
+  .flow-card .name { font-size: 1.4rem; font-weight: 800; padding: 0.4em 0.3em 0; text-align: center; }
+  .flow-card .role { font-size: 0.8rem; padding: 0.3em 0.3em 0.6em; text-align: center; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  .flow-card .desc { font-size: 0.8rem; color: var(--muted); padding: 0.4em 0.8em 0.8em; text-align: center; flex: 1; }
+
+  .flow-card.l1 { border-color: var(--navy); }
+  .flow-card.l1 .lbl { background: var(--navy); }
+  .flow-card.l1 .name, .flow-card.l1 .role { color: var(--navy); }
+
+  .flow-card.l2 { border-color: var(--teal); }
+  .flow-card.l2 .lbl { background: var(--teal); }
+  .flow-card.l2 .name, .flow-card.l2 .role { color: var(--teal); }
+
+  .flow-card.l3 { border-color: var(--gold); }
+  .flow-card.l3 .lbl { background: var(--gold); }
+  .flow-card.l3 .name, .flow-card.l3 .role { color: var(--gold); }
+
+  .flow-card.l4 { border-color: var(--purple); }
+  .flow-card.l4 .lbl { background: var(--purple); }
+  .flow-card.l4 .name, .flow-card.l4 .role { color: var(--purple); }
+
+  .flow-card.l5 { border-color: var(--emerald); }
+  .flow-card.l5 .lbl { background: var(--emerald); }
+  .flow-card.l5 .name, .flow-card.l5 .role { color: var(--emerald); }
+
+  .flow-arrow {
+    display: flex; align-items: center; color: var(--gold);
+    font-size: 1.6rem; font-weight: 700; align-self: center;
+  }
+
+  /* ====== MAIN CONTAINER ====== */
+  main { max-width: 1100px; margin: 0 auto; padding: 1em 1.5em 4em; }
+
+  /* ====== SECTION ====== */
+  section.layer { margin: 3em 0; scroll-margin-top: 90px; }
+  section.layer .layer-head {
+    border-left: 6px solid var(--navy);
+    padding: 0.4em 0 0.4em 1em;
+    margin-bottom: 1.5em;
+  }
+  section.layer .layer-tag {
+    font-size: 0.7rem; letter-spacing: 3px; font-weight: 700;
+    color: var(--gold); text-transform: uppercase;
+  }
+  section.layer h2 { margin: 0.1em 0; }
+  section.layer .layer-subtitle {
+    color: var(--muted); font-style: italic; margin-top: 0.2em;
+  }
+
+  /* Per-layer accent colors */
+  .layer-1 .layer-head { border-color: var(--navy); }
+  .layer-1 h2 { color: var(--navy); }
+  .layer-2 .layer-head { border-color: var(--teal); }
+  .layer-2 h2 { color: var(--teal); }
+  .layer-3 .layer-head { border-color: var(--gold); }
+  .layer-3 h2 { color: var(--gold); }
+  .layer-4 .layer-head { border-color: var(--purple); }
+  .layer-4 h2 { color: var(--purple); }
+  .layer-5 .layer-head { border-color: var(--emerald); }
+  .layer-5 h2 { color: var(--emerald); }
+  .layer-6 .layer-head { border-color: var(--navy); }
+  .layer-6 h2 { color: var(--navy); }
+  .layer-x .layer-head { border-color: var(--muted); }
+  .layer-x h2 { color: var(--muted); }
+
+  /* ====== CARDS ====== */
+  .card {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.2em 1.4em;
+    margin: 1em 0; box-shadow: var(--shadow-sm);
+  }
+  .card.def { background: var(--bg-soft); border-left: 4px solid var(--teal); }
+  .card.warn { background: #FFFBEB; border-left: 4px solid var(--gold); }
+  .card.danger { background: var(--red-soft); border-left: 4px solid var(--red-text); }
+  .card.ok { background: var(--green-soft); border-left: 4px solid var(--green-text); }
+  .card h3 { margin-top: 0; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1em; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* ====== TABLES ====== */
+  table {
+    width: 100%; border-collapse: collapse;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); overflow: hidden;
+    font-size: 0.92rem; margin: 1em 0;
+  }
+  th { background: var(--navy); color: #fff; font-weight: 600; text-align: left; padding: 0.7em 0.9em; font-size: 0.88rem; letter-spacing: 0.5px; }
+  td { padding: 0.6em 0.9em; border-top: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: #FBFCFE; }
+  .table-l1 th { background: var(--navy); }
+  .table-l2 th { background: var(--teal); }
+  .table-l3 th { background: var(--gold); color: #fff; }
+  .table-l4 th { background: var(--purple); }
+  .table-l5 th { background: var(--emerald); }
+
+  /* ====== TEMPLATE WORKSHEET ====== */
+  .worksheet {
+    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+    border: 2px dashed var(--gold);
+    border-radius: var(--radius);
+    padding: 1.2em 1.5em;
+    margin: 1.5em 0;
+    position: relative;
+  }
+  .worksheet::before {
+    content: "📝 TEMPLATE — Part (2): Fill cho product của bạn";
+    display: block;
+    font-weight: 700; color: var(--gold); font-size: 0.9rem;
+    letter-spacing: 2px; margin-bottom: 0.8em; text-transform: uppercase;
+  }
+  .worksheet label {
+    display: block; font-weight: 600; color: var(--dark);
+    font-size: 0.85rem; margin: 0.8em 0 0.3em;
+  }
+  .worksheet label .hint { color: var(--muted); font-weight: 400; font-style: italic; font-size: 0.85em; }
+  .worksheet input[type="text"], .worksheet textarea {
+    width: 100%; padding: 0.6em 0.8em;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-family: inherit; font-size: 0.95rem; color: var(--dark);
+    background: #fff;
+    resize: vertical;
+  }
+  .worksheet input:focus, .worksheet textarea:focus {
+    outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(44, 122, 123, 0.15);
+  }
+  .worksheet textarea { min-height: 60px; }
+  .worksheet textarea.lg { min-height: 100px; }
+  .worksheet .ws-actions { margin-top: 0.8em; display: flex; gap: 0.5em; }
+  .worksheet button {
+    padding: 0.4em 1em; font-size: 0.85rem; border-radius: 6px;
+    border: 1px solid var(--border); background: #fff; cursor: pointer;
+    font-family: inherit; color: var(--dark);
+    transition: all 0.15s;
+  }
+  .worksheet button:hover { background: var(--bg-soft); border-color: var(--gold); }
+  .worksheet button.primary { background: var(--gold); color: #fff; border-color: var(--gold); }
+  .worksheet button.primary:hover { background: #B7791F; }
+  .worksheet .save-status {
+    font-size: 0.75rem; color: var(--muted); margin-left: auto;
+    align-self: center;
+  }
+
+  /* ====== COLLAPSIBLE ====== */
+  details {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0.5em 1em; margin: 0.5em 0;
+  }
+  details summary {
+    cursor: pointer; font-weight: 600; color: var(--navy); padding: 0.3em 0;
+    list-style: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before {
+    content: "▸ "; color: var(--gold); display: inline-block; transition: transform 0.15s;
+  }
+  details[open] summary::before { content: "▾ "; }
+
+  /* ====== PILLS / BADGES ====== */
+  .pill {
+    display: inline-block; padding: 0.15em 0.6em; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 600; margin-right: 0.3em;
+  }
+  .pill.l1 { background: var(--navy-soft); color: var(--navy); }
+  .pill.l2 { background: var(--teal-soft); color: var(--teal); }
+  .pill.l3 { background: var(--gold-soft); color: var(--gold); }
+  .pill.l4 { background: var(--purple-soft); color: var(--purple); }
+  .pill.l5 { background: var(--emerald-soft); color: var(--emerald); }
+  .pill.do { background: var(--green-soft); color: var(--green-text); }
+  .pill.dont { background: var(--red-soft); color: var(--red-text); }
+
+  /* ====== KEY-VALUE LIST ====== */
+  dl { margin: 0.5em 0; }
+  dl dt { font-weight: 700; color: var(--navy); margin-top: 0.6em; }
+  dl dd { margin: 0 0 0.4em 0; color: var(--dark); }
+
+  /* ====== PIPELINE ASCII ====== */
+  .pipeline {
+    background: var(--navy); color: #fff;
+    padding: 1.2em; border-radius: var(--radius);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.5;
+    overflow-x: auto; white-space: pre;
+    margin: 1em 0;
+  }
+
+  /* ====== STAT CALLOUT ====== */
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1em; margin: 1.5em 0; }
+  .stat {
+    background: #fff; border-radius: var(--radius); padding: 1.5em 1em;
+    text-align: center; border: 2px solid;
+  }
+  .stat .num { font-size: 3.2rem; font-weight: 800; line-height: 1; }
+  .stat .lbl { font-size: 0.9rem; font-weight: 600; margin-top: 0.4em; }
+
+  /* ====== FOOTER ====== */
+  footer {
+    background: var(--navy); color: #CADCFC;
+    padding: 2em 1.5em; text-align: center;
+    margin-top: 4em;
+  }
+  footer p { margin: 0.3em 0; }
+  footer .credit { font-size: 0.8rem; color: var(--gold); letter-spacing: 1px; }
+
+  /* ====== PRINT ====== */
+  @media print {
+    .topnav, footer, .ws-actions { display: none; }
+    .worksheet { background: #fff; border: 1px solid #999; }
+    body { font-size: 11pt; }
+    .flow-card { break-inside: avoid; }
+    section.layer { break-before: page; }
+  }
+
+  /* ====== UTILITIES ====== */
+  .muted { color: var(--muted); }
+  .small { font-size: 0.85rem; }
+  .center { text-align: center; }
+  .mt-0 { margin-top: 0; }
+  .mb-0 { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<!-- ========== STICKY NAV ========== -->
+<div class="topnav">
+  <div class="brand">Content Creation Skills <span class="accent">— Endcard Dev</span></div>
+  <nav>
+    <a href="#hero">Top</a>
+    <a href="#flow">Flow</a>
+    <a href="#layer-1">1. Input</a>
+    <a href="#layer-2">2. Angle</a>
+    <a href="#layer-3">3. Framework</a>
+    <a href="#layer-4">4. Flow</a>
+    <a href="#layer-5">5. Brief</a>
+    <a href="#layer-6">Relationship</a>
+    <a href="#mistakes">Mistakes</a>
+  </nav>
+</div>
+
+<!-- ========== HERO ========== -->
+<section class="hero" id="hero">
+  <div class="tagline">INTERNAL TRAINING — PART (1)</div>
+  <h1>Content Creation Skills</h1>
+  <div class="subtitle">for Endcard Development</div>
+  <div class="meta">D2C E-COMMERCE • DEEP-DIVE TRAINING</div>
+</section>
+
+<!-- ========== FLOW DIAGRAM ========== -->
+<section class="flow-section" id="flow">
+  <h2>5-Layer Flow — from Input to Output</h2>
+  <div class="flow-diagram">
+    <a class="flow-card l1" href="#layer-1">
+      <div class="lbl">LAYER 1</div>
+      <div class="name">INPUT</div>
+      <div class="role">What we know</div>
+      <div class="desc">Insights + USP + Context — nguyên liệu nền tảng</div>
+    </a>
+    <div class="flow-arrow">▶</div>
+    <a class="flow-card l2" href="#layer-2">
+      <div class="lbl">LAYER 2</div>
+      <div class="name">ANGLE</div>
+      <div class="role">Why they care</div>
+      <div class="desc">Lăng kính / góc nhìn truyền tải</div>
+    </a>
+    <div class="flow-arrow">▶</div>
+    <a class="flow-card l3" href="#layer-3">
+      <div class="lbl">LAYER 3</div>
+      <div class="name">FRAMEWORK</div>
+      <div class="role">In what order</div>
+      <div class="desc">Công thức cấu trúc message</div>
+    </a>
+    <div class="flow-arrow">▶</div>
+    <a class="flow-card l4" href="#layer-4">
+      <div class="lbl">LAYER 4</div>
+      <div class="name">FLOW</div>
+      <div class="role">How it unfolds</div>
+      <div class="desc">Storyboard scene/zone cụ thể</div>
+    </a>
+    <div class="flow-arrow">▶</div>
+    <a class="flow-card l5" href="#layer-5">
+      <div class="lbl">LAYER 5</div>
+      <div class="name">BRIEF</div>
+      <div class="role">Execution spec</div>
+      <div class="desc">Copy + Visual + Tech + Mandatories + Approval</div>
+    </a>
+  </div>
+  <p class="center muted small" style="margin-top:1.5em;">
+    Mỗi layer là OUTPUT của layer trước, INPUT của layer sau. Đứt 1 mắt xích → brief FAIL.
+  </p>
+</section>
+
+<!-- ========== USAGE GUIDE ========== -->
+<main>
+<div class="card warn">
+  <h3 style="margin-top:0;">📖 Cách dùng tài liệu này</h3>
+  <ul>
+    <li><strong>Phần (1) — Lý thuyết</strong>: Đọc 6 section dưới đây để nắm khung lý thuyết. Tài liệu KHÔNG có ví dụ sản phẩm cụ thể — chỉ có định nghĩa, cấu trúc, taxonomy, cách gather.</li>
+    <li><strong>Edit content lý thuyết</strong>: Mở file .html này trong VS Code / Notepad++, search nội dung muốn sửa, type trực tiếp. Hoặc nhờ Claude edit qua chat.</li>
+  </ul>
+</div>
+
+<!-- ========== LAYER 1 — INPUT ========== -->
+<section class="layer layer-1" id="layer-1">
+  <div class="layer-head">
+    <div class="layer-tag">Layer 1 / 5 — Input (What We Know)</div>
+    <h2>{Audience Insights + Product USP + Context}</h2>
+    <div class="layer-subtitle">3 nguyên liệu nền tảng. Nếu input mơ hồ → cả chain sụp. Validate kỹ TRƯỚC khi qua Layer 2.</div>
+  </div>
+
+  <!-- ========== 1.1 AUDIENCE INSIGHTS ========== -->
+  <h3 id="insights">1.1 Audience Insights — Hiểu sâu NGƯỜI MUA</h3>
+
+  <div class="card def">
+    <h4 class="mt-0">Định nghĩa</h4>
+    <p><strong>Audience Insight</strong> = sự thật ẩn (hidden truth) về <em>hành vi, nỗi đau, mong muốn, niềm tin</em> của target audience mà nếu CHẠM vào sẽ unlock được hành động mua.</p>
+    <p><strong>Insight ≠ Data.</strong> Data = quan sát bề mặt, đo lường được, ai cũng có. Insight = giải thích đằng sau data, often trái với giả định ban đầu, phải đào mới ra.</p>
+  </div>
+
+  <h4>Cấu trúc — 7 thành phần bắt buộc</h4>
+  <table class="table-l1">
+    <thead><tr><th>Thành phần</th><th>Ý nghĩa</th><th>Câu hỏi để khai thác</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Demographic</strong></td><td>Tuổi, giới, thu nhập, khu vực, gia đình</td><td>Họ là ai trên giấy tờ?</td></tr>
+      <tr><td><strong>Psychographic</strong></td><td>Giá trị sống, lifestyle, identity họ tự nhận</td><td>Họ tự thấy mình là người như thế nào?</td></tr>
+      <tr><td><strong>Behavioral</strong></td><td>Hành vi mua, kênh shop, tần suất, brand loyalty</td><td>Họ MUA như thế nào?</td></tr>
+      <tr><td><strong>Pain point</strong></td><td>Nỗi đau hiện tại (functional + emotional)</td><td>Điều gì đang LÀM PHIỀN họ liên quan đến category?</td></tr>
+      <tr><td><strong>Desire ẩn</strong></td><td>Khao khát chưa được nói ra</td><td>Họ MUỐN cảm giác gì khi vấn đề được giải quyết?</td></tr>
+      <tr><td><strong>Objection</strong></td><td>Rào cản tâm lý / hoài nghi</td><td>Tại sao họ CHƯA mua sản phẩm như mình?</td></tr>
+      <tr><td><strong>Current alternative</strong></td><td>Họ đang làm gì để giải quyết pain</td><td>Họ đang dùng gì để "chữa cháy"?</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Các thể loại Insight (taxonomy)</h4>
+  <div class="grid-2">
+    <div class="card">
+      <p><span class="pill l1">1. Functional</span> Về cách sản phẩm hoạt động sai/đúng.</p>
+      <p><span class="pill l1">2. Emotional</span> Về cảm xúc (vd: cảm thấy invisible khi đi shop).</p>
+      <p><span class="pill l1">3. Social</span> Về áp lực xã hội / identity.</p>
+    </div>
+    <div class="card">
+      <p><span class="pill l1">4. Transactional</span> Về hành vi mua (vd: return policy quan trọng hơn giá).</p>
+      <p><span class="pill l1">5. Cultural</span> Về niềm tin chung của nhóm (vd: myth "wireless không đỡ được full bust" với phụ nữ 60+).</p>
+      <p><span class="pill l1">6. Contextual</span> Về tình huống dùng (vd: ở nhà retirement vs đi event social).</p>
+    </div>
+  </div>
+
+  <h4>Cách gather Insight — 5 phương pháp chính</h4>
+  <ol>
+    <li><strong>Review mining</strong> — đọc 50-100 review 1-3 sao của đối thủ. Pain ẩn nằm ở đây.</li>
+    <li><strong>Customer interview</strong> — phỏng vấn 5-10 khách cũ với câu hỏi mở (vd: "Lần gần nhất chị buộc phải tháo/dừng dùng sản phẩm trong ngày là khi nào?").</li>
+    <li><strong>Forum & community</strong> — Reddit, Facebook group, niche forums (vd: r/menopause, AARP, fashion-over-50 communities).</li>
+    <li><strong>Search query analysis</strong> — Google Trends, autocomplete cho thấy ngôn ngữ thật.</li>
+    <li><strong>Sales / CS feedback</strong> — FAQ nào lặp lại nhiều nhất? Lý do return phổ biến nhất?</li>
+  </ol>
+
+  <!-- ========== 1.2 PRODUCT USP ========== -->
+  <h3 id="usp">1.2 Product USP — Hiểu sâu SẢN PHẨM</h3>
+
+  <div class="card def">
+    <h4 class="mt-0">Định nghĩa</h4>
+    <p><strong>USP = ưu thế / điểm khác biệt VERIFIABLE mà sản phẩm CÓ và đối thủ KHÔNG/ÍT có.</strong> Đây là "vũ khí" chứng minh tại sao sản phẩm này — không phải sản phẩm khác — sẽ giải quyết được pain trong Insight.</p>
+    <p><strong>USP ≠ Feature.</strong> Feature = tính năng kỹ thuật. USP = combination of feature + advantage + benefit + proof mà ĐỘC ĐÁO so với thị trường.</p>
+    <p><strong>Test verify USP:</strong> Nếu đối thủ có thể copy USP trong 1 tuần → KHÔNG phải USP. Phải có yếu tố KHÓ bắt chước (patent, công nghệ độc, scale, brand equity, lab certification).</p>
+  </div>
+
+  <h4>Cấu trúc — FAB-P framework</h4>
+  <table class="table-l2">
+    <thead><tr><th>Tầng</th><th>Tên</th><th>Nội dung</th><th>Câu hỏi</th></tr></thead>
+    <tbody>
+      <tr><td><strong>F</strong></td><td>Feature</td><td>Tính năng kỹ thuật, chất liệu, design cụ thể</td><td>Sản phẩm CÓ GÌ về mặt vật lý?</td></tr>
+      <tr><td><strong>A</strong></td><td>Advantage</td><td>So với đối thủ / status quo, sản phẩm này hơn ở điểm nào</td><td>TỐT HƠN ở chỗ nào?</td></tr>
+      <tr><td><strong>B</strong></td><td>Benefit</td><td>Lợi ích cuối — cảm giác / kết quả user nhận được</td><td>User SẼ NHẬN gì?</td></tr>
+      <tr><td><strong>P</strong></td><td>Proof</td><td>Chứng minh advantage là thật</td><td>Bằng chứng đâu?</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Các thể loại USP</h4>
+  <div class="grid-2">
+    <div class="card">
+      <p><span class="pill l2">1. Functional</span> Tính năng cao cấp hơn.</p>
+      <p><span class="pill l2">2. Material</span> Chất liệu độc đáo.</p>
+      <p><span class="pill l2">3. Performance</span> Kết quả định lượng được.</p>
+      <p><span class="pill l2">4. Process</span> Cách làm khác biệt.</p>
+    </div>
+    <div class="card">
+      <p><span class="pill l2">5. Mission/Values</span> Về tinh thần thương hiệu.</p>
+      <p><span class="pill l2">6. Price/Value</span> Giá trị-tiền.</p>
+      <p><span class="pill l2">7. Service</span> Dịch vụ đi kèm.</p>
+    </div>
+  </div>
+
+  <h4>Cách tìm USP</h4>
+  <ol>
+    <li><strong>Spec compare 3-5 đối thủ trực tiếp</strong> — bảng feature side-by-side. Tìm cột mình có check, đối thủ không.</li>
+    <li><strong>Đọc review 1-2 sao của đối thủ</strong> — pain nào đối thủ KHÔNG giải quyết, mình giải quyết được?</li>
+    <li><strong>Hỏi R&D / sourcing team</strong> — cái gì khó copy nhất? Patent gì? Process gì độc?</li>
+    <li><strong>Đọc testimonial của khách mình</strong> — họ khen gì NHẤT? Lặp lại nhiều nhất?</li>
+    <li><strong>Test "1-week copy" question</strong> — nếu đối thủ thấy USP này có copy được trong 1 tuần không?</li>
+  </ol>
+
+  <!-- ========== 1.3 CONTEXT ========== -->
+  <h3 id="context">1.3 Context — Hiểu sâu BỐI CẢNH</h3>
+
+  <div class="card def">
+    <h4 class="mt-0">Định nghĩa</h4>
+    <p><strong>Context = các yếu tố tình huống ảnh hưởng đến cách audience TIẾP NHẬN message.</strong> Cùng 1 USP, cùng 1 Angle, nhưng audience ở placement / funnel stage / season / mood khác nhau sẽ phản ứng khác nhau. Context quyết định <em>format, tone, pace, độ dài</em> của creative.</p>
+  </div>
+
+  <h4>Cấu trúc — 5 yếu tố bắt buộc</h4>
+  <table class="table-l3">
+    <thead><tr><th>#</th><th>Yếu tố</th><th>Câu hỏi</th><th>Tại sao quan trọng</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>Placement</strong></td><td>Endcard xuất hiện ở ĐÂU?</td><td>Quyết định format size, attention span</td></tr>
+      <tr><td>2</td><td><strong>Funnel stage</strong></td><td>Audience đã biết gì về brand?</td><td>Cold → hook mạnh, Warm → proof, Hot → offer</td></tr>
+      <tr><td>3</td><td><strong>Format & Device</strong></td><td>Dimension, file weight, animation length</td><td>Constraint kỹ thuật ảnh hưởng flow</td></tr>
+      <tr><td>4</td><td><strong>Season / Trigger</strong></td><td>Thời điểm chạy: mùa, sự kiện, payday</td><td>Tận dụng cultural moment / urgency</td></tr>
+      <tr><td>5</td><td><strong>Audience mood</strong></td><td>Đang scroll giải trí hay research?</td><td>Quyết định pace, độ dày thông tin</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Các thể loại Context — chi tiết</h4>
+  <details>
+    <summary>Theo Placement (click để mở)</summary>
+    <ul>
+      <li><strong>Facebook Feed</strong> — dwell time 3-5s, copy heavier được</li>
+      <li><strong>Instagram Story / Reels</strong> — fast hook, visual-heavy, 4:5 / 9:16</li>
+      <li><strong>YouTube pre-roll</strong> — audio-driven, dramatic hook, 6s/15s</li>
+      <li><strong>TikTok</strong> — short, native UGC style</li>
+      <li><strong>Google Display Network</strong> — smaller banners, headline-driven</li>
+      <li><strong>Email retargeting endcard</strong> — audience warm, focus offer</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Theo Funnel stage</summary>
+    <ul>
+      <li><strong>Cold</strong> (prospecting, lookalike) — chưa biết brand → cần hook + education</li>
+      <li><strong>Warm</strong> (retargeting site visitors) — đã engage → cần proof + tackle objection</li>
+      <li><strong>Hot</strong> (cart abandoner) — đã add to cart → cần offer + scarcity</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Theo Format</summary>
+    <ul>
+      <li><strong>Static .png</strong> (1:1, 4:5, 9:16) — 1 frame, 1-2 giây attention</li>
+      <li><strong>Dynamic .html</strong> (3-15s) — scene-by-scene narrative</li>
+      <li><strong>Playable</strong> (interactive) — tap to engage, demo</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Theo Season / Trigger</summary>
+    <ul>
+      <li>Mother's / Father's Day (gift angle)</li>
+      <li>Summer (cooling / lightweight angle)</li>
+      <li>Black Friday / Cyber Monday (offer-driven)</li>
+      <li>Back-to-work September (workwear angle)</li>
+      <li>Industry-specific awareness month (vd: Menopause Awareness October)</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Theo Audience mood / intent</summary>
+    <ul>
+      <li><strong>Scroll-mode</strong> (TikTok, IG Reels) — entertainment-first</li>
+      <li><strong>Research-mode</strong> (Google search, comparison) — info-dense</li>
+      <li><strong>Browse-mode</strong> (Facebook evening) — moderate engagement, story-friendly</li>
+      <li><strong>Impulse-mode</strong> (Pinterest, sale notifications) — offer-driven</li>
+    </ul>
+  </details>
+
+  <!-- ========== 1.4 APPLICATION ========== -->
+  <h3 id="application">1.4 Cách ứng dụng {Insights + USP + Context} làm INPUT cho content</h3>
+
+  <div class="card def">
+    <p>3 ô này KHÔNG đứng riêng — chúng <strong>VALIDATE và FEED nhau</strong>:</p>
+    <ol>
+      <li><strong>Insight + USP phải MATCH</strong> — USP phải giải quyết được pain trong Insight. Nếu không match → hoặc tìm USP khác, hoặc target audience khác.</li>
+      <li><strong>Context phải FIT audience</strong> — placement/funnel/season phù hợp với behavior trong Insight.</li>
+      <li><strong>Objection trong Insight phải được proof trong USP</strong> — mỗi objection cần có 1 proof point.</li>
+    </ol>
+  </div>
+
+  <h4>Cách 3 input feed vào Angle (Layer 2)</h4>
+  <table>
+    <thead><tr><th>Input element</th><th>Cách dùng</th><th>Output cho Angle</th></tr></thead>
+    <tbody>
+      <tr><td>Audience pain</td><td>Trở thành "hook" của Angle</td><td>Problem-Solution angle</td></tr>
+      <tr><td>Audience desire ẩn</td><td>Trở thành "promise" của Angle</td><td>Aspiration angle</td></tr>
+      <tr><td>Audience objection</td><td>Trở thành "obstacle to overcome"</td><td>Mechanism angle giải thích cơ chế</td></tr>
+      <tr><td>Current alternative</td><td>Trở thành "competitor to displace"</td><td>Comparison angle</td></tr>
+      <tr><td>Cultural insight</td><td>Trở thành "myth to bust"</td><td>Educational / Counter-intuitive</td></tr>
+      <tr><td>USP Feature</td><td>Trở thành "mechanism" trong Angle</td><td>Mechanism angle</td></tr>
+      <tr><td>USP Advantage</td><td>Trở thành "differentiation point"</td><td>Comparison angle</td></tr>
+      <tr><td>USP Benefit</td><td>Trở thành "outcome promise"</td><td>Benefit-driven angle</td></tr>
+      <tr><td>USP Proof</td><td>Trở thành "credibility shortcut"</td><td>Social proof / Authority angle</td></tr>
+      <tr><td>Context placement</td><td>Quyết định FORMAT angle</td><td>Static vs dynamic</td></tr>
+      <tr><td>Context funnel stage</td><td>Quyết định DEPTH angle</td><td>Cold → hook-heavy; Warm → proof-heavy</td></tr>
+      <tr><td>Context season</td><td>Quyết định TIMING hook</td><td>Seasonal trigger</td></tr>
+      <tr><td>Context mood</td><td>Quyết định PACE</td><td>Fast-cut vs narrative</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card warn">
+    <strong>Quy tắc kiểm tra:</strong> Trước khi viết Angle, mỗi [bracket] trong Angle Statement phải MAP NGƯỢC được về 1 element của Insight/USP/Context cụ thể. Nếu KHÔNG → Angle đang "tự bịa," cần redo.
+  </div>
+</section>
+
+<!-- ========== LAYER 2 — ANGLE ========== -->
+<section class="layer layer-2" id="layer-2">
+  <div class="layer-head">
+    <div class="layer-tag">Layer 2 / 5 — Strategic (Why They Care)</div>
+    <h2>Content Angle — Lăng kính chiến lược</h2>
+    <div class="layer-subtitle">Trả lời: "WHY should THIS audience care about THIS product RIGHT NOW?"</div>
+  </div>
+
+  <div class="card def">
+    <h4 class="mt-0">Định nghĩa</h4>
+    <p>Content angle là <strong>perspective</strong> (góc nhìn), <strong>framing</strong> (cách định khung), hoặc <strong>'hook'</strong> (điểm móc câu) cụ thể mà bạn <strong>chủ động lựa chọn</strong> để trình bày một chủ đề. Nó quyết định cách bạn truyền tải về một subject sao cho kết nối được với <strong>needs</strong> (nhu cầu), <strong>pain points</strong> (nỗi đau), hoặc <strong>beliefs</strong> (niềm tin) của <strong>target audience</strong> tại một thời điểm cụ thể — đồng thời tạo sự khác biệt cho content của bạn so với competitors.</p>
+    <div class="grid-3">
+      <div class="card" style="background:#fff;border:1px solid var(--border);">
+        <strong>Message</strong><br><span class="muted small">NÓI GÌ — vd: "Wireless bra for women 60+"</span>
+      </div>
+      <div class="card" style="background:#fff;border:1px solid var(--border);">
+        <strong>Offer</strong><br><span class="muted small">ƯU ĐÃI — vd: "Buy 2 get 1 free"</span>
+      </div>
+      <div class="card" style="background:var(--teal-soft);border:2px solid var(--teal);">
+        <strong style="color:var(--teal);">Angle</strong><br><span class="muted small">LĂNG KÍNH — vd: "After 40 years of underwire pain, your body deserves rest"</span>
+      </div>
+    </div>
+  </div>
+
+  <h4>Cấu trúc — Angle Statement template (4 thành tố)</h4>
+  <p class="small muted">Mỗi angle gồm 4 dòng. Mỗi dòng 1 câu ngắn. Tất cả phải map ngược về chi tiết cụ thể trong Insight / USP / Context.</p>
+  <div class="card" style="background:var(--navy);color:#fff;">
+    <code style="background:rgba(255,255,255,0.15);color:#fff;padding:1em;display:block;border-radius:6px;line-height:2;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.95rem;">
+      <span style="color:var(--gold);font-weight:700;">WHO</span>      : [Audience cụ thể — không generic]<br>
+      <span style="color:var(--gold);font-weight:700;">TRUTH</span>    : [Reframe / cách nhìn mới brand đề xuất]<br>
+      <span style="color:var(--gold);font-weight:700;">WHY NOW</span>  : [Yếu tố thời điểm khiến truth này relevant]<br>
+      <span style="color:var(--gold);font-weight:700;">HOW</span>      : [Product mechanism làm truth thành hiện thực]
+    </code>
+  </div>
+
+  <div class="card ok">
+    <strong>Ví dụ — Wireless Bra (4D-knit engineered mesh) cho phụ nữ 60+:</strong>
+    <ul style="margin:0.5em 0 0 1.2em;">
+      <li><strong>WHO</strong>: Women 60+ who have worn underwire bras for 40+ years</li>
+      <li><strong>TRUTH</strong>: After 55, underwire no longer supports — it compresses lymphatic tissue</li>
+      <li><strong>WHY NOW</strong>: Summer 2026 — heat + sweat makes underwire chafing unbearable</li>
+      <li><strong>HOW</strong>: 4D-knit engineered mesh replaces wire with anatomical support</li>
+    </ul>
+  </div>
+
+  <h4>8 Approaches phổ biến để derive Angle</h4>
+  <p class="small muted">Mỗi approach bắt đầu từ 1 input khác nhau. Pick <strong>2 angles KHÁC APPROACH</strong> để A/B test có ý nghĩa. Ví dụ dưới dùng 4 sản phẩm tham chiếu: <strong>[B1]</strong> Wireless mesh bra · <strong>[B2]</strong> Front closure bra · <strong>[B3]</strong> Everyday comfort bra · <strong>[P1]</strong> Icesilk breathable pants.</p>
+  <table class="table-l2">
+    <thead><tr><th>#</th><th>Approach</th><th>Bắt đầu từ</th><th>Logic</th><th>Ví dụ angle</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>Pain-First</strong></td><td>Insight</td><td>Định danh nỗi đau audience chưa nhận ra → product = relief</td><td><em>[B3] "After 8 hours, your shoulders ache and straps leave marks — not because your body is weak, but because your bra was engineered for 4 hours, not 8."</em></td></tr>
+      <tr><td>2</td><td><strong>Desire-First</strong></td><td>Insight</td><td>Khơi khao khát / identity audience muốn → product = enabler</td><td><em>[B1] "Women 60+ still deserve to feel feminine — not just 'convenient.' Wireless support as flattering as underwire, feels like nothing at all."</em></td></tr>
+      <tr><td>3</td><td><strong>Belief-Disruption</strong></td><td>Context + Insight</td><td>Phá niềm tin sai phổ biến → product = new truth</td><td><em>[B1] "The myth: After 60, you need underwire to prevent sagging. The truth: Underwire weakens chest muscles — engineered mesh activates them."</em></td></tr>
+      <tr><td>4</td><td><strong>Mechanism-First</strong></td><td>USP</td><td>Hero hóa cơ chế độc → audience tin vì specific</td><td><em>[P1] "Icesilk yarn drops skin temperature by 3°F on contact. Japanese cooling tech — not generic 'breathable' fabric."</em></td></tr>
+      <tr><td>5</td><td><strong>Contrast / Anti-Status-Quo</strong></td><td>USP + Context</td><td>So vs status quo → expose flaw → product = better way</td><td><em>[B2] "Regular bras: twist your arm behind your back to clasp — stiff shoulders after 60 = pain. Front closure: clasp in front, slip on like a cardigan."</em></td></tr>
+      <tr><td>6</td><td><strong>Identity / Tribe</strong></td><td>Insight + Context</td><td>Speak to "người như tôi" → product = tribe marker</td><td><em>[B3] "For women who choose comfort not because they're 'giving up on their body,' but because they know their worth isn't measured by how much they endure."</em></td></tr>
+      <tr><td>7</td><td><strong>Trigger / Moment</strong></td><td>Context</td><td>Tie vào life event / season / cultural moment → urgency</td><td><em>[P1] "Summer 2026 — 100°F, sweat, itchy legs. Icesilk pants keep skin dry and cool from 7am to sunset."</em></td></tr>
+      <tr><td>8</td><td><strong>Curiosity / Counter-intuitive</strong></td><td>Insight + USP</td><td>Đặt câu hỏi nghịch lý → audience click để biết</td><td><em>[B1] "Why underwire bras actually make breasts sag FASTER after age 55."</em></td></tr>
+    </tbody>
+  </table>
+
+  <h4>Fast Track — 3 bước derive 2 angles (~15 phút / product)</h4>
+  <ol>
+    <li><strong>Highlight 3 dòng quan trọng nhất từ Input (5 phút):</strong>
+      <ul>
+        <li>Từ <strong>Insight</strong>: 1 <em>tension</em> mạnh nhất (pain HOẶC belief HOẶC desire)</li>
+        <li>Từ <strong>USP</strong>: 1 <em>mechanism</em> độc nhất có thể resolve tension đó</li>
+        <li>Từ <strong>Context</strong>: 1 <em>moment / market gap</em> làm angle này urgent</li>
+      </ul>
+    </li>
+    <li><strong>Match với 2 approach phù hợp (5 phút)</strong> — dùng cheat sheet sau:
+      <table style="margin-top:0.6em;">
+        <thead><tr><th>Tension chính là...</th><th>Approach phù hợp</th></tr></thead>
+        <tbody>
+          <tr><td>Pain rõ ràng (đau sườn, vai hằn)</td><td>Pain-First · Contrast</td></tr>
+          <tr><td>Belief sai mạnh (gọng = support)</td><td>Belief-Disruption · Curiosity</td></tr>
+          <tr><td>Desire ngầm (vẫn muốn nữ tính)</td><td>Desire-First · Identity</td></tr>
+          <tr><td>USP rất đặc biệt (icesilk -3°F)</td><td>Mechanism-First · Curiosity</td></tr>
+          <tr><td>Có season / event trigger</td><td>Trigger / Moment (combine với 1 approach khác)</td></tr>
+        </tbody>
+      </table>
+    </li>
+    <li><strong>Viết 2 angles theo template WHO / TRUTH / WHY NOW / HOW (5 phút).</strong> Đảm bảo 2 angles KHÁC APPROACH để A/B test có ý nghĩa (vd: Pain-First + Belief-Disruption, KHÔNG phải 2 Pain-First).</li>
+  </ol>
+
+  <div class="card warn">
+    <strong>Quy tắc kiểm tra:</strong> Mỗi dòng (WHO / TRUTH / WHY NOW / HOW) phải MAP NGƯỢC được về 1 chi tiết cụ thể của Insight / USP / Context. Nếu KHÔNG → angle đang "tự bịa," cần redo.
+  </div>
+</section>
+
+<!-- ========== LAYER 3 — FRAMEWORK ========== -->
+<section class="layer layer-3" id="layer-3">
+  <div class="layer-head">
+    <div class="layer-tag">Layer 3 / 5 — Tactical (In What Order)</div>
+    <h2>Content Framework — Công thức cấu trúc</h2>
+    <div class="layer-subtitle">Trả lời: "In what ORDER do I say these things?"</div>
+  </div>
+
+  <div class="card def">
+    <h4 class="mt-0">Định nghĩa</h4>
+    <p><strong>Framework = CÔNG THỨC CẤU TRÚC sắp xếp message theo trình tự tâm lý đã được chứng minh dẫn đến hành động.</strong> Là "message choreography" — vũ đạo cho message. Framework giải quyết 2 bottleneck: (1) figuring out the flow, (2) keeping flow consistent across creatives.</p>
+    <p><strong>Framework ≠ Angle.</strong> Angle = WHY (lăng kính). Framework = ORDER (trình tự nói).</p>
+  </div>
+
+  <h4>Taxonomy — 12 Frameworks chính</h4>
+  <table class="table-l3">
+    <thead><tr><th>#</th><th>Framework</th><th>Cấu trúc</th><th>Mục đích</th><th>.png</th><th>.html</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>AIDA</strong></td><td>Attention → Interest → Desire → Action</td><td>Khung kinh điển cold</td><td>△</td><td>✔✔</td></tr>
+      <tr><td>2</td><td><strong>PAS</strong></td><td>Problem → Agitate → Solution</td><td>Direct response, khoét pain</td><td>✔</td><td>✔✔</td></tr>
+      <tr><td>3</td><td><strong>BAB</strong></td><td>Before → After → Bridge</td><td>Visualize transformation</td><td>✔✔</td><td>✔</td></tr>
+      <tr><td>4</td><td><strong>FAB</strong></td><td>Features → Advantages → Benefits</td><td>Educate feature → benefit</td><td>✔</td><td>✔</td></tr>
+      <tr><td>5</td><td><strong>4P</strong></td><td>Picture → Promise → Prove → Push</td><td>Poster-style emotional</td><td>✔✔</td><td>✔</td></tr>
+      <tr><td>6</td><td><strong>4U</strong></td><td>Useful · Urgent · Unique · Ultra-specific</td><td>Framework HEADLINE check</td><td>✔</td><td>✔</td></tr>
+      <tr><td>7</td><td><strong>SLAP</strong></td><td>Stop → Look → Act → Purchase</td><td>Scroll-stop hook visual</td><td>✔</td><td>✔</td></tr>
+      <tr><td>8</td><td><strong>PASTOR</strong></td><td>Problem → Amplify → Story → Transform → Offer → Response</td><td>PAS mở rộng, copy dài</td><td>✘</td><td>✔</td></tr>
+      <tr><td>9</td><td><strong>Hero's Journey</strong></td><td>Hero → Problem → Guide → Plan → Success</td><td>Brand là guide, user là hero</td><td>△</td><td>✔✔</td></tr>
+      <tr><td>10</td><td><strong>3 Reasons Why</strong></td><td>Reason 1 → 2 → 3 → CTA</td><td>List-style icon-led</td><td>✔✔</td><td>✔</td></tr>
+      <tr><td>11</td><td><strong>ACCA</strong></td><td>Awareness → Comprehension → Conviction → Action</td><td>Nhấn CONVICTION build trust</td><td>△</td><td>✔</td></tr>
+      <tr><td>12</td><td><strong>QUEST</strong></td><td>Qualify → Understand → Educate → Stimulate → Transition</td><td>Filter audience đúng, niche</td><td>△</td><td>✔</td></tr>
+    </tbody>
+  </table>
+  <p class="small muted">Legend: ✔✔ Rất mạnh • ✔ Phù hợp • △ Cần điều chỉnh • ✘ Không phù hợp</p>
+
+  <h4>Cách chọn Framework — 3 yếu tố</h4>
+  <ol>
+    <li><strong>Khớp Angle</strong>:
+      <ul>
+        <li>Problem-Solution → PAS / AIDA</li>
+        <li>Comparison → BAB / 3-Reasons-Why / 4P</li>
+        <li>Mechanism → FAB / ACCA / Educational PAS</li>
+        <li>Social Proof → 4P (Picture-Promise-Prove-Push)</li>
+        <li>Story → Hero's Journey / PASTOR</li>
+        <li>Curiosity → SLAP / AIDA hook</li>
+      </ul>
+    </li>
+    <li><strong>Khớp Format</strong>:
+      <ul>
+        <li>.png static cần SHORT framework (3-4 element max): PAS, BAB, FAB, 4P, 4U, SLAP, 3-Reasons</li>
+        <li>.html dynamic chịu được framework dài: AIDA, PASTOR, Hero's Journey, ACCA, QUEST</li>
+      </ul>
+    </li>
+    <li><strong>Khớp Funnel stage</strong>:
+      <ul>
+        <li>Cold → AIDA / PAS (hook mạnh)</li>
+        <li>Warm → FAB / 3-Reasons-Why (proof)</li>
+        <li>Hot → 4P / SLAP (offer push)</li>
+      </ul>
+    </li>
+  </ol>
+</section>
+
+<!-- ========== LAYER 4 — FLOW ========== -->
+<section class="layer layer-4" id="layer-4">
+  <div class="layer-head">
+    <div class="layer-tag">Layer 4 / 5 — Execution (How It Unfolds)</div>
+    <h2>Content Flow — Storyboard cụ thể</h2>
+    <div class="layer-subtitle">Trả lời: "HOW does this unfold — zone nào trên frame, layer nào trên endcard?"</div>
+  </div>
+
+  <div class="card def">
+    <h4 class="mt-0">Định nghĩa</h4>
+    <p><strong>Content Flow = cách thông điệp được TRẢI RA theo trình tự visual / animation / interaction CỤ THỂ.</strong> Là cầu nối từ Framework (khung trừu tượng) → Brief (mô tả thực thi chi tiết).</p>
+    <p><strong>Flow ≠ Framework.</strong> Framework PAS chỉ nói "Problem → Agitate → Solution." Flow nói cụ thể: với <strong>.png</strong>, mỗi element của PAS được đặt ở zone nào (Hero / Body / CTA). Với <strong>.html endcard</strong>, mỗi element được phân bổ vào layer nào (Persistent / Entrance / Loop / CTA Emphasis).</p>
+  </div>
+
+  <h3>4.1 Static .png Flow = Visual Hierarchy</h3>
+  <p>1 frame nhưng có "thứ tự đọc." 3 patterns chính:</p>
+  <table class="table-l4">
+    <thead><tr><th>Pattern</th><th>Mắt đi theo</th><th>Khi nào dùng</th><th>Layout zone</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Z-pattern</strong></td><td>TL → TR → BL → BR như chữ Z</td><td>Banner/poster, ít text, visual trải đều</td><td>TL: brand · TR: hook · BL: proof · BR: CTA</td></tr>
+      <tr><td><strong>F-pattern</strong></td><td>Top-horizontal → quét xuống bên trái</td><td>Text-heavy, listicle, 3 reasons why</td><td>Top: hook · Left col: bullets · Bottom: CTA</td></tr>
+      <tr><td><strong>Gutenberg</strong></td><td>TL (Primary) → BR (Terminal) diagonal</td><td>Đơn giản, hero + 1 headline + 1 CTA</td><td>TL: hero · BR: CTA · diagonal flow</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.2 Dynamic .html Endcard Flow = Animation Layering</h3>
+  <p>AppLovin endcard cho user skip sau 3-5s → KHÔNG có narrative arc 10s như video ad. Endcard chỉ có <strong>1 layout duy nhất</strong>, trên đó có <strong>4 lớp animation chạy ĐỒNG THỜI</strong> — mỗi lớp 1 mục đích khác nhau, giống như 4 layer chồng lên trên cùng 1 poster.</p>
+
+  <div class="card ok">
+    <strong>Hình dung thực tế:</strong> trong 3-5s xem endcard, user thấy: headline + product + CTA luôn ở vị trí cố định (L1), product vừa pop vào frame ở 1s đầu (L2 đã chạy xong), product đang đổi màu liên tục (L3 đang loop), CTA đang nhấp nháy (L4 đang loop). <strong>Tất cả cùng lúc, trên cùng 1 frame.</strong>
+  </div>
+
+  <table class="table-l4">
+    <thead><tr><th>Lớp</th><th>Mô tả</th><th>Khi xuất hiện</th><th>Ví dụ</th></tr></thead>
+    <tbody>
+      <tr><td><strong>L1 — Persistent</strong><br><span class="small muted">(LUÔN HIỂN THỊ)</span></td><td><strong>Vị trí + sự hiện diện</strong> của các elements — fixed, không biến mất</td><td>0s → end</td><td>Headline ở top + Product ở center + CTA ở bottom — vị trí cố định suốt thời gian xem</td></tr>
+      <tr><td><strong>L2 — Entrance Hook</strong><br><span class="small muted">(MỞ ĐẦU)</span></td><td>Animation <strong>1 lần</strong> khi endcard load</td><td>0 - 1s</td><td>Product pop-in / zoom / headline typewriter / color flash</td></tr>
+      <tr><td><strong>L3 — Loop Focus</strong><br><span class="small muted">(BẮT MẮT)</span></td><td>1 animation <strong>lặp</strong> trên product / visual</td><td>1s → end (loop)</td><td>Color shift / image swap / mini-video / spotlight pulse</td></tr>
+      <tr><td><strong>L4 — CTA Emphasis</strong><br><span class="small muted">(GỌI CLICK)</span></td><td>Animation <strong>lặp</strong> riêng cho CTA button (tại vị trí persistent của L1)</td><td>1s → end (loop)</td><td>Button pulse / arrow bounce / glow</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card warn">
+    <strong>Quy tắc vàng cho endcard AppLovin:</strong>
+    <ul style="margin:0.4em 0 0 1.2em;">
+      <li>Mọi thông tin quan trọng phải visible trong <strong>1 giây đầu</strong> (user có thể skip ở 3s)</li>
+      <li>L1 luôn persistent — không bao giờ biến mất khỏi frame</li>
+      <li>L3 và L4 loop <strong>độc lập</strong> với nhau (2 animation chạy song song)</li>
+    </ul>
+  </div>
+
+  <h3>4.3 — 8 loại Loop Focus phổ biến (chọn cho L3)</h3>
+  <p class="small muted">Chọn 1 loại phù hợp với USP của sản phẩm. Đây là phần cần nhất khi specify cho vendor.</p>
+  <table class="table-l4">
+    <thead><tr><th>#</th><th>Loại</th><th>Mô tả</th><th>Khi dùng</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>Color / Variant Shift</strong></td><td>Product cycle qua 3-5 màu / variant</td><td>USP = đa dạng màu / size</td></tr>
+      <tr><td>2</td><td><strong>Image Swap (USP Carousel)</strong></td><td>Cycle 2-4 highlight features (close-up zones)</td><td>Cần show nhiều USP</td></tr>
+      <tr><td>3</td><td><strong>Mini-Video Loop (2-3s)</strong></td><td>Video ngắn show product in-action, lặp seamless</td><td>USP cần demo motion (stretch, breathability)</td></tr>
+      <tr><td>4</td><td><strong>Before / After Toggle</strong></td><td>Flip "before" ↔ "after"</td><td>USP = transformation</td></tr>
+      <tr><td>5</td><td><strong>Spotlight Pulse</strong></td><td>Glow pulsing trên 1 feature key</td><td>Focus 1 chi tiết duy nhất</td></tr>
+      <tr><td>6</td><td><strong>Text Highlight Cycle</strong></td><td>Highlight headline word-by-word</td><td>Headline có nhiều keywords mạnh</td></tr>
+      <tr><td>7</td><td><strong>Stat Counter</strong></td><td>Số counting up (discount %, customer count)</td><td>USP = social proof / value</td></tr>
+      <tr><td>8</td><td><strong>Hotspot Zoom</strong></td><td>Auto zoom vào detail, zoom out, lặp</td><td>Show close-up texture / feature</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.4 — Mẫu brief order HTML endcard</h3>
+  <p>Khi order endcard từ vendor, brief theo <strong>4 dòng = 4 layer</strong>. Vendor đọc xong execute đúng, không phải hỏi lại.</p>
+
+  <div class="card" style="background:var(--navy);color:#fff;">
+    <code style="background:rgba(255,255,255,0.15);color:#fff;padding:1em;display:block;border-radius:6px;line-height:2;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.92rem;">
+      <span style="color:var(--gold);font-weight:700;">L1 PERSISTENT</span>   : [Headline copy + Product visual + CTA copy]<br>
+      <span style="color:var(--gold);font-weight:700;">L2 ENTRANCE</span>     : [Chọn 1: Pop-in / Zoom / Color flash / Typewriter]<br>
+      <span style="color:var(--gold);font-weight:700;">L3 LOOP FOCUS</span>   : [Chọn 1 trong 8 loại + nội dung cụ thể]<br>
+      <span style="color:var(--gold);font-weight:700;">L4 CTA EMPHASIS</span> : [Chọn 1: Pulse / Bounce / Glow]
+    </code>
+  </div>
+
+  <div class="card ok">
+    <strong>Ví dụ brief — [B1] Wireless Bra:</strong>
+    <ul style="margin:0.5em 0 0 1.2em;">
+      <li><strong>L1</strong>: Headline "Engineered for Comfort, Not Compromise" + Bra front-view product shot + CTA "Shop Now"</li>
+      <li><strong>L2</strong>: Product Zoom-in (0.5s) + Headline Typewriter reveal</li>
+      <li><strong>L3</strong>: Image Swap — cycle 4 USP close-ups (mesh detail · no-wire underband · soft strap · seamless edge)</li>
+      <li><strong>L4</strong>: CTA Button Pulse (1.5s cycle)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========== LAYER 5 — BRIEF ========== -->
+<section class="layer layer-5" id="layer-5">
+  <div class="layer-head">
+    <div class="layer-tag">Layer 5 / 5 — Deliverable (Execution Spec)</div>
+    <h2>Content Brief — Tài liệu spec cho designer/dev</h2>
+    <div class="layer-subtitle">Đóng gói toàn bộ output của Layer 4 (Flow) + Copy + Visual + Tech + Mandatories + Approval</div>
+  </div>
+
+  <div class="card def">
+    <h4 class="mt-0">Định nghĩa</h4>
+    <p><strong>Content Brief = tài liệu SPEC EXECUTION đóng gói toàn bộ output của Layer 4 (Flow) + chi tiết Copy + Visual Direction + Technical Specs để designer / motion / dev EXECUTE đúng intent.</strong></p>
+    <p>Brief = <strong>single source of truth</strong> của 1 creative. Thiếu brief → designer "tự sáng tạo" lệch intent, không có cơ sở review.</p>
+  </div>
+
+  <div class="card warn">
+    <strong>⚠ Lưu ý phạm vi:</strong> Content Brief KHÔNG chứa Campaign Info / Strategy / Creative Strategy (Insight, USP, Context, Angle, Framework, KPI…). Những thứ này đã được document ở các layer trước (Layer 1-3) và là <em>input</em> để dựng Brief, KHÔNG <em>thuộc về</em> Brief. Brief tập trung 100% vào phần EXECUTION cho designer/dev.
+  </div>
+
+  <h4>Cấu trúc — 5 section bắt buộc</h4>
+  <table class="table-l5">
+    <thead><tr><th>#</th><th>Section</th><th>Required fields</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>Copy</strong></td><td>Headline, sub-headline, body/voice-over, CTA — CHÍNH XÁC từng chữ + max ký tự cho từng scene/zone</td></tr>
+      <tr><td>2</td><td><strong>Visual Direction</strong></td><td>Style/mood, color palette (HEX), typography (font + size), reference/moodboard link, product shot guideline, talent direction (nếu có người)</td></tr>
+      <tr><td>3</td><td><strong>Technical Specs</strong></td><td>Format (.png/.html), dimensions, animation length, file weight, safe area, voice-over spec, caption rule</td></tr>
+      <tr><td>4</td><td><strong>Mandatories</strong></td><td>Logo placement (vị trí + size + clear space), legal disclaimer copy, brand guideline link</td></tr>
+      <tr><td>5</td><td><strong>Approval</strong></td><td>Reviewer mỗi giai đoạn (wireframe / first cut / final), deadline cụ thể, A/B test notes</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== LAYER 6 — RELATIONSHIP ========== -->
+<section class="layer layer-6" id="layer-6">
+  <div class="layer-head">
+    <div class="layer-tag">RELATIONSHIP MAP — How layers chain together</div>
+    <h2>Mối quan hệ — End-to-end pipeline</h2>
+    <div class="layer-subtitle">Logic rules + Combinatorial math + Validation chain</div>
+  </div>
+
+  <h3>6.1 Pipeline visualization</h3>
+  <div class="pipeline">┌─────────────────────────────────────────────────────────────┐
+│  LAYER 1 — INPUT (WHAT WE KNOW)                             │
+│  Audience Insights + Product USP + Context                  │
+└───────────────────────────┬─────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 2 — CONTENT ANGLE (WHY THEY CARE)                    │
+│  1 input → 5-10 candidate angles → chọn 2 KHÁC BIỆT         │
+└───────────────────────────┬─────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 3 — CONTENT FRAMEWORK (IN WHAT ORDER)                │
+│  1 angle → 2 FW cho .png + 2 FW cho .html                   │
+└───────────────────────────┬─────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 4 — CONTENT FLOW (HOW IT UNFOLDS)                    │
+│  1 framework → 2 flow variation                             │
+└───────────────────────────┬─────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 5 — CONTENT BRIEF (EXECUTION SPEC)                   │
+│  1 flow → 2 brief variation                                 │
+│  Brief = 5 section: Copy, Visual Direction,                 │
+│  Technical Specs, Mandatories, Approval                     │
+└───────────────────────────┬─────────────────────────────────┘
+                            ▼
+        OUTPUT: .png static  +  .html dynamic creative</div>
+
+  <h3>6.2 Logic Rules</h3>
+  <table>
+    <thead><tr><th>Rule</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>R1: INPUT → ANGLE</strong></td><td>1 bộ input → 5-10 angle khả thi. Chọn 2 angle KHÁC BIỆT rõ rệt. Mỗi angle truy ngược được về cụ thể chi tiết trong Insight/USP/Context.</td></tr>
+      <tr><td><strong>R2: ANGLE → FRAMEWORK</strong></td><td>1 angle fit nhiều framework. Chọn dựa trên: angle fit + format (.png/.html) + funnel stage. Yêu cầu: 2 framework / angle / format.</td></tr>
+      <tr><td><strong>R3: FRAMEWORK → FLOW</strong></td><td>1 framework có nhiều flow variation. Yêu cầu: 2 flow / (Angle + Framework).</td></tr>
+      <tr><td><strong>R4: FLOW → BRIEF</strong></td><td>1 flow → 1 brief duy nhất. Yêu cầu: 2 brief / flow (variation copy/visual).</td></tr>
+      <tr><td><strong>R5: VALIDATION CHAIN</strong></td><td>Reviewer truy ngược: Brief copy ← Flow scene ← Framework ← Angle ← Insight/USP/Context. Đứt 1 mắt xích → brief FAIL.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.3 Combinatorial Math</h3>
+  <div class="stat-row">
+    <div class="stat" style="border-color:var(--navy);"><div class="num" style="color:var(--navy);">1</div><div class="lbl">Input</div></div>
+    <div class="stat" style="border-color:var(--teal);"><div class="num" style="color:var(--teal);">2</div><div class="lbl">Angles</div></div>
+    <div class="stat" style="border-color:var(--gold);"><div class="num" style="color:var(--gold);">8</div><div class="lbl">Frameworks</div></div>
+    <div class="stat" style="border-color:var(--purple);"><div class="num" style="color:var(--purple);">16</div><div class="lbl">Flows</div></div>
+    <div class="stat" style="border-color:var(--emerald);"><div class="num" style="color:var(--emerald);">32</div><div class="lbl">Briefs</div></div>
+  </div>
+  <div class="card ok">
+    <p style="margin:0;"><strong>Kết quả mong muốn / product:</strong> 16 brief static .png + 16 brief dynamic .html = <strong>32 briefs / product</strong>. Variation đủ lớn để A/B test toàn diện — không phụ thuộc 1 angle / 1 framework / 1 flow duy nhất.</p>
+  </div>
+
+  <h3>6.4 Quy tắc vàng — 5 câu hỏi validation cho reviewer</h3>
+  <ol>
+    <li>Copy headline trong Brief → derive từ scene nào của Flow?</li>
+    <li>Scene đó → implement element nào của Framework? (Problem? Agitate? Solution?)</li>
+    <li>Framework đó → tại sao fit Angle này?</li>
+    <li>Angle statement → từng [bracket] map vào chi tiết nào của Insight/USP/Context?</li>
+    <li>Nếu hỏi "Pain trong Insight là gì?" — có data/source backup không?</li>
+  </ol>
+  <div class="card danger">
+    Nếu BẤT KỲ câu nào không trả lời được → brief FAIL, làm lại từ đó.
+  </div>
+</section>
+
+<!-- ========== PHỤ LỤC — MISTAKES ========== -->
+<section class="layer layer-x" id="mistakes">
+  <div class="layer-head">
+    <div class="layer-tag">Phụ lục — Common Mistakes</div>
+    <h2>Lỗi thường gặp ở từng Layer</h2>
+    <div class="layer-subtitle">Do / Don't checklist trước khi nộp brief</div>
+  </div>
+
+  <table>
+    <thead><tr><th>Layer</th><th>❌ Lỗi thường gặp</th><th>✔ Cách làm đúng</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill l1">Insight</span></td><td>"Phụ nữ X tuổi thích sản phẩm Y" — quá broad, không pain ẩn</td><td>Insight = demographic + pain ẩn + desire + objection + source backup</td></tr>
+      <tr><td><span class="pill l1">USP</span></td><td>"Sản phẩm chất lượng cao, giá tốt" — chung chung</td><td>USP có "duy nhất / đầu tiên / không [pain]" verifiable</td></tr>
+      <tr><td><span class="pill l1">Context</span></td><td>"Chạy đa kênh" — không cụ thể</td><td>Liệt kê 5 yếu tố: placement, funnel, format, season, mood</td></tr>
+      <tr><td><span class="pill l2">Angle</span></td><td>"Em thấy angle này hay" — chỉ 1 angle, không truy ngược input</td><td>≥ 2 angle khác biệt, mỗi angle map về cụ thể chi tiết</td></tr>
+      <tr><td><span class="pill l2">Angle</span></td><td>Angle = Message ("bra không gọng cho phụ nữ 60+")</td><td>Angle = LĂNG KÍNH. Viết theo template Angle Statement</td></tr>
+      <tr><td><span class="pill l3">Framework</span></td><td>Mặc định AIDA cho mọi thứ; dùng framework dài cho .png</td><td>Chọn theo angle + format + funnel fit</td></tr>
+      <tr><td><span class="pill l4">Flow</span></td><td>Brief có Framework nhưng không có Flow — designer phải đoán</td><td>Flow = bảng scene/zone với time/visual/copy/animation</td></tr>
+      <tr><td><span class="pill l4">Flow</span></td><td>.png flow không có visual hierarchy</td><td>Chỉ định pattern Z/F/Gutenberg + layout zone</td></tr>
+      <tr><td><span class="pill l5">Brief</span></td><td>"Headline kiểu như là…"</td><td>Copy chính xác từng chữ + max ký tự</td></tr>
+      <tr><td><span class="pill l5">Brief</span></td><td>Brief không có reference / moodboard</td><td>Tối thiểu 3-5 reference link</td></tr>
+      <tr><td><span class="pill l5">Brief</span></td><td>Brief không có technical specs</td><td>Bắt buộc: dimensions, format, weight, animation, loop</td></tr>
+      <tr><td><span class="pill dont">Validation</span></td><td>Brief không truy ngược được về Insight</td><td>Reviewer test 5 câu hỏi validation chain</td></tr>
+    </tbody>
+  </table>
+
+</section>
+
+</main>
+
+<!-- ========== FOOTER ========== -->
+<footer>
+  <p><strong>Content Creation Skills — Endcard Development</strong></p>
+  <p class="small">Tài liệu training nội bộ — Phần (1) lý thuyết nền</p>
+  <p class="credit">D2C E-COMMERCE • DEEP-DIVE TRAINING • 2026</p>
+</footer>
+
+<!-- ========== JAVASCRIPT ========== -->
+<script>
+/* ===== LocalStorage Autosave for all worksheet inputs ===== */
+const LS_PREFIX = "ccs_endcard_v1_";
+
+function loadAllInputs() {
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = LS_PREFIX + el.dataset.key;
+    const val = localStorage.getItem(key);
+    if (val !== null) el.value = val;
+  });
+}
+
+function bindAutosave() {
+  document.querySelectorAll('[data-key]').forEach(el => {
+    el.addEventListener('input', () => {
+      localStorage.setItem(LS_PREFIX + el.dataset.key, el.value);
+      const ws = el.closest('.worksheet');
+      if (ws) {
+        const status = ws.querySelector('.save-status');
+        if (status) {
+          status.textContent = "✔ Đã lưu " + new Date().toLocaleTimeString('vi-VN');
+          status.style.color = "var(--green-text)";
+        }
+      }
+    });
+  });
+}
+
+/* ===== Export single worksheet ===== */
+function exportWorksheet(wsId) {
+  const ws = document.querySelector(`[data-ws="${wsId}"]`);
+  if (!ws) return;
+  const labels = ws.querySelectorAll('label');
+  const inputs = ws.querySelectorAll('[data-key]');
+  let text = `═══════════════════════════════════════\n`;
+  text += `WORKSHEET: ${wsId.toUpperCase()}\n`;
+  text += `Exported: ${new Date().toLocaleString('vi-VN')}\n`;
+  text += `═══════════════════════════════════════\n\n`;
+
+  inputs.forEach((inp, i) => {
+    const labelEl = labels[i];
+    const label = labelEl ? labelEl.textContent.trim() : inp.dataset.key;
+    const value = inp.value.trim();
+    text += `▸ ${label}\n${value || '[bỏ trống]'}\n\n`;
+  });
+
+  downloadText(`worksheet_${wsId}_${dateSlug()}.txt`, text);
+}
+
+function exportAll() {
+  const sections = ['insight', 'usp', 'context', 'angle', 'framework', 'flow', 'brief'];
+  let text = `═══════════════════════════════════════════════\n`;
+  text += `CONTENT CREATION SKILLS — FULL WORKSHEET EXPORT\n`;
+  text += `Exported: ${new Date().toLocaleString('vi-VN')}\n`;
+  text += `═══════════════════════════════════════════════\n\n`;
+  sections.forEach(sec => {
+    const ws = document.querySelector(`[data-ws="${sec}"]`);
+    if (!ws) return;
+    const labels = ws.querySelectorAll('label');
+    const inputs = ws.querySelectorAll('[data-key]');
+    text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `▼ ${sec.toUpperCase()}\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    inputs.forEach((inp, i) => {
+      const labelEl = labels[i];
+      const label = labelEl ? labelEl.textContent.trim() : inp.dataset.key;
+      const value = inp.value.trim();
+      text += `▸ ${label}\n${value || '[bỏ trống]'}\n\n`;
+    });
+  });
+  downloadText(`content_creation_skills_full_${dateSlug()}.txt`, text);
+}
+
+function clearWorksheet(wsId) {
+  if (!confirm(`Clear worksheet "${wsId}"? Không thể undo.`)) return;
+  const ws = document.querySelector(`[data-ws="${wsId}"]`);
+  if (!ws) return;
+  ws.querySelectorAll('[data-key]').forEach(el => {
+    el.value = '';
+    localStorage.removeItem(LS_PREFIX + el.dataset.key);
+  });
+  const status = ws.querySelector('.save-status');
+  if (status) { status.textContent = "Đã clear"; status.style.color = "var(--muted)"; }
+}
+
+function clearAll() {
+  if (!confirm("Clear TẤT CẢ worksheets? Không thể undo.")) return;
+  document.querySelectorAll('[data-key]').forEach(el => {
+    el.value = '';
+    localStorage.removeItem(LS_PREFIX + el.dataset.key);
+  });
+  document.querySelectorAll('.save-status').forEach(s => { s.textContent = "Đã clear"; s.style.color = "var(--muted)"; });
+}
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function dateSlug() {
+  const d = new Date();
+  return `${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}_${d.getHours().toString().padStart(2,'0')}${d.getMinutes().toString().padStart(2,'0')}`;
+}
+
+/* ===== Init ===== */
+document.addEventListener('DOMContentLoaded', () => {
+  loadAllInputs();
+  bindAutosave();
+});
+</script>
+
+</body>
+</html>
