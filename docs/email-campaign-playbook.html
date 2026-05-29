@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f4f5f9;
+    --bg: #f3f0ea;
     --surface: #ffffff;
     --border: #e2e6ef;
     --border-strong: #c8cfe0;
@@ -43,13 +43,22 @@
     --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: var(--font-body);
+    background:
+      linear-gradient(135deg, rgba(200, 41, 74, .07) 0%, transparent 34%),
+      linear-gradient(225deg, rgba(29, 78, 216, .08) 0%, transparent 38%),
+      linear-gradient(180deg, #fbfaf7 0%, var(--bg) 46%, #eef2f7 100%);
+    color: var(--text); font-size: 14px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
 
   /* Layout */
   .layout { display: flex; min-height: 100vh; }
   .sidebar {
     width: var(--sidebar-w); position: fixed; top: 0; left: 0; height: 100vh;
-    background: linear-gradient(180deg, #0d1528 0%, #141c2e 100%);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.04) 0%, transparent 20%),
+      linear-gradient(180deg, #0b1020 0%, #151924 58%, #10151f 100%);
     color: #e2e8f0; overflow-y: auto; z-index: 100;
     padding: 0; flex-shrink: 0;
     box-shadow: 2px 0 12px rgba(0,0,0,.18);
@@ -76,14 +85,28 @@
   .sidebar nav .nav-section { padding: 14px 20px 4px; font-size: 9.5px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: .1em; }
   .sidebar nav .nav-brand { padding-left: 30px !important; font-size: 11.5px; }
 
-  .main { margin-left: var(--sidebar-w); padding: 40px 48px 80px; max-width: 1380px; flex: 1; }
+  .main { margin-left: var(--sidebar-w); padding: 40px 48px 80px; max-width: 1420px; flex: 1; }
 
   /* Header */
-  .page-header { margin-bottom: 40px; }
+  .page-header {
+    position: relative; margin-bottom: 34px; padding: 30px 34px;
+    border: 1px solid rgba(22,25,42,.10); border-radius: 18px;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.72)),
+      linear-gradient(90deg, rgba(200,41,74,.08), rgba(29,78,216,.08) 50%, rgba(254,57,123,.06));
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .10);
+    overflow: hidden;
+  }
+  .page-header::after {
+    content: ""; position: absolute; inset: auto 28px 0 auto;
+    width: 260px; height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, #c8294a, #1d4ed8, #fe397b, #890106);
+    opacity: .86;
+  }
   .page-header h1 {
     font-family: var(--font-display);
     font-size: 30px; font-weight: 700; color: var(--text);
-    letter-spacing: -.025em; line-height: 1.2;
+    letter-spacing: 0; line-height: 1.2;
   }
   .page-header .subtitle { font-size: 13.5px; color: var(--muted); margin-top: 7px; line-height: 1.5; }
   .brand-pills { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
@@ -97,9 +120,9 @@
   .pill-sf { background: #fee2e2; color: #7f1d1d; }
 
   /* Cards */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 32px; overflow: hidden; box-shadow: var(--shadow-xs); }
+  .card { background: rgba(255,255,255,.94); border: 1px solid rgba(148,163,184,.24); border-radius: var(--radius); margin-bottom: 32px; overflow: hidden; box-shadow: 0 12px 34px rgba(15, 23, 42, .065); }
   .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: linear-gradient(to right, #fafbff, #ffffff); }
-  .card-header h2 { font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  .card-header h2 { font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: 0; }
   .card-header .badge { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: var(--all-badge); color: var(--all-text); letter-spacing: .02em; }
   .card-body { padding: 0; }
   .card-note { padding: 13px 24px; font-size: 12.5px; color: var(--muted); background: #f8faff; border-bottom: 1px solid var(--border); }
@@ -209,7 +232,7 @@
   .copy-btn {
     position: absolute; top: 12px; right: 12px; background: #fff; border: 1px solid var(--border);
     border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--muted);
-    cursor: pointer; transition: all .15s; font-family: 'Inter', sans-serif;
+    cursor: pointer; transition: all .15s; font-family: var(--font-body);
   }
   .copy-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   .copy-btn.copied { background: #16a34a; color: #fff; border-color: #16a34a; }
@@ -226,7 +249,7 @@
   .how-to-step .step-desc { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
 
   /* STAR Executive Summary */
-  .star-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 32px; overflow: hidden; }
+  .star-card { background: rgba(255,255,255,.96); border: 1px solid rgba(148,163,184,.24); border-radius: 14px; margin-bottom: 32px; overflow: hidden; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); }
   .star-header { padding: 18px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
   .star-header h2 { font-size: 16px; font-weight: 700; color: #f1f5f9; }
   .star-header .badge-star { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(99,102,241,.3); color: #a5b4fc; }
@@ -280,6 +303,146 @@
 
   /* Journey funnel table */
   .journey-note { font-size: 12px; color: var(--muted); margin: 4px 0 0 0; }
+
+  /* ======== ACCESS RATE + LIST HEALTH LAB ======== */
+  .lab-card {
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(148,163,184,.26);
+    border-radius: 18px;
+    margin-bottom: 34px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(15,23,42,.09);
+  }
+  .lab-hero {
+    padding: 30px 32px 26px;
+    color: #f8fafc;
+    background:
+      linear-gradient(120deg, rgba(254,57,123,.18), transparent 42%),
+      linear-gradient(135deg, #111827 0%, #1e293b 58%, #312e81 100%);
+    position: relative;
+  }
+  .lab-eyebrow {
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .16em; color: #a5b4fc; margin-bottom: 10px;
+  }
+  .lab-hero h2 {
+    font-family: var(--font-display); font-size: 25px; line-height: 1.15;
+    letter-spacing: 0; max-width: 780px; margin-bottom: 10px;
+  }
+  .lab-hero p { color: #cbd5e1; font-size: 13.5px; max-width: 910px; line-height: 1.7; }
+  .lab-source-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .lab-source-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 999px;
+    background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12);
+    font-size: 11px; font-weight: 700; color: #e2e8f0;
+  }
+  .lab-body { padding: 24px 28px 30px; }
+  .lab-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 22px; }
+  .lab-stat {
+    padding: 14px 15px; border-radius: 12px; background: #f8faff;
+    border: 1px solid var(--border); min-height: 96px;
+  }
+  .lab-stat .num { font-size: 22px; font-weight: 800; line-height: 1.05; letter-spacing: 0; }
+  .lab-stat .label { font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 6px; }
+  .lab-stat .note { font-size: 11.5px; color: #475569; margin-top: 5px; line-height: 1.45; }
+  .lab-stat.good { background: #f0fdf4; border-color: #bbf7d0; }
+  .lab-stat.warn { background: #fff7ed; border-color: #fed7aa; }
+  .lab-stat.bad { background: #fff1f2; border-color: #fecdd3; }
+  .lab-section-title {
+    display: flex; align-items: center; gap: 10px; margin: 22px 0 12px;
+    font-family: var(--font-display); font-size: 17px; font-weight: 700;
+  }
+  .lab-section-title span {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; background: #ede9fe; color: #5b21b6;
+  }
+  .lab-table-wrap { width: 100%; overflow-x: auto; border-radius: 12px; }
+  .lab-table-secondary { margin-top: 12px; }
+  .lab-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; overflow: hidden; border-radius: 12px; border: 1px solid var(--border); }
+  .lab-table-wrap .lab-table { min-width: 760px; }
+  .lab-table th {
+    background: #111827; color: #cbd5e1; text-align: left; padding: 10px 13px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  }
+  .lab-table td { padding: 11px 13px; border-top: 1px solid #eef2f7; vertical-align: top; background: #fff; }
+  .lab-table tr:nth-child(even) td { background: #fafafa; }
+  .lever-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+  .lever-card {
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 15px 16px; background: #fff; box-shadow: var(--shadow-xs);
+  }
+  .lever-card h4 { font-size: 13px; margin-bottom: 7px; color: #111827; }
+  .lever-card p { font-size: 12px; color: #475569; line-height: 1.55; margin-bottom: 8px; }
+  .lever-card .rule { font-size: 11.5px; color: #0f766e; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 8px 9px; }
+  .brand-action-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 12px; }
+  .brand-action {
+    border-radius: 14px; padding: 14px 15px; border: 1px solid var(--border);
+    background: linear-gradient(180deg, #fff, #fafafa);
+  }
+  .brand-action h4 { font-size: 13px; margin-bottom: 7px; }
+  .brand-action ul { list-style: none; margin: 0; padding: 0; }
+  .brand-action li { font-size: 11.5px; color: #475569; padding: 3px 0 3px 14px; position: relative; line-height: 1.45; }
+  .brand-action li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #64748b; position: absolute; left: 0; top: 10px; }
+  .brand-action.bg { border-top: 4px solid #c8294a; }
+  .brand-action.gl { border-top: 4px solid #0d3d6b; }
+  .brand-action.lf { border-top: 4px solid #fe397b; }
+  .brand-action.sf { border-top: 4px solid #890106; }
+  .source-ledger {
+    display: grid; grid-template-columns: 1.2fr 2fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; font-size: 12px;
+  }
+  .source-ledger div { padding: 10px 12px; border-bottom: 1px solid #eef2f7; }
+  .source-ledger div:nth-child(odd) { background: #f8fafc; font-weight: 700; color: #334155; }
+  .source-ledger div:nth-last-child(-n+2) { border-bottom: none; }
+
+  /* ======== COMPACT OPERATING SECTIONS ======== */
+  .opener-card {
+    background: rgba(255,255,255,.96); border: 1px solid rgba(148,163,184,.25);
+    border-radius: 16px; margin-bottom: 32px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(15,23,42,.07);
+  }
+  .opener-head {
+    padding: 24px 28px; color: #f8fafc;
+    background: linear-gradient(135deg, #101827 0%, #1f2937 54%, #374151 100%);
+  }
+  .opener-head .eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #bfdbfe; }
+  .opener-head h2 { font-family: var(--font-display); font-size: 23px; line-height: 1.2; margin-top: 6px; }
+  .opener-head p { color: #d1d5db; max-width: 880px; font-size: 13px; line-height: 1.6; margin-top: 8px; }
+  .opener-body { padding: 22px 26px 26px; }
+  .signal-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 18px; }
+  .signal-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 13px; background: #fff; }
+  .signal-card strong { display: block; font-size: 20px; line-height: 1.1; }
+  .signal-card span { display: block; margin-top: 5px; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .compact-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 12px; }
+  .compact-card { border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; background: #fff; }
+  .compact-card h4 { font-size: 12.5px; margin-bottom: 6px; color: #111827; }
+  .compact-card p { font-size: 12px; color: #475569; line-height: 1.5; }
+  .compact-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: 12px; }
+  .compact-table th { background: #111827; color: #cbd5e1; text-align: left; padding: 9px 11px; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+  .compact-table td { padding: 9px 11px; border-top: 1px solid #eef2f7; vertical-align: top; background: #fff; }
+  .compact-table tr:nth-child(even) td { background: #fafafa; }
+  .playbook-title {
+    margin: 6px 0 20px; padding: 22px 26px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,250,252,.92));
+    border: 1px solid rgba(148,163,184,.24); box-shadow: 0 12px 34px rgba(15,23,42,.055);
+  }
+  .playbook-title h2 { font-family: var(--font-display); font-size: 23px; line-height: 1.2; }
+  .playbook-title p { color: var(--muted); font-size: 13px; margin-top: 6px; max-width: 900px; }
+  .prompt-contract { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .contract-card { border-radius: 12px; padding: 14px 16px; border: 1px solid var(--border); background: #fff; }
+  .contract-card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+  .contract-card ul { list-style: none; padding: 0; margin: 0; }
+  .contract-card li { position: relative; padding-left: 16px; margin: 5px 0; font-size: 12px; line-height: 1.45; color: #475569; }
+  .contract-card.do { border-color: #86efac; background: #f0fdf4; }
+  .contract-card.dont { border-color: #fca5a5; background: #fff8f8; }
+  .contract-card.do h3 { color: #14532d; }
+  .contract-card.dont h3 { color: #7f1d1d; }
+  .contract-card.do li::before { content: "✓"; position: absolute; left: 0; color: #16a34a; font-weight: 700; }
+  .contract-card.dont li::before { content: "×"; position: absolute; left: 0; color: #dc2626; font-weight: 700; }
+  .brand-brief { padding: 12px 18px; border: 1px solid var(--border); border-top: none; border-bottom: none; color: #475569; background: #fff; font-size: 12px; }
+  .brand-brief strong { color: #111827; }
+  .brand-brief span { display: inline-flex; margin: 5px 7px 0 0; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: #334155; }
 
   /* ======== PART 3 — CONTENT CREATION ======== */
   .cc-section { margin-bottom: 48px; }
@@ -395,6 +558,15 @@
     .how-to { grid-template-columns: 1fr 1fr; }
     .star-grid { grid-template-columns: 1fr; }
     .metric-grid { grid-template-columns: repeat(2,1fr); }
+    .lab-stat-grid { grid-template-columns: 1fr 1fr; }
+    .lever-grid { grid-template-columns: 1fr; }
+    .brand-action-grid { grid-template-columns: 1fr; }
+    .signal-grid { grid-template-columns: 1fr 1fr; }
+    .compact-grid { grid-template-columns: 1fr; }
+    .prompt-contract { grid-template-columns: 1fr; }
+    .source-ledger { grid-template-columns: 1fr; }
+    .source-ledger div:nth-child(odd) { border-bottom: none; padding-bottom: 2px; }
+    .source-ledger div:nth-child(even) { padding-top: 4px; }
     .cc-pipeline { flex-direction: column; }
     .cc-pipeline-step { border-right: none; border-bottom: 1px solid var(--border); }
     .cc-pipeline-step:last-child { border-bottom: none; }
@@ -415,15 +587,16 @@
   <nav>
     <div class="nav-section">Overview</div>
     <a href="#star">Exec Summary</a>
+    <a href="#part0">Optimization Plan</a>
     <div class="nav-section">Reference</div>
     <a href="#part1">Win/Fail Table</a>
     <a href="#vars">Variable Reference</a>
     <a href="#part3">Content Creation</a>
     <div class="nav-section">Prompts</div>
-    <a href="#bg" class="nav-brand">🌹 BraGoddess</a>
-    <a href="#gl" class="nav-brand">👔 GentsLux</a>
-    <a href="#lf" class="nav-brand">👗 LuxFitting</a>
-    <a href="#sf" class="nav-brand">🧳 SantaFare</a>
+    <a href="#bg" class="nav-brand">BraGoddess</a>
+    <a href="#gl" class="nav-brand">GentsLux</a>
+    <a href="#lf" class="nav-brand">LuxFitting</a>
+    <a href="#sf" class="nav-brand">SantaFare</a>
   </nav>
 </aside>
 
@@ -433,7 +606,7 @@
   <!-- PAGE HEADER -->
   <div class="page-header">
     <h1>EmailAuto Campaign Playbook</h1>
-    <div class="subtitle">Win/Fail Reference · AI Prompt Templates · STAR Analysis · 46 .eml templates + 7 months of funnel data · Nov 2025 – May 2026</div>
+    <div class="subtitle">Win/Fail Reference · Prompt System · STAR Analysis · 46 .eml templates · 1,101 page rows · 36 workbook sheets</div>
     <div class="brand-pills">
       <span class="brand-pill pill-bg">BraGoddess · Sandra</span>
       <span class="brand-pill pill-gl">GentsLux · Jordan</span>
@@ -454,7 +627,7 @@
       <div class="star-section">
         <div class="star-label star-label-s">S &nbsp;·&nbsp; Situation</div>
         <h3>CTR Diverging: GentsLux Breaking Out While BG &amp; LF Show Content Fatigue</h3>
-        <p>Email click-through rate (CTR = Access ÷ Opens) through May 2026 tells two stories. GentsLux is a breakout — CTR has grown every single month, from 1.10% (Feb) to 1.88% (May), a +71% improvement driven by tight list control and fresh creative rotation. BraGoddess and LuxFitting show a repeating pattern: a creative breakthrough lifts CTR for one month, then body copy reverts to formula and CTR retreats below target. SantaFare paused all campaigns after March as seasonal gifting demand fades through summer.</p>
+        <p>CTR now has a clear split: GentsLux climbed from 1.10% in Feb to 1.88% in May, while BraGoddess and LuxFitting fall back whenever copy returns to the old formula. SantaFare remains paused until Q4.</p>
         <table class="star-table">
           <thead><tr><th>Brand</th><th>Feb CTR</th><th>Mar CTR</th><th>Apr CTR</th><th>May CTR*</th><th>Trend</th></tr></thead>
           <tbody>
@@ -465,30 +638,30 @@
           </tbody>
         </table>
         <p style="font-size:11px;color:#9ca3af;margin-top:4px">* May data as of 2026-05-28 (partial month). SF paused through Oct 2026 — seasonal gifting demand absent until Q4.</p>
-        <p style="margin-top:10px"><strong>Open rates are rising across all brands</strong> — subject line and timing improvements are working. The bottleneck has shifted downstream to the email body: subscribers open but don't click.</p>
+        <p style="margin-top:10px"><strong>Open rates are not the leak.</strong> Subscribers open, recognize the pattern, and do not click.</p>
         <div class="metric-grid">
           <div class="metric-box"><div class="metric-val up">1.88%</div><div class="metric-label">GL May CTR — program high (+71% vs Feb)</div></div>
           <div class="metric-box"><div class="metric-val up">$277K</div><div class="metric-label">3-brand Apr revenue (ex-SF, all-time high)</div></div>
           <div class="metric-box"><div class="metric-val down">0.84%</div><div class="metric-label">BG May CTR — 4th month below 1% target</div></div>
           <div class="metric-box"><div class="metric-val down">0.80%</div><div class="metric-label">LF May CTR — reverted after Apr recovery</div></div>
         </div>
-        <p>Page-level CVR <strong>improved</strong> and held (Feb 8.37% → Mar 10.84% → Apr 10.16%), confirming the <strong>product page is NOT the bottleneck</strong> — the leak is at the email click stage. Total page revenue: $174K (Feb) → $254K (Mar) → $278K (Apr, ex-SF).</p>
-        <p><strong>Top performers Nov 2025–May 2026:</strong> Daisy Bra 3 (BG), JettJeans3 + Icy Shorts (GL, Icy Shorts became #1 in Apr), StretchActive3 (GL), Posy Bra (BG, new Apr). GL's Icy Shorts is the clearest proof that a single hero product with the right segment angle can sustain multi-month CTR growth.</p>
+        <p>Page CVR improved and held: 8.37% in Feb, 10.84% in Mar, 10.16% in Apr. The fix is better email intent, not more product-page tinkering.</p>
+        <p><strong>Hero anchors:</strong> BG Daisy/Posy, GL Icy/JettJeans, LF StretchActive/Icy, SF BygoneMark/Pouchic.</p>
       </div>
 
       <!-- T: TASK -->
       <div class="star-section">
         <div class="star-label star-label-t">T &nbsp;·&nbsp; Task</div>
         <h3>Root Causes &amp; Required Actions</h3>
-        <p><strong>Root Cause 1 — List scale-up with low-engagement addresses:</strong><br>SF scaled 3× within March (Mar 5: 145K → Mar 26: 436K delivered). CTR dropped from 1.01% on Mar 5 to 0.54% on Mar 26 as less-engaged addresses dominated the later sends. LF had the same pattern (140K → 335K within March, CTR 0.91% → 0.72%). CTR recovered for LF in April when list growth was controlled, confirming list quality as a direct lever.</p>
-        <p><strong>Root Cause 2 — Body copy fatigue (repetitive narrative pattern):</strong><br>The email body follows the same structural arc across nearly every send: micro-story opener → product mention → social proof line → CTA. Subscribers who receive 4+ emails per month recognise the template and stop reading past the opener. Evidence: GL used "Customer Reviews + Thank You" as content in 3 of 4 May sends; BG's Daisy Bra appeared in almost every send Jan–May 2026. LF's CTR recovered to 1.09% in April specifically when content rotated to an anniversary theme ("Happy Birthday LuxFitting turns 3") — then fell back to 0.80% in May when the template reverted to standard formula. BG's open rate is healthy (45.2%) but CTR keeps declining — subscribers open the email, recognise the pattern, and leave without clicking.</p>
-        <p><strong>Root Cause 3 — Hook coherence breaks under list expansion:</strong><br>When sending to a larger, colder audience, the subject line hook must work for someone who barely remembers the brand. Weak or generic suspended-loop hooks lose cold subscribers in the first 200px. A hook that relies on familiarity ("you deserve this") fails for addresses that joined in the last 30 days and have no emotional history with the brand.</p>
+        <p><strong>Root Cause 1 — List expansion:</strong> SF and LF CTR fell when March delivery scaled into colder addresses. Scale only after the previous send holds CTR.</p>
+        <p><strong>Root Cause 2 — Body fatigue:</strong> Repeated micro-story → product → proof → CTA arcs are now recognizable. Rotate opener mechanics every send.</p>
+        <p><strong>Root Cause 3 — Weak hook coherence:</strong> Cold readers need subject, preheader, banner, and first paragraph to carry one clear reason to click.</p>
         <ul class="root-cause-list">
-          <li>Rotate body copy narrative arc every send — minimum 2 distinct openers per month: story-led, fact-led, or question-led; avoid "Customer Reviews + Thank You" as the only template in a month</li>
-          <li>Enforce the suspended-loop hook formula across subject → preheader → banner → body — one theme, no competing angles; the hook must land within the first 200px for cold subscribers</li>
-          <li>For SF: campaigns paused through Oct 2026; relaunch in November with Christmas/Holiday Gifting angle targeting lifecycle tier 1-D VIP first, then 1-A Active</li>
-          <li>Monitor within-month CTR across sends — if Send 4 CTR drops &gt;15% vs Send 1, pause list scale-up and refresh creative template before continuing</li>
-          <li>Maintain hero product anchors (GL: Icy Shorts + JettJeans3; BG: Daisy Bra + Posy Bra; LF: StretchActive + LinenGlam) but vary the product narrative angle each send — same product, different pain/relief story</li>
+          <li>Rotate opener type every send: story, fact, question, occasion.</li>
+          <li>Keep one hook across subject, preheader, banner, and body.</li>
+          <li>Relaunch SF in Q4 with VIP and active buyers first.</li>
+          <li>If Send 4 CTR drops &gt;15% vs Send 1, pause scale-up.</li>
+          <li>Keep hero products, but change the pain/relief story.</li>
         </ul>
       </div>
 
@@ -496,11 +669,11 @@
       <div class="star-section">
         <div class="star-label star-label-a">A &nbsp;·&nbsp; Action</div>
         <h3>This Playbook — What Was Built &amp; How to Use It</h3>
-        <p>Based on 46 winning and failing .eml templates (Nov 2025–May 2026) + 7 months of per-send funnel data from the RMKT Master Plan, this playbook provides three deliverables:</p>
+        <p>Built from 46 templates, 1,101 page rows, and the RMKT workbook.</p>
         <ul class="task-list">
-          <li><strong>48-row Win/Fail Reference Table</strong> — covers Subject Line, Preview Text, Body Copy, Products &amp; Promotions, Layout &amp; Visual, Technical, CTA, Campaign Performance, and new <strong>User Journey &amp; Funnel</strong> rows. Each row has a scope badge (ALL / brand-specific).</li>
-          <li><strong>20 AI Prompt Templates</strong> (5 per brand) — pre-loaded with all win patterns; each prompt is self-contained. Use them in order: Banner → Product Blocks → Base Body → Segment Versions → Subject Lines.</li>
-          <li><strong>Updated Segment Map</strong> — correct current segment IDs for each brand with AOV, frequency, and risk context so AI-generated copy matches real buyer behaviour.</li>
+          <li><strong>Win/Fail Reference:</strong> what to repeat and what to stop.</li>
+          <li><strong>Prompt System:</strong> five shorter prompts per brand with do/don't constraints.</li>
+          <li><strong>Segment Map:</strong> IDs, risk, and buyer context for targeting.</li>
         </ul>
         <p><strong>Updated Segment Map:</strong></p>
         <table class="seg-map-table">
@@ -538,6 +711,39 @@
 
     </div><!-- /star-grid -->
   </div><!-- /star-card -->
+
+  <!-- PART 0: ACCESS RATE + LIST HEALTH PLAN -->
+  <div id="part0" class="opener-card">
+    <div class="opener-head">
+      <div class="eyebrow">Fresh Evidence Review · May 2026</div>
+      <h2>Improve CTR by making the click feel earned.</h2>
+      <p>Pages convert. The email is the leak. Use one clear angle, a proven hero product, and hard list-health guardrails.</p>
+    </div>
+    <div class="opener-body">
+      <div class="signal-grid">
+        <div class="signal-card"><strong>46</strong><span>win/fail templates</span></div>
+        <div class="signal-card"><strong>1,101</strong><span>page rows</span></div>
+        <div class="signal-card"><strong>10.84%</strong><span>best page CVR</span></div>
+        <div class="signal-card"><strong>1.88%</strong><span>GL May CTR high</span></div>
+      </div>
+
+      <table class="compact-table">
+        <thead><tr><th>Finding</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Winning emails use one promise. Failed emails stack season, birthday, discount, and countdown.</td><td>One send = one angle. Cut any hook with more than one reason to click.</td></tr>
+          <tr><td>Page CVR rose from the 8% band to 10%+ in Mar-Apr.</td><td>Do not chase cheap clicks. Lead with proven pages and keep weak pages as support only.</td></tr>
+          <tr><td>F clicks, but optout/open hits 6.06%. C has elevated spam risk.</td><td>High-risk segments get softer urgency, lower frequency, and no same-week hard sale.</td></tr>
+          <tr><td>May schedule repeated "Customer Reviews + Thank You" across BG/GL.</td><td>Rotate opener type every send: story, fact, question, occasion.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="compact-grid">
+        <div class="compact-card"><h4>Hero Product Rule</h4><p>BG: Daisy/Posy/ZipLacy. GL: Icy/JettJeans. LF: StretchActive/Icy. SF: BygoneMark/Pouchic.</p></div>
+        <div class="compact-card"><h4>Body Rule</h4><p>Paragraph 1 earns trust. Paragraph 2 gives one inline product link. Grid CTAs are secondary.</p></div>
+        <div class="compact-card"><h4>Complaint Rule</h4><p>Optout/open &gt;1.5% or spam/delivered &gt;0.04% triggers value-led content or segment narrowing.</p></div>
+      </div>
+    </div>
+  </div>
 
   <!-- PART 1: WIN/FAIL TABLE -->
   <div id="part1" class="card">
@@ -1032,39 +1238,55 @@
   </div>
 
   <!-- PART 2 HEADER -->
-  <div style="margin-bottom:24px">
-    <h2 style="font-size:22px;font-weight:700;letter-spacing:-.02em">Part 2 — AI Prompt Templates</h2>
-    <p style="color:var(--muted);margin-top:6px;font-size:13.5px">5 prompts per brand · Fill every <span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px">[BRACKETED]</span> placeholder before sending to AI</p>
+  <div class="playbook-title">
+    <h2>Part 2 — Prompt System</h2>
+    <p>Use the same five-step chain for every brand. Each prompt has one job, a clear output shape, and explicit failure rules.</p>
   </div>
 
-  <!-- HOW TO USE -->
-  <div class="card" style="margin-bottom:28px">
-    <div class="card-header"><h2>How to Use — 5-Prompt Chain</h2></div>
-    <div class="how-to">
-      <div class="how-to-step"><div class="step-num">1</div><div class="step-label">Banner Idea</div><div class="step-desc">Visual &amp; content concepts for hero banner</div></div>
-      <div class="how-to-step"><div class="step-num">2</div><div class="step-label">Product Blocks</div><div class="step-desc">Per-product headline, benefits, trust booster, CTA</div></div>
-      <div class="how-to-step"><div class="step-num">3</div><div class="step-label">Base Body</div><div class="step-desc">Full email from brand persona — paste output into Prompt 4</div></div>
-      <div class="how-to-step"><div class="step-num">4</div><div class="step-label">Segments</div><div class="step-desc">4 audience-targeted versions from base copy</div></div>
-      <div class="how-to-step"><div class="step-num">5</div><div class="step-label">Subject Lines</div><div class="step-desc">4 subjects × 3 alternatives = 16 per campaign</div></div>
+  <div class="prompt-contract">
+    <div class="contract-card do">
+      <h3>Do</h3>
+      <ul>
+        <li>Choose one angle before writing.</li>
+        <li>Lead with a proven hero product.</li>
+        <li>Put one inline product link by paragraph 2.</li>
+        <li>Write subject + preheader as one pair.</li>
+      </ul>
+    </div>
+    <div class="contract-card dont">
+      <h3>Don't</h3>
+      <ul>
+        <li>Stack birthday + season + discount + countdown.</li>
+        <li>Open with bullets, checkmarks, or generic gratitude.</li>
+        <li>Hide price until the product grid.</li>
+        <li>Repeat "Customer Reviews + Thank You" as the monthly default.</li>
+      </ul>
     </div>
   </div>
 
-  <!-- VARIABLES TABLE -->
+  <div class="card" style="margin-bottom:28px">
+    <div class="card-header"><h2>5-Prompt Chain</h2></div>
+    <div class="how-to">
+      <div class="how-to-step"><div class="step-num">1</div><div class="step-label">Banner</div><div class="step-desc">One visual hook</div></div>
+      <div class="how-to-step"><div class="step-num">2</div><div class="step-label">Products</div><div class="step-desc">Proof-backed grid</div></div>
+      <div class="how-to-step"><div class="step-num">3</div><div class="step-label">Body</div><div class="step-desc">Persona story</div></div>
+      <div class="how-to-step"><div class="step-num">4</div><div class="step-label">Segments</div><div class="step-desc">Risk-aware variants</div></div>
+      <div class="how-to-step"><div class="step-num">5</div><div class="step-label">Subject</div><div class="step-desc">4 pairs per segment</div></div>
+    </div>
+  </div>
+
   <div id="vars" class="card" style="margin-bottom:36px">
-    <div class="card-header"><h2>Prompt Variables Reference</h2><span class="badge">Fill per campaign</span></div>
+    <div class="card-header"><h2>Prompt Variables</h2><span class="badge">Fill first</span></div>
     <div class="card-body">
       <table class="vars-table">
-        <thead><tr><th>Variable</th><th>Description</th><th>Example</th></tr></thead>
+        <thead><tr><th>Variable</th><th>Use</th><th>Example</th></tr></thead>
         <tbody>
-          <tr><td><code>[SEND_DAY]</code></td><td>Day of week</td><td class="example">Friday</td></tr>
-          <tr><td><code>[SEND_DATE]</code></td><td>Full date</td><td class="example">29 May 2026</td></tr>
-          <tr><td><code>[CAMPAIGN_THEME]</code></td><td>Campaign name/concept</td><td class="example">Summer customers' choice flash sale</td></tr>
-          <tr><td><code>[TARGET_SEGMENT]</code></td><td>Audience description for this send</td><td class="example">low-income senior women in the United States</td></tr>
-          <tr><td><code>[PROMO_DETAILS]</code></td><td>Discount mechanics</td><td class="example">No code needed, no exclusions, storewide, no limit</td></tr>
-          <tr><td><code>[SHIPPING_OFFER]</code></td><td>Shipping threshold</td><td class="example">Free shipping on orders over $40</td></tr>
-          <tr><td><code>[SALE_DURATION]</code></td><td>How long the offer runs</td><td class="example">Today only / Ends at midnight</td></tr>
-          <tr><td><code>[NUMBER]</code></td><td>Count of items on sale</td><td class="example">3</td></tr>
-          <tr><td><code>[PRODUCT_LIST]</code></td><td>Products with prices and URLs</td><td class="example">StretchActive (was $99.99, now $19.99)</td></tr>
+          <tr><td><code>[SEND_DATE]</code></td><td>Date + season context</td><td class="example">Friday, 29 May 2026</td></tr>
+          <tr><td><code>[CAMPAIGN_THEME]</code></td><td>One-sentence angle</td><td class="example">Summer comfort at $12.99</td></tr>
+          <tr><td><code>[TARGET_SEGMENT]</code></td><td>Buyer + risk context</td><td class="example">Segment 3 strapless, low frequency, occasion-led</td></tr>
+          <tr><td><code>[PROMO_DETAILS]</code></td><td>Offer mechanics</td><td class="example">No code, ends midnight</td></tr>
+          <tr><td><code>[SHIPPING_OFFER]</code></td><td>Shipping threshold</td><td class="example">Free shipping over $40</td></tr>
+          <tr><td><code>[PRODUCT_LIST]</code></td><td>Products, URLs, prices</td><td class="example">Daisy Bra — now $12.99 — /daisy-bra</td></tr>
         </tbody>
       </table>
     </div>
@@ -1075,180 +1297,90 @@
     <div class="brand-bg">
       <div class="brand-header">
         <div>
-          <h2>🌹 BraGoddess</h2>
+          <h2>BraGoddess</h2>
           <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <span class="persona-tag">Persona: Sandra</span>
-            <span class="url-tag">bragoddess.com</span>
-            <span class="persona-tag">Segments: 21 · 22 · 45 · 8 · 3</span>
+            <span class="persona-tag">Sandra</span><span class="url-tag">bragoddess.com</span><span class="persona-tag">21 · 22 · 45 · 8 · 3</span>
           </div>
         </div>
       </div>
+      <div class="brand-brief"><strong>Rule:</strong> warm comfort story. <span>Hero: Daisy / Posy / ZipLacy</span><span>Avoid: feature-list openers</span></div>
       <div class="brand-body">
-        <!-- P1 -->
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="true">
-            <span class="prompt-num">1</span>
-            <span>
-              <div class="prompt-title">Banner Idea</div>
-              <div class="prompt-subtitle">Visual &amp; content concepts for hero banner · Deep crimson–hot pink palette</div>
-            </span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content open">
-            <pre class="prompt-code" id="bg-p1">Provide banner ideas (content and visual) for a marketing email of https://bragoddess.com/ — an ecommerce store on women's bras and intimate apparel, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="true"><span class="prompt-num">1</span><span><div class="prompt-title">Banner</div><div class="prompt-subtitle">One visual hook · soft urgency</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content open"><pre class="prompt-code" id="bg-p1">Create 2 banner concepts for BraGoddess.
+Date: <span class="placeholder">[SEND_DATE]</span>
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span> · <span class="placeholder">[SHIPPING_OFFER]</span>
 
-Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be concise, emotionally resonant, and confidence-boosting. Updated with real-world data that provokes feelings of comfort, empowerment, and self-worth.
+DO:
+- Lead with one comfort/lift promise and one hero product.
+- Put hook + product + CTA inside the first 200px.
+- Use deep crimson/hot pink only.
 
-Incorporate a compact customer review (with reviewer name, age, and date) with several unique selling points. Focus on support, lift, and pain relief as the emotional core of the campaign announcement. <span class="placeholder">[NUMBER]</span> items on sale are:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (was $XX.XX, now $XX.XX)"]</span>
+DON'T:
+- Add a second angle not in the subject.
+- Use hard pressure, clutter, or vague empowerment copy.
 
-Mention <span class="placeholder">[SHIPPING_OFFER]</span>. <span class="placeholder">[PROMO_DETAILS]</span>. Make customers feel this is exactly what they've been searching for.
+OUTPUT: concept name · headline · visual composition · CTA · why it earns a click.<button class="copy-btn" onclick="copyPrompt('bg-p1',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">2</span><span><div class="prompt-title">Product Blocks</div><div class="prompt-subtitle">Pain to relief · visible price</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="bg-p2">Create product blocks for BraGoddess.
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
 
-Please provide at least 2 different banner ideas:
-1. One that resonates with recent buyers (acknowledge they already trust BraGoddess)
-2. One that resonates with long-time-no-see customers (gentle re-engagement + irresistible offer)
-Focus on design mood, headline text, visual composition, color usage (within #a02338–#d63268 deep crimson–hot pink range), and emotional tone.
+DO:
+- Lead with Daisy, Posy, ZipLacy, SonaShape, or CurvyLace when available.
+- Each block: headline under 6 words, 2 pain-to-relief benefits, price, trust signal, CTA.
+- Photo direction must show the benefit named in copy.
 
-REQUIRED WIN RULES:
-• Hook alignment: this banner must reinforce the subject line's exact theme — same urgency, same angle, no new competing message introduced
-• F-pattern: design so the full hook (emotion + price/offer signal) lands within the first 200px of email height — this is the prime attention zone
-• Urgency type for BraGoddess: soft social + time — "someone just grabbed theirs", "tonight only", "before midnight" — never hard sales pressure
-• The banner and preheader must feel like two halves of one sentence, not two separate ideas<button class="copy-btn" onclick="copyPrompt('bg-p1',this)">Copy</button></pre>
-          </div>
-        </div>
-        <!-- P2 -->
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">2</span>
-            <span>
-              <div class="prompt-title">Product Blocks</div>
-              <div class="prompt-subtitle">Headline + 2 benefits + trust booster + CTA · Lead: Daisy Bra</div>
-            </span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="bg-p2">Based on the above, please provide <span class="placeholder">[NUMBER]</span> product block ideas for the products below. Each block contains 1 product (content and visual) for the email above.
+DON'T:
+- Use unsupported stats.
+- Hide price.
+- Write CTAs longer than 4 words.
 
-Each block should contain:
-- A headline under 6 words that's emotionally compelling, relates to <span class="placeholder">[CAMPAIGN_THEME]</span>, and makes women feel beautiful and supported. Must feel personal, not promotional.
-- 2 product benefits each following a pain → relief arc: name a specific customer pain (e.g., shoulder indentations, back ache, poor posture) → then the specific product feature that relieves it. Under 4 words each. Include data where possible (e.g., "Reduces strap pressure 40%").
-- The specific sale price ($X.XX) shown prominently in the block
-- A 2-word trust booster or social proof indicator with a number (e.g., "12,000+ women", "4.9★ rated")
-- A CTA: 2–4 words max — action verb + object. Examples: "SNAG YOURS →", "GRAB DAISY BRA", "TREAT YOURSELF". Never a full sentence.
+OUTPUT one block per product.<button class="copy-btn" onclick="copyPrompt('bg-p2',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">3</span><span><div class="prompt-title">Base Body</div><div class="prompt-subtitle">Sandra · micro-story · inline link</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="bg-p3">Write the base email body from Sandra at BraGoddess.
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span> · <span class="placeholder">[SHIPPING_OFFER]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
 
-Products:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (https://bragoddess.com/[slug])"]</span>
+DO:
+- 120-180 words.
+- Open with a named woman's specific comfort moment.
+- Mention price once.
+- Add one natural inline product link by paragraph 2.
+- Close as Sandra.
 
-Lead product must be Daisy Bra. Secondary products: Bustella, ZenaLift, LushFitting, or other current inventory.<button class="copy-btn" onclick="copyPrompt('bg-p2',this)">Copy</button></pre>
-          </div>
-        </div>
-        <!-- P3 -->
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">3</span>
-            <span>
-              <div class="prompt-title">Email Body — Base Copy</div>
-              <div class="prompt-subtitle">From Sandra · Named micro-story opener · Paste output into Prompt 4</div>
-            </span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="bg-p3">From all above, please write a customer-centric body text for the marketing email from a single person standpoint, named Sandra, who is from BraGoddess (https://bragoddess.com/). Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if you were having a natural, warm, one-on-one conversation with them — like a trusted friend who genuinely wants to help.
+DON'T:
+- Use bullets, checkmarks, generic gratitude, or a second hook.
+- Say "many women" when one concrete story would work better.<button class="copy-btn" onclick="copyPrompt('bg-p3',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">4</span><span><div class="prompt-title">Segment Versions</div><div class="prompt-subtitle">5 versions · segment 3 included</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><div class="prompt-note">Paste Prompt 3 output below.</div><pre class="prompt-code" id="bg-p4">Create 5 shorter segment versions.
 
-Make it compact with absolutely no spammy or salesy words. Focus on feelings, confidence, and physical comfort — not just features. Mention <span class="placeholder">[CAMPAIGN_THEME]</span>, <span class="placeholder">[PROMO_DETAILS]</span>, and <span class="placeholder">[SHIPPING_OFFER]</span>.
+Segments:
+21 comfort/wirefree · 22 contour/push-up · 45 shapers/intimates · 8 sleepwear/lifestyle · 3 strapless/special occasion
 
-Open with a 2–3 sentence micro-story about a named woman (neighbor, friend, or relative) who discovered BraGoddess and experienced a specific physical relief or confidence moment. Make it specific — name, situation, and product detail.
+DO:
+- Keep Sandra's voice and one inline product link.
+- Segment 3 must be occasion-led, not generic comfort.
+- Adjust risk/urgency by segment.
 
-STRUCTURE RULES (non-negotiable):
-• Open with the named micro-story ONLY — no bullet lists, no checkmarks, no feature openers under any circumstances
-• Body carries the SAME single theme as the subject line and preheader — introduce no new competing hooks or angles mid-email
-• Social proof: embed as name + age + specific pain + product as relief, woven into narrative — never a standalone statistic ("X women bought this")
-• State the specific sale price ($X.XX) at least once in the body
-• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's when she found the Daisy Bra") — secondary CTA, must feel conversational not promotional
+DON'T:
+- Rewrite into bullets.
+- Add a new campaign theme.
 
-The copy must also incorporate as many as possible of the following:
-- Concise and straight to the point
-- Personal and dynamic (first-person from Sandra)
-- Educational Content (bra fit science, posture, shoulder/back pain connection)
-- User-Generated Content and Emotional Storytelling
-- Highlight Pain Points (poor fit, shoulder indentations, back pain, underwire discomfort) and Benefits (lift, support, lightness)
-- Present Data and/or facts (e.g., "8 in 10 women wear the wrong bra size")
-- FOMO and/or Curiosity
-- Love of praise, self-care, and feeling of being treated right
+BODY:
+<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('bg-p4',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">5</span><span><div class="prompt-title">Subject + Preheader</div><div class="prompt-subtitle">5 × 4 = 20 pairs</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="bg-p5">Write 4 subject/preheader pairs for each BG segment: 21, 22, 45, 8, 3.
 
-Include 1 seasonal tip relevant to <span class="placeholder">[SEND_DATE]</span> context.
+DO:
+- Subject max 50 chars.
+- Use sensory comfort, price, or soft social proof.
+- Preheader adds a new beat.
 
-Close warmly as Sandra.<button class="copy-btn" onclick="copyPrompt('bg-p3',this)">Copy</button></pre>
-          </div>
-        </div>
-        <!-- P4 -->
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">4</span>
-            <span>
-              <div class="prompt-title">Segment Versions</div>
-              <div class="prompt-subtitle">Paste Prompt 3 output · Segments: <span class="seg-tag">21</span><span class="seg-tag">22</span><span class="seg-tag">45</span><span class="seg-tag">8</span><span class="seg-tag">3</span></div>
-            </span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <div class="prompt-note">Paste the full output from Prompt 3 at the bottom of this prompt where indicated.</div>
-            <pre class="prompt-code" id="bg-p4">From the above, shorten the following email body text while retaining the ideas, emotional arc, and Sandra's personal voice — no spammy words — in 5 different versions, each targeting a specific customer segment to encourage them to buy.
+DON'T:
+- Repeat the subject in the preheader.
+- Use "don't let X go to waste."
+- Put {{first_name}} in both subject and preheader.
 
-21 - Bralettes/Daily/Comfort/Wirefree, Low AOV, High frequency, High product risk (daily comfort seekers — loyal, high-frequency buyers; acknowledge the ritual of wearing a bra that makes life easier; speak to "first look" access and the update they deserve)
-22 - Contour/Underwire/Push Up, Medium AOV, Medium frequency, High product risk (structure/shape-focused buyers — they want lift, support, and confidence; name the exact shape goal; bridge to new styles that elevate what they already love)
-45 - Shapers & Panties & Intimates, Medium AOV, Low frequency, Medium product risk (infrequent add-on buyers — they complete the set, not just buy bras; cross-sell angle: "your wardrobe is almost complete"; encourage completing their intimates collection with a specific pairing)
-8 - Sleepwear & Socks & Tights, Medium AOV, Medium frequency, Medium product risk (comfort-first lifestyle buyers — they prioritize softness and ease above all; bridge from sleepwear comfort language to everyday bra comfort; appeal to the joy of wearing something that feels like nothing)
-3 - Strapless & Backless & Special Occasion, Medium AOV, Low frequency, High product risk (special-occasion buyers — they bought for a specific moment or outfit; acknowledge the occasion or garment type that drove their first purchase; bridge to a new strapless or backless style that fits their next event; urgency is event-driven — "your next event is closer than you think" — not generic time pressure)
-
-REQUIRED FOR ALL 5 VERSIONS:
-• Narrative structure only — do NOT convert any version to bullet lists or checkmarks
-• Same single hook/theme as the base — no new competing angles for any segment
-• Keep at least one inline product hyperlink per version
-• Maintain Sandra's warm first-person voice throughout all versions
-
-The body text is:
-<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('bg-p4',this)">Copy</button></pre>
-          </div>
-        </div>
-        <!-- P5 -->
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">5</span>
-            <span>
-              <div class="prompt-title">Subject Lines</div>
-              <div class="prompt-subtitle">5 segments × 4 options = 20 subject lines · Max 50 chars · Sensory + price formula</div>
-            </span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="bg-p5">Please write an email subject line with 3 alternatives for each of the 5 segment emails above (segments 21, 22, 45, 8, 3). Total = 20 subject lines.
-
-For each subject line, incorporate as many as possible of the following:
-- Personalization (use {{first_name}})
-- Emojis (max 1–2, relevant)
-- Value-oriented (specific price: $12.99, $14.98, etc.)
-- Numbers and specificity
-- Sensory language (comfort, softness, relief)
-- Wordplay, Puns, or Idioms related to bra fit/support/comfort
-- Actionable power words
-- FOMO or time pressure
-- Curiosity gap (withhold the full offer until they open)
-
-Rules:
-- Max 50 characters per subject
-- Use "o.f.f" instead of "OFF" and "💲" instead of "$"
-- Never use "don't let X go to waste"
-- Never start with a generic greeting
-- Name must appear in subject OR in preview text — not both
-
-PREHEADER: For each subject line, also write its preheader (preview text):
-• Must add a NEW beat — urgency, time pressure, or scale — not stated in the subject
-• Never repeats, summarizes, or restates the subject's point
-• BG winning formula: add time or soft social proof — e.g., "'Til Midnight.⚡" / "Over 12,000 women already switched — tonight's your turn"
-• Label clearly: Subject: [line] | Preheader: [line]<button class="copy-btn" onclick="copyPrompt('bg-p5',this)">Copy</button></pre>
-          </div>
-        </div>
+OUTPUT: Segment · Subject · Preheader.<button class="copy-btn" onclick="copyPrompt('bg-p5',this)">Copy</button></pre></div></div>
       </div>
     </div>
   </div>
@@ -1256,159 +1388,46 @@ PREHEADER: For each subject line, also write its preheader (preview text):
   <!-- ===== GENTSLUX ===== -->
   <div id="gl" class="brand-section">
     <div class="brand-gl">
-      <div class="brand-header">
-        <div>
-          <h2>👔 GentsLux</h2>
-          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <span class="persona-tag">Persona: Jordan</span>
-            <span class="url-tag">gentslux.com</span>
-            <span class="persona-tag">Segments: 71 · 72 · 73</span>
-          </div>
-        </div>
-      </div>
+      <div class="brand-header"><div><h2>GentsLux</h2><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><span class="persona-tag">Jordan</span><span class="url-tag">gentslux.com</span><span class="persona-tag">71 · 72 · 73</span></div></div></div>
+      <div class="brand-brief"><strong>Rule:</strong> direct product mechanism. <span>Hero: Icy / JettJeans / StretchMotions</span><span>Avoid: repeated thank-you angle</span></div>
       <div class="brand-body">
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">1</span>
-            <span><div class="prompt-title">Banner Idea</div><div class="prompt-subtitle">Visual &amp; content concepts · Deep navy palette · Curiosity-gap approach</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="gl-p1">Provide banner ideas (content and visual) for a marketing email of https://gentslux.com/ — an ecommerce store on men's premium clothing, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">1</span><span><div class="prompt-title">Banner</div><div class="prompt-subtitle">Mechanism + confidence</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="gl-p1">Create 2 banner concepts for GentsLux.
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span> · <span class="placeholder">[SHIPPING_OFFER]</span>
 
-Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be confident, understated, and data-backed. Updated with real health and lifestyle data that resonates with men who value quality and comfort.
+DO: lead with fit, stretch, cooling, waistband, or durability. Put product + CTA in first 200px.
+DON'T: use cute puns, gratitude angles, or over-luxury language.
+OUTPUT: concept name · headline · visual composition · CTA.<button class="copy-btn" onclick="copyPrompt('gl-p1',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">2</span><span><div class="prompt-title">Product Blocks</div><div class="prompt-subtitle">Outcome-first blocks</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="gl-p2">Create product blocks for GentsLux.
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
 
-Incorporate a compact male customer review (with reviewer name, age, and date) with several unique selling points. Focus on mobility, joint comfort, and premium construction as the campaign's core value. <span class="placeholder">[NUMBER]</span> items on sale are:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (was $XX.XX, now $XX.XX)"]</span>
+DO: lead with Icy Shorts, JettJeans3, StretchMotions, EaseFlexor, or FlexCamo3 when available. Each block needs headline, 2 pain-to-relief benefits, price, proof, CTA.
+DON'T: hero weak page performers unless this is a controlled test. Don't use CTAs over 4 words.
+OUTPUT one block per product.<button class="copy-btn" onclick="copyPrompt('gl-p2',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">3</span><span><div class="prompt-title">Base Body</div><div class="prompt-subtitle">Jordan · direct story</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="gl-p3">Write a 120-170 word GentsLux email from Jordan.
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
 
-Mention <span class="placeholder">[SHIPPING_OFFER]</span>. <span class="placeholder">[PROMO_DETAILS]</span>. Make men feel these are the only pants they'll ever need.
+DO: open with a real daily problem; mention one product mechanism; include price and one inline link by paragraph 2.
+DON'T: sound corporate, over-effusive, or macho. Don't add a second angle.
+Close as Jordan.<button class="copy-btn" onclick="copyPrompt('gl-p3',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">4</span><span><div class="prompt-title">Segment Versions</div><div class="prompt-subtitle">71 · 72 · 73</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><div class="prompt-note">Paste Prompt 3 output below.</div><pre class="prompt-code" id="gl-p4">Create 3 shorter versions.
+71 tops: layering/breathability · 72 bottoms: movement/waistband/durability · 73 others: complete-the-look bridge
 
-Please provide at least 2 different banner ideas:
-1. One that creates a curiosity gap — suggests something extraordinary without revealing the full offer
-2. One that leads with credibility and trust (data, customer count, quality signal)
-Focus on design mood, headline text, visual composition, color usage (deep navy #002850–#1d3d56 range — premium masculine palette), and tone (confident, not loud).
+DO: keep one hook, one inline link, Jordan's direct voice.
+DON'T: add puns, gratitude, or a new campaign angle.
 
-REQUIRED WIN RULES:
-• Hook alignment: this banner must reinforce the subject line's exact theme — same angle, no new competing message; if the subject withholds the offer, the banner should build intrigue not reveal it
-• F-pattern: design so the complete hook lands within the first 200px of email height — prime attention zone
-• Urgency type for GentsLux: fear of loss + scarcity — "limited stock", "ends tonight", "this price won't repeat" — confident, not desperate
-• Never let the banner introduce a gratitude or reflective angle the subject didn't set up<button class="copy-btn" onclick="copyPrompt('gl-p1',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">2</span>
-            <span><div class="prompt-title">Product Blocks</div><div class="prompt-subtitle">Confident, outcome-focused headlines · Lead: JettJeans or FlexCamo</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="gl-p2">Based on the above, please provide <span class="placeholder">[NUMBER]</span> product block ideas for the products below. Each block contains 1 product (content and visual) for the email above.
+BODY:
+<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('gl-p4',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">5</span><span><div class="prompt-title">Subject + Preheader</div><div class="prompt-subtitle">3 × 4 = 12 pairs</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="gl-p5">Write 4 subject/preheader pairs for GL segments 71, 72, 73.
 
-Each block should contain:
-- A headline under 6 words that's compelling to men and relates to <span class="placeholder">[CAMPAIGN_THEME]</span>. Must feel confident and outcome-focused, not feature-listy.
-- 2 product benefits each following a pain → relief arc: name a specific customer pain (e.g., stiff knees, restricted movement, overheating) → then the specific product feature that relieves it. Under 4 words each. Include data where possible (e.g., "4-way stretch", "500K+ flex cycles tested").
-- The specific sale price ($X.XX) shown prominently in the block
-- A 2-word trust booster or credibility signal with a number (e.g., "45,000+ men", "4.8★ rated")
-- A CTA: 2–4 words max — action verb + object. Examples: "GRAB JETTJEANS →", "GET YOURS NOW", "CLAIM 70% O.F.F". Never a full sentence.
-
-Products:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (https://gentslux.com/[slug])"]</span>
-
-Lead product must be JettJeans or FlexCamo. Secondary products can rotate from current inventory.<button class="copy-btn" onclick="copyPrompt('gl-p2',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">3</span>
-            <span><div class="prompt-title">Email Body — Base Copy</div><div class="prompt-subtitle">From Jordan · Named male micro-story · Direct, no over-effusive sign-off</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="gl-p3">From all above, please write a customer-centric body text for the marketing email from a single person standpoint, named Jordan, who is from GentsLux (https://gentslux.com/). Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if Jordan is speaking directly to one man — direct, warm, confident, and honest.
-
-Make it compact with no spammy or salesy words. Focus on the physical discomfort men tolerate in everyday clothing and how GentsLux solves it. Mention <span class="placeholder">[CAMPAIGN_THEME]</span>, <span class="placeholder">[PROMO_DETAILS]</span>, and <span class="placeholder">[SHIPPING_OFFER]</span>.
-
-Open with a 2–3 sentence micro-story about a named man (colleague, friend, or customer) who experienced a specific joint or comfort issue and found relief through a GentsLux product. Include their name, the exact situation, and the product detail.
-
-STRUCTURE RULES (non-negotiable):
-• Open with the named micro-story ONLY — no bullet lists, no checkmarks, no feature openers
-• Body carries the SAME single theme as the subject line and preheader — introduce no new competing hooks or angles
-• Social proof: embed as name + age + specific pain + product as relief, woven into narrative — never a standalone statistic
-• State the specific sale price ($X.XX) at least once in the body
-• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's when he tried the JettJeans") — secondary CTA, must feel conversational not promotional
-
-The copy must also incorporate as many as possible of the following:
-- Concise and straight to the point (men respond to brevity)
-- Personal and conversational (first-person from Jordan — not formal, not pushy)
-- Educational Content (joint stress from stiff fabrics, circulation in tight waistbands, posture and pant fit)
-- User-Generated Content and Emotional Storytelling
-- Highlight Pain Points (stiff joints, restricted movement, uncomfortable waistbands, overheating) and Benefits (stretch, breathability, pull-on ease)
-- Present Data and/or facts (e.g., "The average man spends 10+ hours a day in pants that don't flex")
-- FOMO (subtle — time limit or limited stock)
-- Credibility and understated pride
-
-Include 1 practical tip relevant to the season / <span class="placeholder">[SEND_DATE]</span> context.
-
-Close as Jordan — confident, direct, no over-effusive sign-off.<button class="copy-btn" onclick="copyPrompt('gl-p3',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">4</span>
-            <span><div class="prompt-title">Segment Versions</div><div class="prompt-subtitle">Paste Prompt 3 output · Segments: <span class="seg-tag">71</span><span class="seg-tag">72</span><span class="seg-tag">73</span></div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <div class="prompt-note">Paste the full output from Prompt 3 at the bottom of this prompt where indicated.</div>
-            <pre class="prompt-code" id="gl-p4">From the above, shorten the following email body text while retaining the ideas, tone, and Jordan's direct voice — no spammy words — in 3 different versions targeting:
-
-71 - Men's Tops, Medium AOV, High purchasing frequency, Medium product risk (frequent tops buyers — they return regularly; acknowledge their style consistency; make the case that the pants they're looking at complete what they already own; speak to wardrobe completion, not isolated purchase)
-72 - Men's Bottoms, High AOV, Medium purchasing frequency, High product risk (premium pants buyers — high value but high churn risk; they bought once and need a reason to come back; speak to fit specificity, durability data, and exactly how these pants are different from what they already have)
-73 - Men's Others (accessories/misc), Medium AOV, Low purchasing frequency, Medium product risk (lapsed or peripheral buyers — bought something small or non-core; step them up to the flagship product; lead with the one compelling reason and remove all risk via satisfaction guarantee and easy returns)
-
-REQUIRED FOR ALL 3 VERSIONS:
-• Narrative structure only — do NOT convert any version to bullet lists or checkmarks
-• Same single hook/theme as the base — no new competing angles introduced for any segment
-• Keep at least one inline product hyperlink per version
-• Maintain Jordan's direct, confident first-person voice throughout
-
-The body text is:
-<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('gl-p4',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">5</span>
-            <span><div class="prompt-title">Subject Lines</div><div class="prompt-subtitle">3 segments × 4 options = 12 subject lines · Curiosity-gap preferred · Max 52 chars · Premium tone</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="gl-p5">Please write an email subject line with 3 alternatives for each of the 3 segment emails above (segments 71, 72, 73). Total = 12 subject lines.
-
-For each subject line, incorporate as many as possible of the following:
-- Personalization (use {{first_name}})
-- 1 emoji maximum (relevant, not decorative)
-- Implied value — suggest the offer without stating it outright (curiosity gap)
-- Numbers and specificity (price, % off, customer count)
-- Understated confidence (men's premium tone — not loud or exclamatory)
-- Wordplay or clever framing related to fit/comfort/movement
-- FOMO via scarcity or time (not desperation — confidence in the offer)
-- Questions that create a self-identification moment ("Still wearing pants that fight back?")
-
-Rules:
-- Max 52 characters per subject
-- Use "o.f.f" instead of "OFF" and "💲" instead of "$"
-- Never use "don't let X go to waste"
-- Never include grammar errors — proofread every single line before finalizing (GL is a premium brand; one error destroys trust)
-- Curiosity gap preferred: withhold full offer in subject, let preheader reveal it
-
-PREHEADER: For each subject line, also write its preheader (preview text):
-• Must add a NEW beat — reveal the scale or time the subject withheld
-• Never repeats or summarizes the subject
-• GL winning formula: reveal offer scale + urgency — "24 hours. The lowest prices in GentsLux history. Go! 🏃‍♂️"
-• Label clearly: Subject: [line] | Preheader: [line]<button class="copy-btn" onclick="copyPrompt('gl-p5',this)">Copy</button></pre>
-          </div>
-        </div>
+DO: max 52 chars; use product mechanism, price, or confident scarcity. Preheader adds proof or deadline.
+DON'T: use grammar errors, "don't let X go to waste," or repeat the subject.
+OUTPUT: Segment · Subject · Preheader.<button class="copy-btn" onclick="copyPrompt('gl-p5',this)">Copy</button></pre></div></div>
       </div>
     </div>
   </div>
@@ -1416,151 +1435,46 @@ PREHEADER: For each subject line, also write its preheader (preview text):
   <!-- ===== LUXFITTING ===== -->
   <div id="lf" class="brand-section">
     <div class="brand-lf">
-      <div class="brand-header">
-        <div>
-          <h2>👗 LuxFitting</h2>
-          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <span class="persona-tag">Persona: Adele</span>
-            <span class="url-tag">luxfitting.com</span>
-            <span class="persona-tag">Segments: 61 · 62 · 63 · 64</span>
-          </div>
-        </div>
-      </div>
+      <div class="brand-header"><div><h2>LuxFitting</h2><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><span class="persona-tag">Adele</span><span class="url-tag">luxfitting.com</span><span class="persona-tag">61 · 62 · 63 · 64</span></div></div></div>
+      <div class="brand-brief"><strong>Rule:</strong> comfort + outfit usefulness. <span>Hero: StretchActive3 / Icy / SoftyGrace</span><span>Avoid: stacked hooks</span></div>
       <div class="brand-body">
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">1</span>
-            <span><div class="prompt-title">Banner Idea</div><div class="prompt-subtitle">Health-first · Vibrant red–hot pink palette · StretchActive always leads</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="lf-p1">Provide banner ideas (content and visual) for a marketing email of https://luxfitting.com/ — an ecommerce store on women's clothing, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">1</span><span><div class="prompt-title">Banner</div><div class="prompt-subtitle">Comfort-first visual</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="lf-p1">Create 2 banner concepts for LuxFitting.
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span> · <span class="placeholder">[SHIPPING_OFFER]</span>
 
-Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be concise, fun, and personal, and updated with data that provoke emotions. Incorporate a compact customer review (with name and date of reviews) with several unique selling points and focus on health benefits as a way to announce the sale. <span class="placeholder">[NUMBER]</span> items on sale are:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (was $XX.XX, now $XX.XX)"]</span>
+DO: lead with one comfort/outfit promise and a clear product photo in first 200px.
+DON'T: combine spring + birthday + countdown + discount + comfort in one hook.
+OUTPUT: concept name · headline · visual composition · CTA.<button class="copy-btn" onclick="copyPrompt('lf-p1',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">2</span><span><div class="prompt-title">Product Blocks</div><div class="prompt-subtitle">Comfort proof</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="lf-p2">Create product blocks for LuxFitting.
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
 
-Mention <span class="placeholder">[SHIPPING_OFFER]</span>. <span class="placeholder">[PROMO_DETAILS]</span>. Make customers desire to own the products.
+DO: lead with StretchActive3, Icy Shorts, SoftyGrace, AiryGrace, or FlowyCharm when available. Each block needs headline, 2 pain-to-relief benefits, price, proof, CTA.
+DON'T: use vague style claims or mixed photo styles in one send.
+OUTPUT one block per product.<button class="copy-btn" onclick="copyPrompt('lf-p2',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">3</span><span><div class="prompt-title">Base Body</div><div class="prompt-subtitle">Adele · helpful story</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="lf-p3">Write a 120-180 word LuxFitting email from Adele.
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
 
-Please provide different ideas that resonate with both recent purchase and long-time-no-see customers, focusing on the designs and visuals.
+DO: open with a named woman getting dressed, walking, traveling, or handling heat. Add one useful seasonal tip and one inline product link by paragraph 2.
+DON'T: open with tips, bullets, generic praise, or wellness claims you cannot prove.
+Close warmly as Adele.<button class="copy-btn" onclick="copyPrompt('lf-p3',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">4</span><span><div class="prompt-title">Segment Versions</div><div class="prompt-subtitle">61 · 62 · 63 · 64</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><div class="prompt-note">Paste Prompt 3 output below.</div><pre class="prompt-code" id="lf-p4">Create 4 shorter versions.
+61 tops: easy outfit · 62 bottoms: fit/fabric precision · 63 dresses: occasion timing · 64 others: bridge to main collection
 
-Design note: Use vibrant red–hot pink range #e7324a–#fe397b. Contextual holiday color exceptions are permitted only if the entire email is season-themed. Lead banner must feature StretchActive as the hero product.
+DO: keep Adele's voice, one hook, one inline link.
+DON'T: add a new angle or hard urgency.
 
-REQUIRED WIN RULES:
-• Hook alignment: this banner must reinforce the subject line's exact theme — same sensory angle, same price signal, no new competing message
-• F-pattern: design so the sensory promise + price lands within the first 200px of email height
-• Urgency type for LuxFitting: gratitude + deadline — "as a thank-you, but only until midnight tonight" — warm not pushy
-• Never introduce a new hook the subject didn't set up; the banner completes the subject's sentence, not starts a new one<button class="copy-btn" onclick="copyPrompt('lf-p1',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">2</span>
-            <span><div class="prompt-title">Product Blocks</div><div class="prompt-subtitle">Health-focused benefits · StretchActive first · 6 products max</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="lf-p2">Based on the above, please provide <span class="placeholder">[NUMBER]</span> product block ideas for <span class="placeholder">[NUMBER]</span> products below, each block contains 1 product (content and visual) for the email above, each block should contain the following:
-- A headline under 6 words that's attractive to customers and make them want to buy the product and relates to <span class="placeholder">[CAMPAIGN_THEME]</span>. If possible, it should be personal, emotional, powerful
-- 2 product benefits each following a pain → relief arc: name a specific customer pain (e.g., elastic waistband discomfort, leg swelling, overheating in summer) → then the specific product feature that relieves it. Under 4 words each. Health-focused, with data or figures if possible.
-- The specific sale price ($X.XX) shown prominently in the block
-- A 2-word urgent indicator or trust booster with data or figures
-- A CTA: 2–4 words max — action verb + object. Examples: "SNAG YOURS →", "FEEL THE DIFFERENCE", "GRAB STRETCHACTIVE". Never a full sentence.
+BODY:
+<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('lf-p4',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">5</span><span><div class="prompt-title">Subject + Preheader</div><div class="prompt-subtitle">4 × 4 = 16 pairs</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="lf-p5">Write 4 subject/preheader pairs for LF segments 61, 62, 63, 64.
 
-Products:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (https://luxfitting.com/[slug])"]</span>
-
-StretchActive must be the first product block. Remaining products can rotate from current inventory.<button class="copy-btn" onclick="copyPrompt('lf-p2',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">3</span>
-            <span><div class="prompt-title">Email Body — Base Copy</div><div class="prompt-subtitle">From Adele · Senior women focus · Health + comfort + tips</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="lf-p3">From all above, please write a customer-centric body text for the marketing email from a single person standpoint, named Adele, who is from the online store above. Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if you were having a natural and friendly conversation with them. Make it compact with no spammy words. Focus on benefits and emotions and motivate the customers to buy the products. Mention the sale program, <span class="placeholder">[PROMO_DETAILS]</span>. Include useful tips and tricks for <span class="placeholder">[SEASON / occasion relevant to SEND_DATE]</span>.
-
-STRUCTURE RULES (non-negotiable):
-• Open with a 2–3 sentence named micro-story ONLY — no bullet lists, no checkmarks, no feature openers
-• Body carries the SAME single theme as the subject line and preheader — introduce no new competing hooks or angles
-• Social proof: embed as name + age + specific pain + product as relief, woven into narrative — never a standalone statistic
-• State the specific sale price ($X.XX) at least once in the body
-• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's why so many of our readers keep reaching for their StretchActive") — secondary CTA, conversational not promotional
-
-The copy should also incorporate as many as possible of the following elements:
-- Concise and straight to the point
-- Personal and dynamic
-- Educational Content
-- User-Generated Content and Emotional Storytelling
-- Highlight Pain Points and/or Benefits
-- Present Data and/or facts
-- FOMO and/or Curiosity
-- Love of praise and honor and/or greedy
-
-Close warmly as Adele.<button class="copy-btn" onclick="copyPrompt('lf-p3',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">4</span>
-            <span><div class="prompt-title">Segment Versions</div><div class="prompt-subtitle">Paste Prompt 3 output · Segments: <span class="seg-tag">61</span><span class="seg-tag">62</span><span class="seg-tag">63</span><span class="seg-tag">64</span></div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <div class="prompt-note">Paste the full output from Prompt 3 at the bottom of this prompt where indicated.</div>
-            <pre class="prompt-code" id="lf-p4">From the above, shorten the following email body text while retaining the ideas and styles with no spammy words, in 4 different versions, targeting at the following 4 customer segments to encourage them to buy the clothes above:
-
-61 - Women's Tops, Medium AOV, High purchasing frequency, Medium product risk (frequent tops buyers — they return regularly and know what they like; acknowledge their style loyalty; cross-sell the bottoms or dresses that complete what they already own; speak to the effortless outfit angle)
-62 - Women's Bottoms, High AOV, High purchasing frequency, High product risk (high-value bottoms buyers — they spend more and return often but have high risk of leaving for a competitor; speak to fit precision, quality of fabric, and what makes these bottoms different from anything else they've tried)
-63 - Women's Dresses, High AOV, Medium purchasing frequency, Medium product risk (occasion-driven dress buyers — they shop for moments, not routinely; create occasion urgency; make the email feel like it arrived at the right time for a specific upcoming moment in their life)
-64 - Women's Others (misc/accessories), Medium AOV, Low purchasing frequency, Medium product risk (infrequent peripheral buyers — they bought something non-core; bridge from what they bought to the main collection; remove risk; make the step up feel easy and obvious)
-
-REQUIRED FOR ALL 4 VERSIONS:
-• Narrative structure only — do NOT convert any version to bullet lists or checkmarks
-• Same single hook/theme as the base — no new competing angles introduced for any segment
-• Keep at least one inline product hyperlink per version
-• Maintain Adele's warm, friendly first-person voice throughout
-
-The body text is:
-<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('lf-p4',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">5</span>
-            <span><div class="prompt-title">Subject Lines</div><div class="prompt-subtitle">Sensory + price formula · Max 50 chars · Trendy, funny, FOMO</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="lf-p5">Please write an updated innovative/surprising/attractive email subject line with 3 alternatives for each of the emails above (segments 61, 62, 63, 64). Total = 16 subject lines.
-
-Incorporate as many as possible of the following elements:
-- Personalization
-- Emojis
-- Value-oriented
-- Numbers and lists
-- Trendy
-- Wordplay, Puns, and Idioms
-- Actionable language and Power words
-- Funny
-- FOMO
-- Questions
-
-Rules:
-- Max 50 characters
-- Use "💲" instead of "$" and "o.f.f" instead of "OFF"
-- Best-performing formula for LF: "[sensory comparison] for 💲[price]?" — use as one of the alternatives per segment
-- Never use "don't let X go to waste"
-- Name must appear in subject OR in preview text — not both
-
-PREHEADER: For each subject line, also write its preheader (preview text):
-• Must add a NEW beat — time pressure or revelation — NOT stated in the subject
-• Never repeats or summarizes the subject
-• LF winning formula: escalate the tension — "Thanks but this ends midnight!" / "Ends tonight — grab yours before they're gone"
-• Label clearly: Subject: [line] | Preheader: [line]<button class="copy-btn" onclick="copyPrompt('lf-p5',this)">Copy</button></pre>
-          </div>
-        </div>
+DO: max 50 chars; use sensory comparison, price, or outfit ease. Preheader adds deadline or revelation.
+DON'T: stack multiple hooks or repeat the subject.
+OUTPUT: Segment · Subject · Preheader.<button class="copy-btn" onclick="copyPrompt('lf-p5',this)">Copy</button></pre></div></div>
       </div>
     </div>
   </div>
@@ -1568,505 +1482,122 @@ PREHEADER: For each subject line, also write its preheader (preview text):
   <!-- ===== SANTAFARE ===== -->
   <div id="sf" class="brand-section">
     <div class="brand-sf">
-      <div class="brand-header">
-        <div>
-          <h2>🧳 SantaFare</h2>
-          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <span class="persona-tag">Persona: Mary</span>
-            <span class="url-tag">santafare.com</span>
-            <span class="persona-tag">Segment: 1 (Personalized Gifts · 4 lifecycle tiers)</span>
-          </div>
+      <div class="brand-header"><div><h2>SantaFare</h2><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><span class="persona-tag">Mary</span><span class="url-tag">santafare.com</span><span class="persona-tag">Segment 1 · lifecycle tiers</span></div></div></div>
+      <div class="brand-brief"><strong>Rule:</strong> gift-guide restraint. <span>Hero: BygoneMark / Pouchic2</span><span>Avoid: off-season urgency</span></div>
+      <div class="brand-body">
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">1</span><span><div class="prompt-title">Banner</div><div class="prompt-subtitle">Gifting loop</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="sf-p1">Create 2 banner concepts for SantaFare.
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span> · <span class="placeholder">[SHIPPING_OFFER]</span>
+
+DO: lead with a gifting situation and BygoneMark or Pouchic2. Use deep scarlet only.
+DON'T: use pink, bright cheerfulness, countdown energy, or broad accessory grids.
+OUTPUT: concept name · headline · visual composition · CTA.<button class="copy-btn" onclick="copyPrompt('sf-p1',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">2</span><span><div class="prompt-title">Product Blocks</div><div class="prompt-subtitle">Gift recommendation</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="sf-p2">Create 4 product blocks for SantaFare.
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
+
+DO: put BygoneMark and Pouchic2 first when available. Each block needs headline, 2 pain-to-relief benefits, price, proof, CTA.
+DON'T: write plain features, hide price, or use lifestyle photos in product cells.
+OUTPUT one block per product.<button class="copy-btn" onclick="copyPrompt('sf-p2',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">3</span><span><div class="prompt-title">Base Body</div><div class="prompt-subtitle">Mary · gift story</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="sf-p3">Write a 120-180 word SantaFare email from Mary.
+Audience: <span class="placeholder">[TARGET_SEGMENT]</span>
+Campaign: <span class="placeholder">[CAMPAIGN_THEME]</span>
+Offer: <span class="placeholder">[PROMO_DETAILS]</span>
+Products: <span class="placeholder">[PRODUCT_LIST]</span>
+
+DO: open with a named gift moment; carry one unresolved gifting situation to the CTA; mention price and one inline link.
+DON'T: use a sale-alert tone, generic "perfect gift" claims, or broad product grids.
+Close warmly as Mary.<button class="copy-btn" onclick="copyPrompt('sf-p3',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">4</span><span><div class="prompt-title">Lifecycle Versions</div><div class="prompt-subtitle">Active · Drifting · Lapsed · VIP</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><div class="prompt-note">Paste Prompt 3 output below.</div><pre class="prompt-code" id="sf-p4">Create 4 lifecycle versions.
+Active: next occasion · Drifting: natural continuation · Lapsed: remove risk · VIP: first-look quality
+
+DO: preserve Mary's story, price, and restrained urgency.
+DON'T: make any version sound like a generic blast.
+
+BODY:
+<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('sf-p4',this)">Copy</button></pre></div></div>
+        <div class="prompt-item"><button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false"><span class="prompt-num">5</span><span><div class="prompt-title">Subject + Preheader</div><div class="prompt-subtitle">4 × 4 = 16 pairs</div></span><span class="prompt-arrow">▾</span></button><div class="prompt-content"><pre class="prompt-code" id="sf-p5">Write 4 subject/preheader pairs for SF lifecycle tiers: Active, Drifting, Lapsed, VIP.
+
+DO: max 54 chars; use suspended loop, occasion timing, or reluctant deadline. Preheader adds a new beat.
+DON'T: use off-theme puns, bright cheerfulness, or "don't let X go to waste."
+OUTPUT: Tier · Subject · Preheader.<button class="copy-btn" onclick="copyPrompt('sf-p5',this)">Copy</button></pre></div></div>
+      </div>
+    </div>
+  </div>
+  <!-- PART 3: CONTENT CREATION DOS & DON'TS -->
+  <div id="part3" class="card">
+    <div class="card-header">
+      <h2>Part 3 — Content Creation Rules</h2>
+      <span class="badge">Input to brief</span>
+    </div>
+    <div class="card-note">Use this as the pre-flight checklist before running Part 2. Short, strict, and tied to CTR/list health.</div>
+    <div style="padding:22px 24px 28px">
+      <div class="cc-pipeline">
+        <div class="cc-pipeline-step pip-1"><div class="pip-num">01</div><div class="pip-name">Input</div><div class="pip-desc">segment, product proof, last send</div></div>
+        <div class="cc-pipeline-step pip-2"><div class="pip-num">02</div><div class="pip-name">Angle</div><div class="pip-desc">one reason to click</div></div>
+        <div class="cc-pipeline-step pip-3"><div class="pip-num">03</div><div class="pip-name">Framework</div><div class="pip-desc">PAS, BAB, proof, 4U</div></div>
+        <div class="cc-pipeline-step pip-4"><div class="pip-num">04</div><div class="pip-name">Flow</div><div class="pip-desc">hook, body, grid, close</div></div>
+        <div class="cc-pipeline-step pip-5"><div class="pip-num">05</div><div class="pip-name">Brief</div><div class="pip-desc">ready for prompt</div></div>
+      </div>
+
+      <table class="cc-quick-table">
+        <thead><tr><th>Layer</th><th>Do</th><th>Don't</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Input</strong></td><td>Include segment risk, hero product proof, offer, shipping, and last-send angle.</td><td>Run prompts with vague products, missing prices, or no prior-send context.</td></tr>
+          <tr><td><strong>Angle</strong></td><td>Choose one: pain, desire, occasion, proof, mechanism, or identity.</td><td>Mix multiple hooks because each one sounds useful.</td></tr>
+          <tr><td><strong>Framework</strong></td><td>Use PAS/BAB for body, 4U for subject, proof+CTA for short sale emails.</td><td>Repeat the same micro-story to product to CTA arc every send.</td></tr>
+          <tr><td><strong>Flow</strong></td><td>Complete the hook in the first 200px; place one inline product link by paragraph 2.</td><td>Make the product grid carry the entire click path.</td></tr>
+          <tr><td><strong>Brief</strong></td><td>Specify persona, segment, angle, hero product, promo, and don'ts.</td><td>Ask AI to "make it attractive" without constraints.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="cc-photo-grid">
+        <div class="cc-photo-card banner">
+          <h4>Banner / Visual</h4>
+          <div class="photo-sep">Do</div>
+          <ul>
+            <li class="do-item">Show the real hero product clearly in 1 second.</li>
+            <li class="do-item">Use one model/context and max 3 dominant colors.</li>
+            <li class="do-item">Match visual mood to subject/preheader.</li>
+          </ul>
+          <div class="photo-sep">Don't</div>
+          <ul>
+            <li class="dont-item">Reuse the same crop two sends in a row.</li>
+            <li class="dont-item">Use generic stock-like lifestyle scenes.</li>
+            <li class="dont-item">Let text cover the product.</li>
+          </ul>
+        </div>
+        <div class="cc-photo-card product">
+          <h4>Copy / Product Rows</h4>
+          <div class="photo-sep">Do</div>
+          <ul>
+            <li class="do-item">Write pain to relief benefits.</li>
+            <li class="do-item">Show price and a concrete trust signal.</li>
+            <li class="do-item">Use 2-4 word CTAs.</li>
+          </ul>
+          <div class="photo-sep">Don't</div>
+          <ul>
+            <li class="dont-item">Use unsupported numbers or fake proof.</li>
+            <li class="dont-item">Start the body with features or bullets.</li>
+            <li class="dont-item">Repeat the subject in the preheader.</li>
+          </ul>
         </div>
       </div>
-      <div class="brand-body">
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">1</span>
-            <span><div class="prompt-title">Banner Idea</div><div class="prompt-subtitle">Gifting narrative · Deep scarlet ONLY · Suspended loop approach</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="sf-p1">Provide banner ideas (content and visual) for a marketing email of https://santafare.com/ — an ecommerce store on accessories, handbags, and lifestyle gifts, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
 
-Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be warm, story-driven, and occasion-aware. Updated with data that creates gift urgency and occasion relevance. Incorporate a compact customer review about receiving or gifting a product (with reviewer name and date) with several unique selling points. Focus on the gifting moment and travel/lifestyle utility as the emotional core. <span class="placeholder">[NUMBER]</span> items on sale are:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (was $XX.XX, now $XX.XX)"]</span>
-
-Mention <span class="placeholder">[SHIPPING_OFFER]</span>. <span class="placeholder">[PROMO_DETAILS]</span>. Make customers feel this is a gift they — or someone they love — will treasure.
-
-Please provide at least 2 different banner ideas:
-1. One that creates a suspended loop / unresolved situation that compels the open (e.g., something important is about to be missed)
-2. One that leads with a gifting story visual — a person receiving the perfect accessory in an emotional moment
-
-Design note: Use deep scarlet range ONLY: #890106–#c00f28. Never use pink, orange-red, or any color outside this range. Heritage, premium, gift-occasion mood. Lead banner must feature Pouchic and/or TimelessMark as hero product(s).
-
-REQUIRED WIN RULES:
-• Hook alignment: this banner must reinforce the subject line's exact suspended-loop theme — same unresolved situation, same brand tone, no new cheerful or seasonal angle introduced here
-• F-pattern: design so the complete hook (headline + urgency signal) lands within the first 200px of email height — nothing important below the fold of the banner
-• Urgency type for SantaFare: reluctant deadline only — "we'd love to keep this open, but we have to take it back at midnight" — never loud, never pushy, never countdown-clock energy
-• Never let the banner introduce a new angle or bright/cheerful tone the subject line didn't already establish<button class="copy-btn" onclick="copyPrompt('sf-p1',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">2</span>
-            <span><div class="prompt-title">Product Blocks</div><div class="prompt-subtitle">Gifting recommendation tone · Pouchic + TimelessMark first · 4 products max</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="sf-p2">Based on the above, please provide <span class="placeholder">[NUMBER]</span> product block ideas for the products below. Each block contains 1 product (content and visual) for the email above.
-
-Each block should contain:
-- A headline under 6 words related to <span class="placeholder">[CAMPAIGN_THEME]</span> — must feel like a gift recommendation from a trusted friend, not a sale announcement
-- 2 unique product benefits written as pain→relief arcs: name the specific pain first, then the product feature as the resolution (e.g., "Cheap bags fall apart → full-grain leather that lasts decades"; "Generic gifts feel forgettable → personalised monogram in 48hrs")
-- Specific sale price displayed (e.g., "Now 💲49.95") — never omit the number
-- A trust signal with a number (e.g., "4,800+ gifted", "Ships in 24hrs", "Free returns")
-- CTA: 2–4 words max — action verb + object only (e.g., "Gift Pouchic Now", "See TimelessMark")
-
-Products:
-<span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (https://santafare.com/[slug])"]</span>
-
-Pouchic and TimelessMark must appear among the first two products. Use 4 products total for focused layout (not 6).
-
-REQUIRED WIN RULES:
-• Pain→relief arc is mandatory for every benefit bullet — never write a plain feature ("genuine leather"); always pair it with the pain it solves
-• Price must be visible in each block — hiding it reduces gifting confidence
-• CTA must be 2–4 words; never a full sentence (not "Click here to gift this to someone special")<button class="copy-btn" onclick="copyPrompt('sf-p2',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">3</span>
-            <span><div class="prompt-title">Email Body — Base Copy</div><div class="prompt-subtitle">From Mary · Gifting micro-story · Occasion-first narrative</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="sf-p3">From all above, please write a customer-centric body text for the marketing email from a single person standpoint, named Mary, who is from SantaFare (https://santafare.com/). Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if Mary is having a warm, personal conversation — someone who genuinely cares about helping them find the perfect gift or treat.
-
-Make it compact with no spammy words. Focus on the gift moment, the story behind giving, and the quality that makes SantaFare worth it. Mention <span class="placeholder">[CAMPAIGN_THEME]</span>, <span class="placeholder">[PROMO_DETAILS]</span>, and <span class="placeholder">[SHIPPING_OFFER]</span>.
-
-STRUCTURE RULES (non-negotiable):
-• Open with a named gifting micro-story: give a real name (Mary's sister, a friend, a customer), the occasion, the specific product, and the emotional moment — minimum 2 sentences, maximum 3
-• Never open with a bullet list, a checklist, or a "Here's what you get" format — story always comes first
-• Single hook rule: the email must carry ONE unresolved gifting situation from subject → opener → CTA; never introduce a second competing theme mid-email
-• Social proof must follow this format: [Name], [relationship/age] — "[specific pain they had]... [product] changed that." — never a standalone statistic ("73% of women...")
-• Price must appear in body copy at least once — never make the reader click to find out
-• Include one inline product hyperlink embedded in a narrative sentence (e.g., "the [Pouchic](product:pouchic) fit everything she needed for the weekend") — this is the secondary CTA, not a standalone button
-
-Open with a 2–3 sentence gifting micro-story — a named person (Mary's sister, a friend, a customer) who gave or received a SantaFare product at a meaningful moment. Be specific: name, occasion, product, and the emotional response.
-
-The copy must incorporate as many as possible of the following:
-- Concise and story-driven
-- Personal (first-person from Mary — warm, not corporate)
-- Educational Content (how to pick the perfect accessory, what makes a gift memorable)
-- User-Generated Content and Emotional Storytelling (gifting anecdotes)
-- Highlight Pain Points (generic gifts, wrong size, poor quality, last-minute stress) and Benefits (timeless design, premium feel, thoughtful choice)
-- Present Data and/or facts (e.g., "73% of women say a beautiful bag makes them feel more confident")
-- FOMO and Urgency (deadline, limited stock — reluctant, not desperate)
-- Create a sense of occasion and occasion-fit
-
-Include 1 seasonal gifting tip relevant to <span class="placeholder">[SEND_DATE]</span>.
-
-Close warmly as Mary — brief, personal, not over-effusive.<button class="copy-btn" onclick="copyPrompt('sf-p3',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">4</span>
-            <span><div class="prompt-title">Segment Versions</div><div class="prompt-subtitle">Paste Prompt 3 output · Segment <span class="seg-tag">1</span> · 4 lifecycle tiers: Active · Drifting · Lapsed · VIP</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <div class="prompt-note">Paste the full output from Prompt 3 at the bottom of this prompt where indicated.</div>
-            <pre class="prompt-code" id="sf-p4">REQUIRED FOR ALL 4 VERSIONS:
-• Retain the named gifting micro-story from Prompt 3 — shorten it, never remove it; the story is the emotional anchor for every segment
-• Maintain Mary's warm, personal voice across all versions — never let any version sound corporate, aggressive, or like a sale alert
-• Each version must still carry the single suspended-loop hook — the unresolved gifting situation must persist; never resolve it before the CTA
-• Price must remain visible in each version
-• Urgency tone stays reluctant: Mary is sorry to have to say it, not excited about the deadline
-
-All 4 versions target Segment 1 (Personalized Gifts — Low AOV, Medium frequency, Low product risk). Differentiate by purchase recency / loyalty tier, NOT by product category:
-
-1-A (Active — last purchase &lt;90 days) — acknowledge their recent gift; remind them the next occasion is coming sooner than they think; create gentle recency urgency ("you know how quickly these occasions sneak up")
-1-B (Drifting — last purchase 90–180 days ago) — "it's almost time again" angle; reference the specific type of occasion they last gifted for; make it feel like a natural continuation, not a re-sell
-1-C (Lapsed — last purchase &gt;180 days ago) — remove all friction; lead with the risk-free angle (free returns, gift guarantee, easy process); reference their last gift positively without making them feel forgotten
-1-D (VIP — 2+ orders, highest spend in Segment 1) — exclusive gifting angle; first-look or limited availability; acknowledge they know SantaFare well; speak to elevation and trusted quality they already believe in
-
-The body text is:
-<span class="placeholder">[PASTE PROMPT 3 OUTPUT HERE]</span><button class="copy-btn" onclick="copyPrompt('sf-p4',this)">Copy</button></pre>
-          </div>
-        </div>
-        <div class="prompt-item">
-          <button class="prompt-toggle" onclick="togglePrompt(this)" aria-expanded="false">
-            <span class="prompt-num">5</span>
-            <span><div class="prompt-title">Subject Lines</div><div class="prompt-subtitle">Suspended loop formula · Max 54 chars · Reluctant-deadline tone · Never pink/off-brand</div></span>
-            <span class="prompt-arrow">▾</span>
-          </button>
-          <div class="prompt-content">
-            <pre class="prompt-code" id="sf-p5">Please write an email subject line with 3 alternatives for each of the 4 lifecycle tier versions above (Segment 1: tiers 1-A Active, 1-B Drifting, 1-C Lapsed, 1-D VIP). Total = 16 subject lines.
-
-For each subject line, incorporate as many as possible of the following:
-- Personalization (use {{first_name}})
-- 1–2 emojis (occasion-relevant: 🎁 ✈️ 👜 ⏰ ⚠️)
-- Suspended loop or unresolved situation that creates gentle anxiety ("gift = UNCLAIMED", "almost expired")
-- Specific price anchor
-- FOMO via a reluctant-deadline tone (the brand doesn't want to take it back — but has to)
-- Occasion-fit: the email should feel like it arrived at exactly the right moment
-- Exclusivity or limited access signal
-
-Rules:
-- Max 54 characters per subject
-- Use "💲" instead of "$" and "SAVING" instead of "OFF"
-- Never use "don't let X go to waste" or off-theme seasonal puns
-- Best-performing SF formula: "[Unresolved situation]... {{first_name}}'s [earned thing] = [status/risk]"
-- Maintain deep scarlet brand tone — no playful pinks or bright cheerfulness
-
-PREHEADER: For each subject line, also write its preheader (preview text):
-• Must add a NEW beat — a deadline, a revelation, or a specific number — NOT already stated in the subject line
-• Never repeats or summarizes the subject; never writes a greeting ("Welcome back!", "Happy gifting! 🎉")
-• SF winning formula: reluctant deadline or suspended revelation — "Tonight only" / "We're taking this back at midnight" / "Only [N] left at this price"
-• 60–90 characters; label clearly: Subject: [line] | Preheader: [line]<button class="copy-btn" onclick="copyPrompt('sf-p5',this)">Copy</button></pre>
-          </div>
-        </div>
+      <div class="cc-brief-template">
+        <span class="bf-key">BRAND:</span> <span class="bf-val">[BG / GL / LF / SF]</span><br>
+        <span class="bf-key">SEGMENT:</span> <span class="bf-val">[ID + risk + recent behavior]</span><br>
+        <span class="bf-key">ANGLE:</span> <span class="bf-val">[one sentence]</span><br>
+        <span class="bf-key">HERO:</span> <span class="bf-val">[proven product + price + URL]</span><br>
+        <span class="bf-key">PROMO:</span> <span class="bf-val">[offer + shipping + deadline]</span><br>
+        <span class="bf-key">DON'T:</span> <span class="bf-val">[one pattern to avoid from last send]</span>
       </div>
     </div>
   </div>
 
-  <!-- PART 3: CONTENT CREATION DOS & DON'TS -->
-  <div id="part3" class="card cc-section">
-    <div class="card-header">
-      <h2>Part 3 — Content Creation Dos &amp; Don'ts</h2>
-      <span class="badge">5 Layers · Copy · Photos · Brief</span>
-    </div>
-    <div class="card-note">
-      Every email creative passes through 5 layers: <strong>Input → Angle → Framework → Flow → Brief.</strong>
-      A break at any layer causes the AI prompt to produce off-brief copy. Use this section as a pre-flight checklist before running any prompt from Part 2.
-    </div>
-    <div style="padding:24px 24px 0">
-
-      <!-- PIPELINE -->
-      <div class="cc-pipeline">
-        <div class="cc-pipeline-step pip-1">
-          <div class="pip-num">Layer 1</div>
-          <div class="pip-name">INPUT</div>
-          <div class="pip-role">What we know</div>
-          <div class="pip-desc">Segment data · brand brief · product · season · last-send CTR</div>
-        </div>
-        <div class="cc-pipeline-step pip-2">
-          <div class="pip-num">Layer 2</div>
-          <div class="pip-name">ANGLE</div>
-          <div class="pip-role">Why they care</div>
-          <div class="pip-desc">Single emotional lens — commit before writing one word</div>
-        </div>
-        <div class="cc-pipeline-step pip-3">
-          <div class="pip-num">Layer 3</div>
-          <div class="pip-name">FRAMEWORK</div>
-          <div class="pip-role">In what order</div>
-          <div class="pip-desc">PAS / BAB / 4U — the message choreography</div>
-        </div>
-        <div class="cc-pipeline-step pip-4">
-          <div class="pip-num">Layer 4</div>
-          <div class="pip-name">FLOW</div>
-          <div class="pip-role">How it unfolds</div>
-          <div class="pip-desc">F-pattern · zone map · banner → body → CTA sequence</div>
-        </div>
-        <div class="cc-pipeline-step pip-5">
-          <div class="pip-num">Layer 5</div>
-          <div class="pip-name">BRIEF</div>
-          <div class="pip-role">Execution spec</div>
-          <div class="pip-desc">Exact copy · visual direction · product slugs · prompt input</div>
-        </div>
-      </div>
-      <p style="font-size:11.5px;color:var(--muted);margin-top:6px;margin-bottom:24px;">Each layer is the output of the previous and the input of the next. A broken link → the brief fails, the AI prompt drifts, the copy misses.</p>
-
-      <!-- LAYER 1 -->
-      <div class="cc-layer cc-l1">
-        <div class="cc-layer-head">
-          <span class="cc-badge">L1</span>
-          <div>
-            <h3>INPUT — What We Collect Before Writing</h3>
-            <p>Segment ID · brand persona · hero product + slug · campaign theme · season trigger · last-send performance</p>
-          </div>
-        </div>
-        <div class="cc-grid">
-          <div class="cc-do">
-            <h4>✓ Do</h4>
-            <ul>
-              <li>Map the target segment's specific pain + AOV + risk profile before opening the prompt</li>
-              <li>Pull 2–3 exact customer review phrases that name the pain in customer language</li>
-              <li>Lock the single campaign theme in one sentence before writing anything</li>
-              <li>Note the last send's hero product and CTR — AI needs this context to avoid repetition</li>
-              <li>Confirm the hero product slug is lowercase and exact (used for UTM links in copy)</li>
-            </ul>
-          </div>
-          <div class="cc-dont">
-            <h4>✗ Don't</h4>
-            <ul>
-              <li>Don't start writing copy without documenting input — vague input = vague output</li>
-              <li>Don't combine two promotions in one brief (Flash Sale + New Arrival = competing angles)</li>
-              <li>Don't skip segment mapping — generic copy sent to a high-risk segment drives 2%+ optout</li>
-              <li>Don't list 4 "hero" products — maximum 1 hero, 2 supporting products per send</li>
-              <li>Don't use approximate product names in the brief (always verify exact slug from the store)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- LAYER 2 -->
-      <div class="cc-layer cc-l2">
-        <div class="cc-layer-head">
-          <span class="cc-badge">L2</span>
-          <div>
-            <h3>ANGLE — The Single Emotional Lens</h3>
-            <p>Choose one approach and commit. The angle must carry through subject line → preheader → banner → body → CTA without breaking.</p>
-          </div>
-        </div>
-        <table class="cc-quick-table" style="margin-bottom:12px">
-          <thead><tr><th>Angle Type</th><th>Best for</th><th>Avoid when</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Pain-First</strong> — open with the specific friction</td><td>Cold/new subscribers; high-risk segments</td><td>VIP or high-freq buyers (feels patronising)</td></tr>
-            <tr><td><strong>Desire-First</strong> — open with the emotional outcome</td><td>VIP, high-freq, lifecycle tier 1-D</td><td>Cold list — desire needs brand trust first</td></tr>
-            <tr><td><strong>Occasion/Trigger</strong> — tie to a season or event</td><td>Mother's Day, Summer, Anniversary sends</td><td>Off-season sends without a real occasion</td></tr>
-            <tr><td><strong>Social Proof</strong> — lead with customer voice</td><td>Wavering mid-funnel subscribers</td><td>Opening send of a new segment (no trust yet)</td></tr>
-            <tr><td><strong>Product Mechanism</strong> — the specific feature that differs</td><td>New product launches; mechanism-driven USP</td><td>Lifestyle brands where feeling &gt; function</td></tr>
-            <tr><td><strong>Identity/Tribe</strong> — speak to who they see themselves as</td><td>High-loyalty segments (BG 21, GL 71)</td><td>Transactional or clearance sends</td></tr>
-          </tbody>
-        </table>
-        <div class="cc-grid">
-          <div class="cc-do">
-            <h4>✓ Do</h4>
-            <ul>
-              <li>Choose ONE angle — write it in a single sentence before opening any prompt</li>
-              <li>Verify the angle matches the last-send CTR context (don't repeat a failed angle)</li>
-              <li>Use Pain-First for any send to a list scaled up by 20%+ that month</li>
-              <li>Rotate angle approach across sends — GL's CTR growth came from angle variation</li>
-              <li>Lock the angle before writing the subject line — the subject is the angle's opening line</li>
-            </ul>
-          </div>
-          <div class="cc-dont">
-            <h4>✗ Don't</h4>
-            <ul>
-              <li>Don't write the subject line before the angle is confirmed — subject drift creates incoherence</li>
-              <li>Don't mix "flash sale urgency" with "educational" copy in one send — pick one tone</li>
-              <li>Don't reuse the same angle two sends in a row — this is the primary body copy fatigue driver</li>
-              <li>Don't use an Identity angle for lapsed subscribers — they've disengaged from the tribe already</li>
-              <li>Don't write "value-oriented" and "aspirational" simultaneously — they pull in opposite directions</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- LAYER 3 -->
-      <div class="cc-layer cc-l3">
-        <div class="cc-layer-head">
-          <span class="cc-badge">L3</span>
-          <div>
-            <h3>FRAMEWORK — The Message Choreography</h3>
-            <p>How to order the argument. For email body: PAS or BAB. For subject lines: 4U. Never default to the same framework every send.</p>
-          </div>
-        </div>
-        <table class="cc-quick-table" style="margin-bottom:12px">
-          <thead><tr><th>Framework</th><th>Structure</th><th>Best fit for email</th></tr></thead>
-          <tbody>
-            <tr><td><strong>PAS</strong></td><td>Problem → Agitate → Solution</td><td>Cold/new subscribers; re-engagement; Pain-First angle</td></tr>
-            <tr><td><strong>BAB</strong></td><td>Before → After → Bridge</td><td>Lifecycle re-engagement; lapsed (1-C) subscribers; Desire-First angle</td></tr>
-            <tr><td><strong>Social Proof + CTA</strong></td><td>Voice of customer → micro-proof → CTA</td><td>VIP, high-freq buyers; retargeting sends</td></tr>
-            <tr><td><strong>4U</strong> (subject lines)</td><td>Useful · Urgent · Unique · Ultra-specific</td><td>Every subject line — use as a checklist, not a structure</td></tr>
-            <tr><td><strong>3 Reasons Why</strong></td><td>Reason 1 → 2 → 3 → CTA</td><td>Product launch; new segment introduction only (narrative preferred)</td></tr>
-          </tbody>
-        </table>
-        <div class="cc-grid">
-          <div class="cc-do">
-            <h4>✓ Do</h4>
-            <ul>
-              <li>Lead every body paragraph with the problem first — pain precedes product name</li>
-              <li>Agitate with specificity: not "discomfort" but "shoulder marks by noon"</li>
-              <li>Introduce the product as the relief mechanism — name it AFTER the pain, not before</li>
-              <li>Use PAS for sends to scaled lists or any new/cold subscriber segment</li>
-              <li>Use BAB when the subscriber has already bought once and is being re-engaged after 60+ days</li>
-            </ul>
-          </div>
-          <div class="cc-dont">
-            <h4>✗ Don't</h4>
-            <ul>
-              <li>Don't use bullet lists in the body copy — narrative structure only (bullets break the persona voice)</li>
-              <li>Don't introduce a new angle in paragraph 3 — hook coherence rule: one theme, end to end</li>
-              <li>Don't start the email body with the product name or a price — the pain must come first</li>
-              <li>Don't use the same framework as the previous send without a reason</li>
-              <li>Don't use "3 Reasons Why" unless it's a product launch — it reads as an ad, not a friend</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- LAYER 4 -->
-      <div class="cc-layer cc-l4">
-        <div class="cc-layer-head">
-          <span class="cc-badge">L4</span>
-          <div>
-            <h3>FLOW — How the Email Unfolds Zone by Zone</h3>
-            <p>F-pattern rule: the complete hook must land within the first 200px. Every zone has one job. Don't let zones compete.</p>
-          </div>
-        </div>
-        <table class="cc-quick-table" style="margin-bottom:12px">
-          <thead><tr><th>Zone</th><th>What goes here</th><th>Common mistake</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Zone 1 — Banner (0–200px)</strong></td><td>Complete hook = angle emotion + price/offer signal + urgency type</td><td>Banner introduces a new angle not in the subject line</td></tr>
-            <tr><td><strong>Zone 2 — Intro body (200–500px)</strong></td><td>Named micro-story opener → pain → one inline product link</td><td>Opening with a greeting, a statistic, or a product feature</td></tr>
-            <tr><td><strong>Zone 3 — Product rows</strong></td><td>Pain→relief arc per product. Headline ≤6 words. 2 products per row max.</td><td>Product headline = product name only (no emotional hook)</td></tr>
-            <tr><td><strong>Zone 4 — Middle body</strong></td><td>Deepening argument, social proof woven as narrative</td><td>Standalone statistic ("10,000 women bought this")</td></tr>
-            <tr><td><strong>Zone 5 — Close + P.S.</strong></td><td>Warm persona sign-off. P.S. = second CTA or urgency beat.</td><td>P.S. repeats the main CTA instead of adding a new beat</td></tr>
-          </tbody>
-        </table>
-        <div class="cc-grid">
-          <div class="cc-do">
-            <h4>✓ Do</h4>
-            <ul>
-              <li>Banner text must reinforce the subject line's exact theme — not introduce a new one</li>
-              <li>Price/offer must appear in Zone 1 — not only buried in the body or product row</li>
-              <li>Named micro-story: specific person, specific situation, specific product detail (not "many customers")</li>
-              <li>Product headline: under 6 words, emotionally compelling, pain→relief</li>
-              <li>P.S. is treated as a second CTA — use it as "one more thing" or a time-based urgency beat</li>
-            </ul>
-          </div>
-          <div class="cc-dont">
-            <h4>✗ Don't</h4>
-            <ul>
-              <li>Don't let banner text compete with the subject line — they must feel like one sentence split in two</li>
-              <li>Don't use bullet lists or checkmarks anywhere in the email body (kills persona voice)</li>
-              <li>Don't open Zone 2 with "I hope this email finds you well" or any generic greeting</li>
-              <li>Don't skip the named micro-story — it's the primary CTR driver in BG/LF/GL email data</li>
-              <li>Don't put social proof in Zone 5 — by then the subscriber has already decided whether to click</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- LAYER 5 -->
-      <div class="cc-layer cc-l5">
-        <div class="cc-layer-head">
-          <span class="cc-badge">L5</span>
-          <div>
-            <h3>BRIEF — The Execution Spec (Prompt Input)</h3>
-            <p>Every field below must be filled before handing to Claude or any AI generation tool. Placeholders = draft failure.</p>
-          </div>
-        </div>
-        <div class="cc-brief-template">
-<span class="bf-key">BRAND:</span>        <span class="bf-val">[BraGoddess / GentsLux / LuxFitting / SantaFare]</span>
-<span class="bf-key">PERSONA:</span>      <span class="bf-val">[Sandra / Jordan / Adele / Mary]</span>
-<span class="bf-key">SEND DATE:</span>    <span class="bf-val">[Day, Date]</span> — <span class="bf-key">SEASON:</span> <span class="bf-val">[e.g., Mother's Day / Summer Sale / Weekly]</span>
-<span class="bf-key">SEGMENT:</span>      <span class="bf-val">[ID + name — e.g., "21 · Bralettes/Comfort buyers"]</span>
-<span class="bf-key">THEME:</span>        <span class="bf-val">[ONE sentence — e.g., "Summer lightweight comfort at $12.99"]</span>
-<span class="bf-key">ANGLE:</span>        <span class="bf-val">[Pain-First / Desire-First / Occasion / Social-Proof / Mechanism / Identity]</span>
-<span class="bf-key">FRAMEWORK:</span>    <span class="bf-val">[PAS / BAB / Social-Proof+CTA]</span>
-<span class="bf-key">HERO PRODUCT:</span> <span class="bf-val">[Product name (slug) — current price]</span>
-<span class="bf-key">SUPPORT:</span>      <span class="bf-val">[Product 2 (slug)] · [Product 3 (slug)]</span>
-<span class="bf-key">PROMO:</span>        <span class="bf-val">[Exact offer text — e.g., "Everything $12.99 this weekend"]</span>
-<span class="bf-key">SHIPPING:</span>     <span class="bf-val">[e.g., "Free shipping on orders $35+"]</span>
-<span class="bf-key">LAST SEND:</span>    <span class="bf-val">CTR [%] · Hero was [product] · Angle was [type]</span></div>
-        <div class="cc-grid">
-          <div class="cc-do">
-            <h4>✓ Do</h4>
-            <ul>
-              <li>All fields filled — no [BRACKETS] or TBDs when handing to Claude</li>
-              <li>Campaign theme is ONE sentence — not a topic list or a concept board</li>
-              <li>Include last-send reference: AI uses it to avoid creative repetition</li>
-              <li>Hero product slug must be exact and all-lowercase (used in UTM links)</li>
-              <li>State the angle and framework explicitly — don't let the AI guess the approach</li>
-            </ul>
-          </div>
-          <div class="cc-dont">
-            <h4>✗ Don't</h4>
-            <ul>
-              <li>Don't list 4 hero products — pick 1; supporting products go in the SUPPORT field</li>
-              <li>Don't use approximate or marketing-friendly product names — use the exact slug</li>
-              <li>Don't skip the LAST SEND field — repetition is the #1 cause of CTR decay</li>
-              <li>Don't write a theme like "showcase our range" — it's not an angle, it's a wishlist</li>
-              <li>Don't run the prompt if PROMO or SHIPPING fields are blank — these must appear in copy</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- PHOTOGRAPHY & VISUAL DOS & DON'TS -->
-      <div style="margin:32px 0 0">
-        <div style="border-left:4px solid #0f172a;padding:4px 0 4px 14px;margin-bottom:16px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Visual Reference</div>
-          <h3 style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--text);margin:0">Photography &amp; Visual Dos &amp; Don'ts</h3>
-          <p style="font-size:12px;color:var(--muted);margin:3px 0 0">Banner photography and product block images are the first visual signal the subscriber sees after opening. Misaligned visuals break the hook before the copy is read.</p>
-        </div>
-        <div class="cc-photo-grid">
-          <div class="cc-photo-card banner">
-            <h4>🖼 Banner Photography</h4>
-            <div class="photo-sep">✓ Do</div>
-            <ul>
-              <li class="do-item">Model 3/4 profile or from behind — avoids direct eye contact (which feels formal/ad-like in scroll)</li>
-              <li class="do-item">Natural or diffused light — overcast/golden hour for warmth; never harsh ring-light glare on skin</li>
-              <li class="do-item">Contextual background — bedroom, bathroom, living room; signals real life, not a studio</li>
-              <li class="do-item">Product clearly visible in the first 200px — if the subscriber can't identify the product in 1 second, it fails the hook</li>
-              <li class="do-item">Rotate model representation across sends to reflect audience diversity</li>
-              <li class="do-item">Max 3 dominant colors in the composition — visual simplicity drives attention to the product</li>
-            </ul>
-            <div class="photo-sep">✗ Don't</div>
-            <ul>
-              <li class="dont-item">No studio-white backgrounds — they signal "this is an ad" and reduce the friend-email feel</li>
-              <li class="dont-item">No models making direct eye contact with camera — confrontational, increases scroll-through rate</li>
-              <li class="dont-item">No more than 3 colors in the banner frame — visual clutter kills the hook in the F-pattern scan</li>
-              <li class="dont-item">Don't use a banner where the hero product is not clearly identifiable</li>
-              <li class="dont-item">Don't reuse the exact same banner crop two sends in a row — even a new angle won't overcome visual déjà vu</li>
-            </ul>
-          </div>
-          <div class="cc-photo-card product">
-            <h4>📦 Product Block Images</h4>
-            <div class="photo-sep">✓ Do</div>
-            <ul>
-              <li class="do-item">Consistent orientation per brand per send: all portrait or all landscape in one send (never mixed)</li>
-              <li class="do-item">Product-on-white or flat-lay for product rows — lifestyle photos belong in the banner, not in product cells</li>
-              <li class="do-item">Show the specific feature mentioned in the pain→relief copy (e.g., if copy says "seamless edge," show a close-up of the edge)</li>
-              <li class="do-item">Min 600×600px per product image — 2-up layout at 282px display size, so source needs 2× resolution</li>
-              <li class="do-item">File names equal the product slug — maintains linkage to UTM parameters</li>
-            </ul>
-            <div class="photo-sep">✗ Don't</div>
-            <ul>
-              <li class="dont-item">No competitor products in frame — not even partially visible</li>
-              <li class="dont-item">No price overlay or watermarks on product images — price is stated in the copy block, not on the photo</li>
-              <li class="dont-item">Don't use low-res images — pixelated product shots are the fastest way to lose high-AOV segment trust</li>
-              <li class="dont-item">Don't mix product photography styles within one send (some lifestyle, some studio) — inconsistency reads as low-quality</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- COPY QUICK REFERENCE -->
-      <div style="margin:32px 0 24px">
-        <div style="border-left:4px solid #4f46e5;padding:4px 0 4px 14px;margin-bottom:16px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Copy Quick Reference</div>
-          <h3 style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--text);margin:0">Copy Element Dos &amp; Don'ts</h3>
-          <p style="font-size:12px;color:var(--muted);margin:3px 0 0">Element-by-element rules derived from 46 template analysis + Nov 2025–May 2026 CTR performance data.</p>
-        </div>
-        <table class="cc-quick-table">
-          <thead><tr><th>Element</th><th>✓ DO — proven patterns</th><th>✗ DON'T — proven failures</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Subject line</strong></td><td>"💲12.99 — {{first_name}}, your Daisy Bra is back 🌸" — price + name + product signal</td><td>"Big Sale — Don't Miss Out!" — generic, no specificity, no price</td></tr>
-            <tr><td><strong>Preheader</strong></td><td>Adds a NEW beat not in subject: time pressure, scale, or revelation ("Over 12K women — 'til midnight ⚡")</td><td>Repeats or summarises the subject line — wasted 90 characters</td></tr>
-            <tr><td><strong>Email opener</strong></td><td>Named micro-story: specific person, specific physical moment, specific product detail</td><td>"I hope you're doing well" / bullet list / product feature lead</td></tr>
-            <tr><td><strong>Pain naming</strong></td><td>"By noon, your shoulders have indentation marks from the straps"</td><td>"Many women face discomfort with their bras" — vague, non-specific</td></tr>
-            <tr><td><strong>Product mention</strong></td><td>Inline hyperlink woven into narrative sentence: "That's when she found the [Daisy Bra]"</td><td>Bold standalone callout line or product name as paragraph opener</td></tr>
-            <tr><td><strong>Social proof</strong></td><td>"Lisa, 54, says her shoulder marks are gone since week 1 with the ZenaLift"</td><td>"4.9★ — thousands of satisfied customers" as a standalone stat block</td></tr>
-            <tr><td><strong>Price in body</strong></td><td>State once naturally mid-narrative: "…which is why this weekend it's only $12.99"</td><td>Omit price from body entirely — product row alone is not enough</td></tr>
-            <tr><td><strong>CTA button</strong></td><td>"SNAG YOURS →" / "GRAB DAISY BRA" / "TREAT YOURSELF" — 2–4 words, action verb first</td><td>"Click here to shop now and save on today's sale" — too long, no urgency</td></tr>
-            <tr><td><strong>Spam words</strong></td><td>Use "o.f.f" not "OFF" · "💲" not "$" · "SAVING" not "DISCOUNT"</td><td>"FREE SHIPPING" / "BIG SALE" / "CLICK NOW" — top spam trigger phrases</td></tr>
-            <tr><td><strong>Sign-off</strong></td><td>"— Sandra 💕" / "— Jordan" — persona first name, nothing else</td><td>"The BraGoddess Team" / "Warm regards" — corporate, kills the friend-email feel</td></tr>
-            <tr><td><strong>P.S.</strong></td><td>New urgency beat or surprise offer: "P.S. — I almost forgot: tonight only, add the ZenaLift for $9.99 when you checkout"</td><td>Repeat of the main CTA or promotional recap — missed opportunity</td></tr>
-            <tr><td><strong>Inline links</strong></td><td>At least 1 product name hyperlinked naturally in the narrative (not a standalone "click here" link)</td><td>All links as standalone CTA buttons only — inline links carry 30–40% of email clicks</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-    </div><!-- /padding wrapper -->
-  </div><!-- /part3 card -->
-
   <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:48px;padding-top:24px;border-top:1px solid var(--border)">
-    EmailAuto Campaign Playbook · v1.1 · May 2026 · Based on 46 .eml templates + 7 months campaign data
+    EmailAuto Campaign Playbook · v1.3 · May 2026 · Based on 46 .eml templates + 1,101 page rows + 36 workbook sheets
   </div>
 
 </main>
