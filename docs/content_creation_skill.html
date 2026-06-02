@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Creation Skill — Veracomfort</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f8f6;color:#1a1a1a;line-height:1.6}
+.container{max-width:900px;margin:0 auto;padding:40px 24px}
+/* NAV */
+.nav{background:#fff;border-bottom:1px solid #e0ddd5;padding:14px 24px;position:sticky;top:0;z-index:100;display:flex;gap:6px;flex-wrap:wrap}
+.nav a{font-size:12px;font-weight:500;color:#666;text-decoration:none;padding:4px 10px;border-radius:99px;border:0.5px solid #ddd;transition:all .15s}
+.nav a:hover{background:#EEEDFE;color:#3C3489;border-color:#AFA9EC}
+/* SECTION DIVIDER */
+.section-block{background:#fff;border:0.5px solid #e0ddd5;border-radius:16px;padding:36px 40px;margin-bottom:24px}
+/* HERO */
+.hero{text-align:center;padding:48px 24px 40px;background:#fff;border:0.5px solid #e0ddd5;border-radius:16px;margin-bottom:24px}
+.hero-label{font-size:13px;font-weight:500;letter-spacing:.08em;color:#888;margin-bottom:12px}
+.hero-title{font-size:40px;font-weight:600;color:#1a1a1a;line-height:1.15;margin-bottom:10px}
+.hero-sub{font-size:15px;color:#666;line-height:1.65;max-width:520px;margin:0 auto}
+/* TYPOGRAPHY */
+.part-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;letter-spacing:.05em;border-radius:99px;padding:4px 14px;margin-bottom:14px}
+.chip-p1{color:#3C3489;background:#CECBF6}
+.chip-p2{color:#085041;background:#9FE1CB}
+.chip-p3{color:#712B13;background:#F5C4B3}
+.chip-p4{color:#412402;background:#FAC775}
+.chip-p5{color:#27500A;background:#C0DD97}
+.chip-p6{color:#26215C;background:#AFA9EC}
+.chip-p7{color:#072F56;background:#85B7EB}
+.chip-sum{color:#1a1a1a;background:#e0ddd5}
+h1{font-size:28px;font-weight:600;color:#1a1a1a;line-height:1.2;margin-bottom:8px}
+h2{font-size:20px;font-weight:600;color:#1a1a1a;line-height:1.3;margin-top:32px;margin-bottom:12px}
+h3{font-size:17px;font-weight:600;color:#1a1a1a;margin-top:22px;margin-bottom:10px}
+h1 .sub{font-size:17px;font-weight:400;color:#888;margin-left:8px}
+p.lead{font-size:14px;color:#555;line-height:1.7;margin-bottom:24px;max-width:600px}
+.en{font-style:italic;color:#999;font-size:13px}
+/* DEF CARD */
+.def-card{border-radius:12px;padding:18px 22px;margin-bottom:4px}
+.dc-purple{border:2px solid #7F77DD;background:#EEEDFE}
+.dc-teal{border:2px solid #1D9E75;background:#E1F5EE}
+.dc-coral{border:2px solid #D85A30;background:#FAECE7}
+.dc-amber{border:2px solid #EF9F27;background:#FAEEDA}
+.dc-green{border:2px solid #639922;background:#EAF3DE}
+.dc-blue{border:2px solid #378ADD;background:#E6F1FB}
+.def-label{font-size:12px;font-weight:600;letter-spacing:.06em;margin-bottom:10px}
+.lc-purple{color:#534AB7}.lc-teal{color:#0F6E56}.lc-coral{color:#993C1D}.lc-amber{color:#854F0B}.lc-green{color:#3B6D11}.lc-blue{color:#185FA5}
+.def-body{font-size:15px;line-height:1.75}
+.dc-purple .def-body{color:#26215C}
+.dc-teal .def-body{color:#04342C}
+.dc-coral .def-body{color:#4A1B0C}
+.dc-amber .def-body{color:#412402}
+.dc-green .def-body{color:#173404}
+.dc-blue .def-body{color:#042C53}
+.hl-purple{background:#CECBF6;padding:1px 6px;border-radius:4px;font-weight:600}
+.hl-teal{background:#9FE1CB;padding:1px 6px;border-radius:4px;font-weight:600}
+.hl-coral{background:#F5C4B3;padding:1px 6px;border-radius:4px;font-weight:600}
+.hl-amber{background:#FAC775;padding:1px 6px;border-radius:4px;font-weight:600}
+.hl-green{background:#C0DD97;padding:1px 6px;border-radius:4px;font-weight:600}
+.hl-blue{background:#B5D4F4;padding:1px 6px;border-radius:4px;font-weight:600}
+/* TABLES */
+.tbl-wrap{border:1px solid #e0ddd5;border-radius:12px;overflow:hidden;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+th{font-size:13px;font-weight:600;color:#666;padding:10px 14px;text-align:left;border-bottom:1px solid #e0ddd5;background:#f8f8f6}
+td{padding:10px 14px;border-bottom:0.5px solid #f0ede5;vertical-align:top;font-size:14px;line-height:1.6;color:#555}
+td:first-child{font-weight:600;color:#1a1a1a}
+tr:last-child td{border-bottom:none}
+.gr-blue td{background:#1565C0;color:#E3F2FD;font-size:13px;font-weight:600;padding:8px 14px;border-bottom:none}
+.gr-purple td{background:#4527A0;color:#EDE7F6;font-size:13px;font-weight:600;padding:8px 14px;border-bottom:none}
+.gr-green td{background:#1B5E20;color:#E8F5E9;font-size:13px;font-weight:600;padding:8px 14px;border-bottom:none}
+.gr-dk-green td{background:#3B6D11;color:#EAF3DE;font-size:13px;font-weight:600;padding:8px 14px;border-bottom:none;letter-spacing:.03em}
+.pill-blue{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;background:#1565C0;color:#E3F2FD;font-weight:600}
+.pill-purple{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;background:#4527A0;color:#EDE7F6;font-weight:600}
+.pill-green{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;background:#1B5E20;color:#E8F5E9;font-weight:600}
+.star{color:#EF9F27;font-weight:600}
+/* CHECK GRID */
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.check-card{border-radius:12px;padding:16px 18px}
+.ck-weak{background:#FCEBEB;border:2px solid #E24B4A}
+.ck-strong{background:#E1F5EE;border:2px solid #1D9E75}
+.ck-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.ck-icon{font-size:18px}
+.ck-tw{font-size:15px;font-weight:600;color:#791F1F}
+.ck-ts{font-size:15px;font-weight:600;color:#085041}
+.ck-row{font-size:14px;line-height:1.65;display:flex;gap:8px;margin-bottom:5px}
+.ck-dw{color:#E24B4A;flex-shrink:0}
+.ck-ds{color:#1D9E75;flex-shrink:0}
+.ck-tw-t{color:#501313}
+.ck-ts-t{color:#04342C}
+/* VERA BLOCK */
+.vera-wrap{border-radius:12px;overflow:hidden;margin-bottom:4px}
+.vb-purple{border:2px solid #7F77DD}
+.vb-teal{border:2px solid #1D9E75}
+.vb-coral{border:2px solid #D85A30}
+.vb-amber{border:2px solid #EF9F27}
+.vb-green{border:2px solid #639922}
+.vb-blue{border:2px solid #378ADD}
+.vera-head{padding:14px 20px;display:flex;align-items:center;gap:10px}
+.vh-purple{background:#534AB7}
+.vh-teal{background:#0F6E56}
+.vh-coral{background:#993C1D}
+.vh-amber{background:#854F0B}
+.vh-green{background:#3B6D11}
+.vh-blue{background:#185FA5}
+.vera-badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px}
+.vbdg-purple{background:#CECBF6;color:#26215C}
+.vbdg-teal{background:#9FE1CB;color:#04342C}
+.vbdg-coral{background:#F5C4B3;color:#4A1B0C}
+.vbdg-amber{background:#FAC775;color:#412402}
+.vbdg-green{background:#C0DD97;color:#173404}
+.vbdg-blue{background:#B5D4F4;color:#042C53}
+.vera-title{font-size:16px;font-weight:600}
+.vt-purple{color:#EEEDFE}
+.vt-teal{color:#E1F5EE}
+.vt-coral{color:#FAECE7}
+.vt-amber{color:#FAEEDA}
+.vt-green{color:#EAF3DE}
+.vt-blue{color:#E6F1FB}
+.vera-body{padding:18px 20px;background:#fff}
+.vera-quote{font-size:14px;color:#3C3489;line-height:1.8;padding:14px 18px;background:#EEEDFE;border-left:4px solid #534AB7;margin-bottom:18px;font-style:italic}
+.vera-quote strong{font-weight:600;font-style:normal;color:#26215C;background:#CECBF6;padding:1px 4px;border-radius:3px}
+/* FORMULA */
+.formula-box{border:2px solid #7F77DD;border-radius:12px;background:#EEEDFE;padding:20px 24px;margin-bottom:16px}
+.formula-label{font-size:12px;font-weight:600;color:#534AB7;letter-spacing:.06em;margin-bottom:12px}
+.formula-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.fi{font-size:14px;font-weight:600;padding:8px 14px;border-radius:8px}
+.fi-1{background:#CECBF6;color:#26215C}.fi-2{background:#9FE1CB;color:#04342C}.fi-3{background:#F5C4B3;color:#4A1B0C}
+.fsep{font-size:20px;color:#7F77DD;font-weight:600}
+.fresult{background:#534AB7;color:#EEEDFE;font-size:15px;font-weight:600;padding:10px 18px;border-radius:8px}
+.formula-note{font-size:13px;color:#534AB7;line-height:1.6;padding:10px 14px;background:#fff;border-radius:8px;border:0.5px solid #AFA9EC}
+.eq-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.eq-item{background:#fff;border:0.5px solid #AFA9EC;border-radius:12px;padding:16px;text-align:center}
+.eq-icon{font-size:24px;color:#534AB7;margin-bottom:8px}
+.eq-name{font-size:15px;font-weight:600;color:#26215C;margin-bottom:4px}
+.eq-desc{font-size:12px;color:#534AB7;line-height:1.5}
+.eq-arrow{text-align:center;font-size:26px;color:#7F77DD;margin-bottom:16px}
+.eq-result{background:#534AB7;border-radius:12px;padding:18px;text-align:center}
+.eq-result-name{font-size:20px;font-weight:600;color:#EEEDFE;margin-bottom:4px}
+.eq-result-desc{font-size:13px;color:#CECBF6}
+/* FLOW STEPS */
+.flow-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid #e0ddd5;border-radius:12px;overflow:hidden;margin-bottom:24px}
+.step-s{padding:16px 14px;border-right:0.5px solid #e0ddd5}
+.step-s:last-child{border-right:none}
+.sn{font-size:11px;font-weight:600;letter-spacing:.06em;color:#888;margin-bottom:6px}
+.sm{font-size:15px;font-weight:600;margin-bottom:5px}
+.sd{font-size:12px;color:#888;line-height:1.5;border-bottom:0.5px solid rgba(0,0,0,.06);padding-bottom:7px;margin-bottom:7px}
+.sb{font-size:13px;line-height:1.55}
+.s1{background:#EEEDFE}.s1 .sm{color:#26215C}.s1 .sn{color:#534AB7}.s1 .sb{color:#3C3489}
+.s2{background:#FAEEDA}.s2 .sm{color:#412402}.s2 .sn{color:#854F0B}.s2 .sb{color:#633806}
+.s3{background:#EAF3DE}.s3 .sm{color:#173404}.s3 .sn{color:#3B6D11}.s3 .sb{color:#27500A}
+.s4{background:#FAECE7}.s4 .sm{color:#4A1B0C}.s4 .sn{color:#993C1D}.s4 .sb{color:#712B13}
+.s5{background:#E6F1FB}.s5 .sm{color:#042C53}.s5 .sn{color:#185FA5}.s5 .sb{color:#0C447C}
+/* COMPARE GRID */
+.cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.cmp-card{border-radius:12px;padding:16px 18px;border:0.5px solid #e0ddd5;background:#fff}
+.cmp-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:0.5px solid #f0ede5}
+.cmp-title{font-size:16px;font-weight:600;color:#1a1a1a}
+.cmp-row{font-size:14px;color:#555;line-height:1.6;display:flex;gap:8px;margin-bottom:5px}
+/* FUNCS */
+.func-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.func-card{border:0.5px solid #e0ddd5;border-radius:12px;padding:14px 16px;background:#fff}
+.func-icon{font-size:22px;margin-bottom:8px}
+.func-title{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:4px}
+.func-desc{font-size:13px;color:#666;line-height:1.55}
+/* STEPS TABLE */
+.steps-tbl{border:1px solid #e0ddd5;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.st-row{display:grid;grid-template-columns:44px 1fr 1fr 1fr;border-bottom:0.5px solid #f0ede5}
+.st-row:last-child{border-bottom:none}
+.st-n{display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#888;padding:12px 8px;border-right:0.5px solid #f0ede5;background:#f8f8f6}
+.st-c{padding:12px 14px;font-size:14px;color:#555;line-height:1.55;border-right:0.5px solid #f0ede5}
+.st-c:last-child{border-right:none}
+.st-c strong{font-weight:600;color:#1a1a1a;display:block;margin-bottom:3px}
+.st-head{background:#f8f8f6;font-size:13px;font-weight:600;color:#666}
+/* CHECKLIST */
+.ck-wrap{border:1px solid #e0ddd5;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.ck-hrow{display:grid;grid-template-columns:1fr 90px;padding:10px 14px;background:#f8f8f6;border-bottom:1px solid #e0ddd5}
+.ck-hrow span{font-size:13px;font-weight:600;color:#666}
+.ck-item{display:grid;grid-template-columns:1fr 90px;padding:11px 14px;border-bottom:0.5px solid #f0ede5;align-items:center}
+.ck-item:last-child{border-bottom:none}
+.ck-q{font-size:14px;color:#1a1a1a}
+.ck-a{font-size:14px;font-weight:600;color:#1D9E75;text-align:center}
+/* PRIORITY BOX */
+.priority-box{margin-top:14px;border:2px solid #EF9F27;border-radius:12px;overflow:hidden}
+.priority-head{padding:10px 16px;background:#EF9F27;font-size:14px;font-weight:600;color:#412402}
+.priority-item{padding:14px 16px;border-bottom:0.5px solid #f0ede5;background:#fff}
+.priority-item:last-child{border-bottom:none}
+.priority-name{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:5px}
+.priority-why{font-size:13px;color:#666;line-height:1.6}
+/* ANGLE LABEL */
+.angle-label{font-size:15px;font-weight:600;color:#1a1a1a;padding:10px 14px;border-left:4px solid #639922;background:#EAF3DE;margin-bottom:10px}
+.fw-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.fw-mini{border:0.5px solid #e0ddd5;border-radius:12px;overflow:hidden}
+.fw-mini-head{padding:9px 14px;background:#f8f8f6;font-size:13px;font-weight:600;color:#1a1a1a;border-bottom:0.5px solid #e0ddd5}
+.mt-sm td{padding:8px 12px;border-bottom:0.5px solid #f0ede5;font-size:13px;vertical-align:top;line-height:1.5}
+.mt-sm td:first-child{font-weight:600;color:#1a1a1a;width:90px}
+.mt-sm td:last-child{color:#555}
+.mt-sm tr:last-child td{border-bottom:none}
+/* FLOW */
+.flow-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.flow-card{border:0.5px solid #e0ddd5;border-radius:12px;padding:14px 16px;background:#fff}
+.flow-head{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:5px}
+.flow-sub{font-size:13px;color:#888;margin-bottom:8px}
+.flow-body{font-size:14px;color:#555;line-height:1.65}
+.example-box{margin-top:10px;padding:10px 12px;background:#f8f8f6;border-radius:8px;font-size:13px;color:#555;line-height:1.6}
+.ctrl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.ctrl-card{border:0.5px solid #e0ddd5;border-radius:12px;padding:13px 14px;background:#fff}
+.ctrl-icon{font-size:22px;color:#7F77DD;margin-bottom:7px}
+.ctrl-title{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:3px}
+.ctrl-desc{font-size:13px;color:#666;line-height:1.5}
+.rules-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.rule-card{border:0.5px solid #e0ddd5;border-radius:12px;overflow:hidden}
+.rule-head{padding:9px 14px;font-size:14px;font-weight:600;border-bottom:0.5px solid #e0ddd5}
+.rh-ok{background:#E1F5EE;color:#085041}
+.rh-err{background:#FCEBEB;color:#791F1F}
+.rt-sm td{padding:9px 12px;border-bottom:0.5px solid #f0ede5;font-size:14px;vertical-align:top;line-height:1.5}
+.rt-sm td:first-child{font-weight:600;color:#1a1a1a;width:150px}
+.rt-sm td:last-child{color:#555}
+.rt-sm tr:last-child td{border-bottom:none}
+.timing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.timing-card{background:#f8f8f6;border-radius:8px;padding:14px;text-align:center}
+.timing-val{font-size:20px;font-weight:600;color:#1a1a1a}
+.timing-lbl{font-size:12px;color:#888;margin-top:4px}
+.sub-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:99px;padding:4px 14px;margin-bottom:12px}
+.sc-png{color:#0C447C;background:#B5D4F4}
+.sc-html{color:#412402;background:#FAC775}
+.flt-tbl td{padding:8px 12px;border-bottom:0.5px solid #f0ede5;font-size:13px;vertical-align:top;line-height:1.5}
+.flt-tbl td:first-child{font-weight:600;color:#1a1a1a;width:75px}
+.flt-tbl td:last-child{color:#555}
+.flt-tbl tr:last-child td{border-bottom:none}
+.flow-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+/* BRIEF */
+.sec-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.sc-card{border-radius:12px;padding:16px 18px;border:2px solid}
+.sc1{background:#FAEEDA;border-color:#EF9F27}
+.sc2{background:#EEEDFE;border-color:#7F77DD}
+.sc3{background:#E1F5EE;border-color:#1D9E75}
+.sc-num{font-size:12px;font-weight:600;letter-spacing:.06em;margin-bottom:6px}
+.sc-num1{color:#854F0B}.sc-num2{color:#534AB7}.sc-num3{color:#0F6E56}
+.sc-title{font-size:15px;font-weight:600;margin-bottom:8px}
+.sc-t1{color:#412402}.sc-t2{color:#26215C}.sc-t3{color:#04342C}
+.sc-items{font-size:13px;line-height:1.7}
+.sc-items1{color:#633806}.sc-items2{color:#3C3489}.sc-items3{color:#085041}
+.sc-note{margin-top:10px;font-size:12px;font-style:italic}
+.sc-n1{color:#854F0B}.sc-n2{color:#534AB7}.sc-n3{color:#0F6E56}
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.brief-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e0ddd5;border-radius:12px;overflow:hidden}
+.brief-card{padding:18px 20px;border-right:0.5px solid #e0ddd5;border-bottom:0.5px solid #e0ddd5}
+.brief-card:nth-child(2n){border-right:none}
+.brief-card:nth-child(3),.brief-card:nth-child(4){border-bottom:none}
+.brief-num{font-size:11px;font-weight:600;letter-spacing:.06em;color:#888;margin-bottom:4px}
+.brief-title{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:2px}
+.brief-angle{font-size:13px;color:#888;margin-bottom:12px;font-style:italic}
+.brief-section{margin-bottom:10px}
+.bsl{font-size:11px;font-weight:600;letter-spacing:.05em;padding:4px 8px;border-radius:6px;display:inline-block;margin-bottom:6px}
+.bsl-copy{background:#FAEEDA;color:#854F0B}
+.bsl-visual{background:#EEEDFE;color:#534AB7}
+.bsl-tech{background:#E1F5EE;color:#0F6E56}
+.bt-sm td{padding:6px 0;border-bottom:0.5px solid #f0ede5;font-size:13px;vertical-align:top;line-height:1.5}
+.bt-sm td:first-child{font-weight:600;color:#666;width:110px;padding-right:8px;font-size:12px}
+.bt-sm td:last-child{color:#1a1a1a}
+.bt-sm tr:last-child td{border-bottom:none}
+.layer-row{display:flex;gap:8px;align-items:baseline;margin-bottom:4px;font-size:13px}
+.layer-n{font-size:11px;font-weight:600;color:#888;min-width:50px;flex-shrink:0}
+.layer-t{font-weight:600;color:#1a1a1a}
+.layer-a{font-size:11px;color:#888;padding:1px 6px;border:0.5px solid #ddd;border-radius:99px;margin-left:4px}
+/* SUMMARY */
+.rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+.rel-card{border:2px solid #7F77DD;border-radius:12px;padding:16px 18px;background:#EEEDFE}
+.rel-from{font-size:12px;font-weight:600;color:#534AB7;margin-bottom:6px}
+.rel-title-s{font-size:15px;font-weight:600;color:#26215C;margin-bottom:6px}
+.rel-body-s{font-size:13px;color:#3C3489;line-height:1.6}
+.rel-body-s em{font-style:italic;color:#534AB7}
+.warn-box{border:2px solid #E24B4A;border-radius:12px;background:#FCEBEB;padding:16px 20px;display:flex;gap:12px;align-items:flex-start;margin-top:16px}
+.warn-icon{font-size:22px;color:#A32D2D;flex-shrink:0;margin-top:2px}
+.warn-text{font-size:14px;color:#501313;line-height:1.65}
+.warn-text strong{font-weight:600;color:#A32D2D}
+.note-box{margin-top:14px;padding:12px 16px;border-left:4px solid #1D9E75;font-size:13px;color:#085041;line-height:1.6;background:#E1F5EE}
+.note-box strong{font-weight:600;color:#04342C}
+/* DIVIDER */
+hr{border:none;border-top:1px solid #e0ddd5;margin:32px 0}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="#p0">Tổng quan</a>
+  <a href="#p1">1.1 Insight</a>
+  <a href="#p12">1.2 USP</a>
+  <a href="#p13">1.3 Context</a>
+  <a href="#p14">1.4 Formula</a>
+  <a href="#p2">2. Angle</a>
+  <a href="#p3">3. Framework</a>
+  <a href="#p4">4. Flow</a>
+  <a href="#p5">5. Brief</a>
+  <a href="#summary">Summary</a>
+</nav>
+
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-label">FRAMEWORK</div>
+  <div class="hero-title">Content Creation Skill</div>
+  <div class="hero-sub">Hệ thống 5 bước chuyển đổi dữ liệu khách hàng và sản phẩm thành creative có chiều sâu.</div>
+</div>
+
+<!-- PART 0 -->
+<div class="section-block" id="p0">
+  <span class="part-chip chip-sum">Phần 0 — Tổng quan</span>
+  <h2 style="margin-top:0">5 bước quy trình</h2>
+  <div class="flow-steps">
+    <div class="step-s s1"><div class="sn">Bước 1</div><div class="sm">Inputs</div><div class="sd">Dữ liệu đầu vào</div><div class="sb">Audience Insight + USP + Context</div></div>
+    <div class="step-s s2"><div class="sn">Bước 2</div><div class="sm">Angle</div><div class="sd">Góc tiếp cận</div><div class="sb">Góc nhìn duy nhất để truyền tải thông điệp</div></div>
+    <div class="step-s s3"><div class="sn">Bước 3</div><div class="sm">Framework</div><div class="sd">Cấu trúc logic</div><div class="sb">Chọn cấu trúc tổ chức nội dung phù hợp</div></div>
+    <div class="step-s s4"><div class="sn">Bước 4</div><div class="sm">Flow</div><div class="sd">Trình tự dẫn dắt</div><div class="sb">Xác định trình tự thị giác và cảm xúc</div></div>
+    <div class="step-s s5"><div class="sn">Bước 5</div><div class="sm">Brief</div><div class="sd">Tài liệu execute</div><div class="sb">Tài liệu hóa toàn bộ quyết định để team execute</div></div>
+  </div>
+  <h2>Mối quan hệ giữa các bước</h2>
+  <div class="rel-grid">
+    <div class="rel-card"><div class="rel-from">Inputs → Angle</div><div class="rel-title-s">Chất lượng quyết định hướng đi</div><div class="rel-body-s">Insight càng sâu, USP càng rõ → Angle càng cụ thể và có chiều sâu. <em>Inputs generic = Angle generic.</em></div></div>
+    <div class="rel-card"><div class="rel-from">Angle → Framework</div><div class="rel-title-s">Góc nhìn chọn cấu trúc</div><div class="rel-body-s">Angle "nỗi đau" → PAS. Angle "cơ chế sản phẩm" → Mechanism-First. <em>Angle sai thì framework không phù hợp.</em></div></div>
+    <div class="rel-card"><div class="rel-from">Framework → Flow → Brief</div><div class="rel-title-s">Cấu trúc sinh ra chuyển động</div><div class="rel-body-s">Cùng Framework PAS nhưng Flow có thể khác nhau tùy format PNG hay HTML. <em>Brief là nơi mọi quyết định được ghi lại.</em></div></div>
+  </div>
+</div>
+
+<!-- PART 1.1 -->
+<div class="section-block" id="p1">
+  <span class="part-chip chip-p1">Phần 1 — Inputs · 1.1</span>
+  <h1>Audience Insight <span class="sub">(Hiểu sâu về khách hàng)</span></h1>
+  <p class="lead">Không chỉ biết <strong>họ là ai</strong> mà còn hiểu <strong>tại sao họ hành động</strong>. Insight thực sự là sự thật ẩn khiến người ta gật đầu.</p>
+  <h2 style="margin-top:0">Định nghĩa</h2>
+  <div class="def-card dc-purple">
+    <div class="def-label lc-purple">Audience Insight là gì?</div>
+    <div class="def-body">Audience Insight là tập hợp những hiểu biết sâu về target audience — không chỉ là <span class="hl-purple">họ là ai (demographics — nhân khẩu học)</span> mà là <span class="hl-purple">tại sao họ hành động (psychographics + behavior — tâm lý học + hành vi)</span>. Insight thực sự không phải là một fact đơn thuần, mà là một <em>sự thật ẩn</em> chạm đúng cảm xúc người xem.</div>
+  </div>
+  <h2>Audience Insight Framework — Khung phân tích 3 tầng</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:110px">Tầng</th><th style="width:190px">Thành phần</th><th>Ý nghĩa</th><th>Câu hỏi chính</th></tr></thead>
+      <tbody>
+        <tr class="gr-blue"><td colspan="4">Tầng 1 — Context (Bối cảnh)</td></tr>
+        <tr><td><span class="pill-blue">Context</span></td><td>Demographic <span class="en">(nhân khẩu học)</span></td><td>Thông tin cơ bản về con người</td><td>Họ là ai?</td></tr>
+        <tr><td></td><td>Behavioral <span class="en">(hành vi mua sắm)</span></td><td>Cách họ mua và sử dụng sản phẩm</td><td>Họ mua kiểu gì?</td></tr>
+        <tr class="gr-purple"><td colspan="4">Tầng 2 — Psychology (Tâm lý)</td></tr>
+        <tr><td><span class="pill-purple">Psychology</span></td><td>Pain <span class="en">(nỗi đau)</span></td><td>Điều họ khó chịu, bực bội</td><td>Họ ghét điều gì?</td></tr>
+        <tr><td></td><td>Desire <span class="en">(mong muốn)</span></td><td>Kết quả họ muốn đạt được</td><td>Họ muốn đạt được gì?</td></tr>
+        <tr><td></td><td>Identity <span class="en">(bản sắc)</span></td><td>Hình ảnh bản thân họ muốn xây dựng</td><td>Họ muốn được nhìn nhận thế nào?</td></tr>
+        <tr><td></td><td>Fear <span class="en">(nỗi sợ)</span></td><td>Điều họ lo lắng, muốn tránh</td><td>Điều gì khiến họ lo lắng?</td></tr>
+        <tr class="gr-green"><td colspan="4">Tầng 3 — Conversion (Chuyển đổi)</td></tr>
+        <tr><td><span class="pill-green">Conversion</span></td><td>Objection <span class="en">(rào cản)</span></td><td>Lý do họ chưa quyết định mua</td><td>Họ đang do dự vì gì?</td></tr>
+        <tr><td></td><td>Alternatives <span class="en">(giải pháp thay thế)</span></td><td>Thứ họ đang dùng thay thế</td><td>Họ đang dùng gì thay thế?</td></tr>
+        <tr><td></td><td>Justification <span class="en">(lý do hợp lý hóa)</span></td><td>Cách họ tự thuyết phục bản thân mua</td><td>Họ tự thuyết phục bản thân thế nào?</td></tr>
+        <tr><td></td><td>Emotion <span class="en">(cảm xúc sau mua)</span></td><td>Trạng thái cảm xúc muốn có sau khi mua</td><td>Họ muốn cảm thấy gì?</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h2>Cách kiểm tra Insight đủ mạnh chưa</h2>
+  <div class="check-grid">
+    <div class="check-card ck-weak">
+      <div class="ck-head"><span class="ck-icon" style="color:#A32D2D">✗</span><span class="ck-tw">Insight chưa đủ sâu</span></div>
+      <div class="ck-row"><span class="ck-dw">—</span><span class="ck-tw-t">Chỉ mô tả vấn đề của sản phẩm</span></div>
+      <div class="ck-row"><span class="ck-dw">—</span><span class="ck-tw-t">Chỉ nói về lợi ích sản phẩm</span></div>
+      <div class="ck-row"><span class="ck-dw">—</span><span class="ck-tw-t">Là fact đơn thuần về demographic</span></div>
+    </div>
+    <div class="check-card ck-strong">
+      <div class="ck-head"><span class="ck-icon" style="color:#0F6E56">✓</span><span class="ck-ts">Insight mạnh — khi chạm được</span></div>
+      <div class="ck-row"><span class="ck-ds">✓</span><span class="ck-ts-t">Self-perception <span style="color:#0F6E56">(nhận thức về bản thân)</span></span></div>
+      <div class="ck-row"><span class="ck-ds">✓</span><span class="ck-ts-t">Emotional tension <span style="color:#0F6E56">(xung đột cảm xúc)</span></span></div>
+      <div class="ck-row"><span class="ck-ds">✓</span><span class="ck-ts-t">Identity preservation <span style="color:#0F6E56">(giữ vững bản sắc)</span></span></div>
+      <div class="ck-row"><span class="ck-ds">✓</span><span class="ck-ts-t">Hidden frustration <span style="color:#0F6E56">(nỗi khó chịu âm thầm)</span></span></div>
+    </div>
+  </div>
+  <h2>Ví dụ thực tế — Veracomfort</h2>
+  <div class="vera-wrap vb-purple">
+    <div class="vera-head vh-purple"><span class="vera-badge vbdg-purple">Veracomfort</span><span class="vera-title vt-purple">Audience Insight đã xác định</span></div>
+    <div class="vera-body">
+      <div class="vera-quote">"Women 45–65 are tired of bras that feel like a daily struggle to put on and uncomfortable to wear for hours. They want something easy, soft and supportive that helps them feel comfortable without sacrificing confidence or femininity as their bodies change with age."</div>
+      <div class="tbl-wrap" style="margin-bottom:0">
+        <table>
+          <thead><tr><th style="width:200px">Yếu tố Insight</th><th>Nội dung cụ thể</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Pain</strong> (nỗi đau)</td><td>"mỗi lần mặc vào đều giống như a daily struggle" · "càng mặc lâu càng khó chịu"</td></tr>
+            <tr><td><strong>Desire</strong> (mong muốn)</td><td>"một chiếc bra dễ mặc, mềm mại và nâng đỡ tốt"</td></tr>
+            <tr><td><strong>Identity</strong> (bản sắc)</td><td>"sự tự tin" · "nét nữ tính" — muốn duy trì dù cơ thể thay đổi</td></tr>
+            <tr><td><strong>Emotional truth</strong> (sự thật cảm xúc)</td><td>Không chỉ muốn thoải mái — mà còn muốn vẫn cảm thấy hấp dẫn và nữ tính</td></tr>
+            <tr><td><strong>Aging tension</strong> (căng thẳng tuổi tác)</td><td>"as their bodies change with age" — nỗi lo ngầm về việc già đi</td></tr>
+            <tr><td><strong>Confidence preservation</strong> (giữ vững tự tin)</td><td>"without sacrificing confidence" — comfort không được đồng nghĩa với già nua</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PART 1.2 -->
+<div class="section-block" id="p12">
+  <span class="part-chip chip-p2">Phần 1 — Inputs · 1.2</span>
+  <h1>Product USP <span class="sub">(Unique Selling Proposition — Lợi thế bán hàng độc nhất)</span></h1>
+  <p class="lead">Lý do khiến khách hàng chọn sản phẩm của bạn thay vì mọi lựa chọn khác, kể cả <em>không mua gì</em>.</p>
+  <h2 style="margin-top:0">Định nghĩa</h2>
+  <div class="def-card dc-teal">
+    <div class="def-label lc-teal">USP là gì?</div>
+    <div class="def-body">USP (Unique Selling Proposition) là đặc điểm hoặc lợi ích nổi trội nhất giúp thương hiệu <span class="hl-teal">tạo sự khác biệt và khiến khách hàng phải chọn</span> sản phẩm của bạn thay vì đối thủ. USP mạnh không chỉ là "product feature" — mà là <span class="hl-teal">feature + emotional value + differentiation</span>.</div>
+  </div>
+  <h2>Công thức USP mạnh</h2>
+  <div class="formula-box" style="border-color:#1D9E75;background:#E1F5EE">
+    <div class="formula-label" style="color:#0F6E56">Công thức</div>
+    <div class="formula-row">
+      <span class="fi" style="background:#9FE1CB;color:#04342C">Functional Benefit (lợi ích chức năng)</span>
+      <span class="fsep" style="color:#1D9E75">+</span>
+      <span class="fi" style="background:#9FE1CB;color:#04342C">Emotional Outcome (kết quả cảm xúc)</span>
+      <span class="fsep" style="color:#1D9E75">+</span>
+      <span class="fi" style="background:#9FE1CB;color:#04342C">Unique Difference (điểm khác biệt)</span>
+      <span class="fsep" style="color:#1D9E75">=</span>
+      <span class="fresult" style="background:#0F6E56">USP mạnh</span>
+    </div>
+  </div>
+  <h2>USP Framework — 7 lớp phân tích</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:200px">Layer (Lớp)</th><th style="width:180px">Core Question</th><th>Meaning (Ý nghĩa)</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Feature <span class="en">(tính năng)</span></td><td>Sản phẩm có gì?</td><td>Tính năng / chất liệu / design cụ thể</td><td>Front-closure bra</td></tr>
+        <tr><td>Advantage <span class="en">(ưu thế)</span></td><td>Nó tốt hơn chỗ nào?</td><td>Điểm hơn đối thủ hoặc cách cũ</td><td>Easier to put on</td></tr>
+        <tr><td>Benefit <span class="en">(lợi ích)</span></td><td>Khách hàng nhận được gì?</td><td>Kết quả thực tế user experience</td><td>No struggling every morning</td></tr>
+        <tr><td>Emotional Outcome <span class="en">(kết quả cảm xúc)</span></td><td>Khách hàng cảm thấy gì?</td><td>Emotional payoff sau khi dùng</td><td>Relief & confidence</td></tr>
+        <tr><td>Identity Impact <span class="en">(tác động bản sắc)</span></td><td>Nó giúp họ trở thành ai?</td><td>Self-image / identity reinforcement</td><td>Still feel feminine</td></tr>
+        <tr><td>Tradeoff Removal <span class="en">(xóa bỏ đánh đổi)</span></td><td>Họ không phải sacrifice điều gì?</td><td>Có benefit mà không phải đánh đổi</td><td>Comfort without looking unattractive</td></tr>
+        <tr><td>Proof <span class="en">(bằng chứng)</span></td><td>Vì sao nên tin?</td><td>Evidence / trust / validation</td><td>50,000+ happy customers</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h2>Ví dụ thực tế — Veracomfort</h2>
+  <div class="vera-wrap vb-teal">
+    <div class="vera-head vh-teal"><span class="vera-badge vbdg-teal">Veracomfort</span><span class="vera-title vt-teal">USP đã xác định</span></div>
+    <div class="vera-body">
+      <div class="tbl-wrap" style="margin-bottom:0">
+        <table>
+          <thead><tr><th style="width:210px">Layer USP</th><th>Veracomfort</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Core USP</strong></td><td>"A comfort bra that adjusts to her body and daily needs"</td></tr>
+            <tr><td><strong>Main Differentiation</strong></td><td>"Adjustable comfort anytime — tighten for support, loosen for relaxation"</td></tr>
+            <tr><td><strong>Key Features</strong></td><td>"Velcro-adjustable straps & underband, front wrap closure, wireless support"</td></tr>
+            <tr><td><strong>Functional Benefit</strong></td><td>"Easy to wear, customizable fit, gentle all-day support"</td></tr>
+            <tr><td><strong>Emotional Benefit</strong></td><td>"Feel comfortable, relieved, and confident"</td></tr>
+            <tr><td><strong>Identity Value</strong></td><td>"Stay feminine and confident despite body changes"</td></tr>
+            <tr><td><strong>Core Customer Pain</strong></td><td>"Tired of uncomfortable bras and daily struggle wearing them"</td></tr>
+            <tr><td><strong>Aging Insight</strong></td><td>"Wants more comfort without feeling old or unattractive"</td></tr>
+            <tr><td><strong>Tradeoff Removed</strong></td><td>"Comfort and support without wires, restriction, or sacrificing appearance"</td></tr>
+            <tr><td><strong>Lifestyle Fit</strong></td><td>"Works for relaxing at home or going out confidently"</td></tr>
+            <tr><td><strong>Mechanism / Proof</strong></td><td>"Velcro adjustment system enables personalized comfort anytime"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note-box"><strong>Lưu ý:</strong> USP mạnh nhất của Veracomfort là <strong>Tradeoff Removal</strong> — "Comfort and support without wires, restriction, or sacrificing appearance." Đây là điểm mà hầu hết các comfort bra khác không giải quyết được.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PART 1.3 -->
+<div class="section-block" id="p13">
+  <span class="part-chip chip-p3">Phần 1 — Inputs · 1.3</span>
+  <h1>Context <span class="sub">(Bối cảnh)</span></h1>
+  <p class="lead">Toàn bộ bối cảnh, hoàn cảnh và điều kiện xung quanh khách hàng khi họ tiếp nhận thông điệp quảng cáo.</p>
+  <h2 style="margin-top:0">Định nghĩa</h2>
+  <div class="def-card dc-coral">
+    <div class="def-label lc-coral">Context là gì?</div>
+    <div class="def-body">Context là toàn bộ bối cảnh, hoàn cảnh và điều kiện xung quanh khách hàng khi họ tiếp nhận thông điệp. Nguyên tắc: <span class="hl-coral">Đúng nội dung · Đúng người · Đúng vị trí · Đúng thời điểm.</span></div>
+  </div>
+  <h2>Context Framework — 8 lớp phân tích</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:210px">Layer (Lớp)</th><th style="width:175px">Core Question</th><th>Meaning (Ý nghĩa)</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Placement <span class="en">(vị trí hiển thị)</span></td><td>Creative xuất hiện ở đâu?</td><td>Platform và môi trường audience đang xem</td><td>TikTok Feed, Facebook Feed</td></tr>
+        <tr><td>Funnel Stage <span class="en">(giai đoạn phễu)</span></td><td>Audience biết gì về brand rồi?</td><td>Mức độ nhận thức và trust</td><td>Cold, Warm, Hot audience</td></tr>
+        <tr><td>Awareness Level <span class="en">(mức độ nhận thức)</span></td><td>Audience aware điều gì?</td><td>Nhận ra vấn đề, giải pháp hay sản phẩm?</td><td>Problem-aware, Product-aware</td></tr>
+        <tr><td>Format & Device <span class="en">(format và thiết bị)</span></td><td>Audience xem bằng format nào?</td><td>Technical constraints ảnh hưởng flow</td><td>Vertical mobile video, static image</td></tr>
+        <tr><td>Season / Trigger <span class="en">(mùa vụ / trigger)</span></td><td>Điều gì đang xảy ra lúc này?</td><td>Timing tạo relevance và urgency</td><td>Summer heat, payday</td></tr>
+        <tr><td>Audience Mood / Intent <span class="en">(tâm trạng / ý định)</span></td><td>Audience đang ở mental state nào?</td><td>Quyết định tone và pacing</td><td>Entertainment scrolling vs active research</td></tr>
+        <tr><td>Cultural Context <span class="en">(bối cảnh văn hóa)</span></td><td>Cultural trend nào đang ảnh hưởng họ?</td><td>Shared emotional / social context</td><td>Aging gracefully, body positivity</td></tr>
+        <tr><td>Competitive Context <span class="en">(bối cảnh cạnh tranh)</span></td><td>Audience đang so sánh với ai?</td><td>Market saturation và category claims</td><td>"Most comfort bras still feel restrictive"</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h2>Ví dụ thực tế — Veracomfort</h2>
+  <div class="vera-wrap vb-coral">
+    <div class="vera-head vh-coral"><span class="vera-badge vbdg-coral">Veracomfort</span><span class="vera-title vt-coral">Context đã xác định</span></div>
+    <div class="vera-body">
+      <div class="tbl-wrap" style="margin-bottom:0">
+        <table>
+          <thead><tr><th style="width:200px">Context Layer</th><th>Veracomfort cụ thể</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Placement</strong></td><td>AppLovin in-app traffic (high-scroll, low-attention environment)</td></tr>
+            <tr><td><strong>Funnel Stage</strong></td><td>All stages: Cold, Warm, Hot</td></tr>
+            <tr><td><strong>Awareness Level</strong></td><td>Problem-aware + Solution-aware</td></tr>
+            <tr><td><strong>Format & Device</strong></td><td>Mobile-first, static PNG & dynamic HTML (3–5s)</td></tr>
+            <tr><td><strong>Season / Trigger</strong></td><td>Summer heat increases discomfort, sweat & irritation from traditional bras</td></tr>
+            <tr><td><strong>Audience Mood</strong></td><td>Passive scrolling + occasional active shopping intent</td></tr>
+            <tr><td><strong>Cultural Context</strong></td><td>Women over 45 increasingly prioritize comfort, body acceptance & "aging confidently"</td></tr>
+            <tr><td><strong>Competitive Context</strong></td><td>"Most comfort bras focus on comfort OR support — few focus on adaptive comfort + femininity together"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PART 1.4 -->
+<div class="section-block" id="p14">
+  <span class="part-chip chip-p1">Phần 1 — Inputs · 1.4</span>
+  <h1>Công thức kết hợp Inputs → Content Angle</h1>
+  <p class="lead">Ba thành phần kết hợp tạo ra Content Angle — thiếu một trong ba thì angle sẽ thiếu chiều sâu.</p>
+  <div class="formula-box">
+    <div class="formula-label">Công thức</div>
+    <div class="eq-row">
+      <div class="eq-item"><div class="eq-name">Audience Insight</div><div class="eq-desc">WHAT people feel<br>(sự thật cảm xúc)</div></div>
+      <div class="eq-item"><div class="eq-name">USP</div><div class="eq-desc">WHY your product matters<br>(giá trị sản phẩm)</div></div>
+      <div class="eq-item"><div class="eq-name">Context</div><div class="eq-desc">HOW the message should be delivered<br>(điều kiện giao tiếp)</div></div>
+    </div>
+    <div class="eq-arrow">↓</div>
+    <div class="eq-result">
+      <div class="eq-result-name">Content Angle</div>
+      <div class="eq-result-desc">A message people instantly care about<br>(thông điệp người xem quan tâm ngay lập tức)</div>
+    </div>
+  </div>
+  <div class="warn-box">
+    <div class="warn-icon">⚠</div>
+    <div class="warn-text"><strong>Lưu ý quan trọng:</strong> Thiếu một trong ba yếu tố, content sẽ thiếu chiều sâu. Inputs quyết định chất lượng của mọi quyết định phía sau — Angle, Framework, Flow và Brief đều phụ thuộc vào chất lượng của bước này.</div>
+  </div>
+</div>
+
+<!-- PART 2 -->
+<div class="section-block" id="p2">
+  <span class="part-chip chip-p4">Phần 2</span>
+  <h1>Content Angle <span class="sub">(Góc tiếp cận nội dung)</span></h1>
+  <p class="lead">Góc nhìn được chọn để truyền tải thông điệp — ưu tiên khía cạnh phù hợp nhất của sản phẩm để tạo attention (sự chú ý), relevance (sự liên quan) và kích hoạt cảm xúc đúng lúc.</p>
+  <h2 style="margin-top:0">Định nghĩa</h2>
+  <div class="def-card dc-amber">
+    <div class="def-label lc-amber">Content Angle là gì?</div>
+    <div class="def-body">Content Angle là <span class="hl-amber">góc nhìn duy nhất được chọn</span> để truyền tải thông điệp marketing — giúp ưu tiên khía cạnh phù hợp nhất của sản phẩm nhằm tạo attention (sự chú ý), relevance (liên quan) và kích hoạt cảm xúc hoặc nhận thức phù hợp ở người xem tại thời điểm họ thấy quảng cáo.</div>
+  </div>
+  <h2>Content Angle ≠ Hook</h2>
+  <div class="cmp-grid">
+    <div class="cmp-card"><div class="cmp-head"><span style="font-size:20px;color:#854F0B">⊙</span><span class="cmp-title">Content Angle</span></div>
+      <div class="cmp-row">· <span>Strategic messaging direction (định hướng thông điệp chiến lược)</span></div>
+      <div class="cmp-row">· <span>Big communication idea (ý tưởng giao tiếp lớn)</span></div>
+      <div class="cmp-row">· <span>Có thể tạo ra nhiều hooks khác nhau</span></div>
+      <div class="cmp-row">· <span style="font-style:italic;color:#854F0B">Ví dụ: "Comfort without feeling old"</span></div>
+    </div>
+    <div class="cmp-card"><div class="cmp-head"><span style="font-size:20px;color:#185FA5">⊸</span><span class="cmp-title">Hook</span></div>
+      <div class="cmp-row">· <span>First attention-grabbing line (câu thu hút đầu tiên)</span></div>
+      <div class="cmp-row">· <span>Execution element (yếu tố thực thi)</span></div>
+      <div class="cmp-row">· <span>Chỉ là một phần nhỏ của angle</span></div>
+      <div class="cmp-row">· <span style="font-style:italic;color:#185FA5">Ví dụ: "Still tired of uncomfortable bras?"</span></div>
+    </div>
+  </div>
+  <h2>Cách tạo Content Angle — 5 bước</h2>
+  <div class="steps-tbl">
+    <div class="st-row"><div class="st-n" style="font-size:13px;font-weight:600;color:#666">#</div><div class="st-c st-head">Câu hỏi</div><div class="st-c st-head">Mục tiêu</div><div class="st-c st-head">Output</div></div>
+    <div class="st-row"><div class="st-n">1</div><div class="st-c"><strong>Find pain (tìm nỗi đau)</strong><br>"What frustrates the audience?"</div><div class="st-c">Emotional relevance (liên quan cảm xúc)</div><div class="st-c">Pain point cụ thể</div></div>
+    <div class="st-row"><div class="st-n">2</div><div class="st-c"><strong>Find desire (tìm mong muốn)</strong><br>"What do they want to feel?"</div><div class="st-c">Emotional payoff (kết quả cảm xúc)</div><div class="st-c">Desired outcome</div></div>
+    <div class="st-row"><div class="st-n">3</div><div class="st-c"><strong>Analyze USP</strong><br>"What uniquely solves it?"</div><div class="st-c">Product differentiation (khác biệt sản phẩm)</div><div class="st-c">USP liên quan</div></div>
+    <div class="st-row"><div class="st-n">4</div><div class="st-c"><strong>Analyze context</strong><br>"What matters right now?"</div><div class="st-c">Delivery fit (phù hợp thời điểm)</div><div class="st-c">Context fit</div></div>
+    <div class="st-row"><div class="st-n">5</div><div class="st-c"><strong>Compress message (nén thông điệp)</strong><br>"What single idea should creative focus on?"</div><div class="st-c">Final angle (angle cuối cùng)</div><div class="st-c">Content angle hoàn chỉnh</div></div>
+  </div>
+  <h2>10 loại Content Angle</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:190px">Angle Type (Loại)</th><th style="width:150px">Built From</th><th>Purpose (Mục đích)</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Pain Angle <span class="en">(nỗi đau)</span></td><td>Insight + Emotion</td><td>Relatability (sự đồng cảm)</td><td>"No more bra struggles."</td></tr>
+        <tr><td>Desire Angle <span class="en">(mong muốn)</span></td><td>Emotional outcome</td><td>Aspirational feeling (cảm giác khát vọng)</td><td>"Feel comfortable and confident all day."</td></tr>
+        <tr><td>Identity Angle <span class="en">(bản sắc)</span></td><td>Self-perception</td><td>Emotional depth (chiều sâu cảm xúc)</td><td>"Comfort without feeling old."</td></tr>
+        <tr><td>Mechanism Angle <span class="en">(cơ chế)</span></td><td>USP</td><td>Product understanding (hiểu sản phẩm)</td><td>"Adjust your comfort anytime."</td></tr>
+        <tr><td>Seasonal Angle <span class="en">(mùa vụ)</span></td><td>Context + Pain</td><td>Timely relevance (liên quan theo thời điểm)</td><td>"Finally, a breathable summer bra."</td></tr>
+        <tr><td>Lifestyle Angle <span class="en">(lối sống)</span></td><td>USP + Daily life</td><td>Practical fit (phù hợp thực tế)</td><td>"Perfect for home or going out."</td></tr>
+        <tr><td>Transformation Angle <span class="en">(chuyển hóa)</span></td><td>Pain → Desired state</td><td>Emotional payoff (kết quả cảm xúc)</td><td>"From daily discomfort to effortless comfort."</td></tr>
+        <tr><td>Comparison Angle <span class="en">(so sánh)</span></td><td>Competitive context</td><td>Positioning (định vị)</td><td>"Unlike restrictive wired bras…"</td></tr>
+        <tr><td>Emotional Relief Angle <span class="en">(nhẹ nhõm)</span></td><td>Emotional tension</td><td>Relief payoff (cảm giác giải phóng)</td><td>"Finally, a bra that feels good all day."</td></tr>
+        <tr><td>Convenience Angle <span class="en">(tiện lợi)</span></td><td>Friction removal</td><td>Ease (sự dễ dàng)</td><td>"Easy-on comfort in seconds."</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h2>Tiêu chí Angle mạnh</h2>
+  <div class="ck-wrap">
+    <div class="ck-hrow"><span>Câu hỏi kiểm tra</span><span style="text-align:center">Kết quả</span></div>
+    <div class="ck-item"><span class="ck-q">Does it instantly feel relatable? (Người xem cảm thấy liên quan ngay lập tức?)</span><span class="ck-a">✓ Mạnh</span></div>
+    <div class="ck-item"><span class="ck-q">Is it emotionally meaningful? (Có ý nghĩa cảm xúc?)</span><span class="ck-a">✓ Mạnh</span></div>
+    <div class="ck-item"><span class="ck-q">Is it specific, not generic? (Cụ thể, không chung chung?)</span><span class="ck-a">✓ Mạnh</span></div>
+    <div class="ck-item"><span class="ck-q">Does it connect naturally to the USP? (Kết nối tự nhiên với USP?)</span><span class="ck-a">✓ Mạnh</span></div>
+    <div class="ck-item"><span class="ck-q">Does it fit the platform / context? (Phù hợp với nền tảng và context?)</span><span class="ck-a">✓ Mạnh</span></div>
+    <div class="ck-item"><span class="ck-q">Can the audience understand it within seconds? (Hiểu được trong vài giây?)</span><span class="ck-a">✓ Mạnh</span></div>
+    <div class="ck-item"><span class="ck-q">Can it generate multiple hooks / creatives? (Tạo được nhiều hooks và creative?)</span><span class="ck-a">✓ Mạnh</span></div>
+  </div>
+  <h2>Ví dụ thực tế — Veracomfort</h2>
+  <div class="vera-wrap vb-amber">
+    <div class="vera-head vh-amber"><span class="vera-badge vbdg-amber">Veracomfort</span><span class="vera-title vt-amber">7 angles đã xác định</span></div>
+    <div class="vera-body">
+      <div class="tbl-wrap" style="margin-bottom:14px">
+        <table>
+          <thead><tr><th style="width:150px">Angle Type</th><th>Selected Angle</th><th>Audience Insight dùng</th><th>USP dùng</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Pain Angle</strong></td><td>"No more fighting with your bra every morning."</td><td>Women are tired of uncomfortable bras and daily bra frustration</td><td>Easy-on front closure + adjustable comfort</td></tr>
+            <tr><td><strong>Seasonal Angle</strong></td><td>"Your summer bra should feel lighter, not tighter."</td><td>Bras feel suffocating during hot weather</td><td>Wireless breathable comfort + adjustable system</td></tr>
+            <tr><td><strong>Identity Angle</strong></td><td>"Comfort without sacrificing confidence or femininity."</td><td>Women want comfort but don't want to feel old</td><td>Comfortable support without restrictive feel</td></tr>
+            <tr><td><strong>Mechanism Angle</strong></td><td>"Tighten for support. Loosen for relaxation."</td><td>Women need different comfort levels throughout the day</td><td>Adjustable straps & underband system</td></tr>
+            <tr><td><strong>Emotional Relief</strong></td><td>"Finally, a bra that still feels good at the end of the day."</td><td>Most bras become uncomfortable after hours of wear</td><td>Wireless comfort + customizable fit</td></tr>
+            <tr><td><strong>Convenience Angle</strong></td><td>"Easy-on comfort without the daily struggle."</td><td>Older women struggle putting bras on comfortably</td><td>Front wrap closure system</td></tr>
+            <tr><td><strong>Lifestyle Angle</strong></td><td>"One bra for relaxing at home or going out confidently."</td><td>Women want flexibility between comfort and appearance</td><td>Adjustable support system + versatile comfort</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="priority-box">
+        <div class="priority-head">★ 2 Angles được ưu tiên</div>
+        <div class="priority-item"><div class="priority-name">"Your summer bra should feel lighter, not tighter."</div><div class="priority-why">Highest contextual relevance do summer seasonality. Strong physical discomfort trigger, easy visual storytelling, excellent fit for low-attention AppLovin traffic. Likely strongest CTR driver.</div></div>
+        <div class="priority-item"><div class="priority-name">"Tighten for support. Loosen for relaxation."</div><div class="priority-why">Strongest USP differentiation angle. Clearly communicates Veracomfort's unique mechanism và tạo memorable product perception vs generic comfort bras. Strong conversion potential.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PART 3 -->
+<div class="section-block" id="p3">
+  <span class="part-chip chip-p5">Phần 3</span>
+  <h1>Content Framework <span class="sub">(Khung cấu trúc nội dung)</span></h1>
+  <p class="lead">Cấu trúc tư duy dùng để tổ chức và triển khai content có hệ thống — quyết định <strong>HOW</strong> thông điệp được truyền tải.</p>
+  <h2 style="margin-top:0">Định nghĩa</h2>
+  <div class="def-card dc-green">
+    <div class="def-label lc-green">Content Framework là gì?</div>
+    <div class="def-body">Content Framework là <span class="hl-green">cấu trúc logic (structure)</span> dùng để tổ chức và triển khai content có hệ thống. Nó quyết định <span class="hl-green">HOW — cách thông điệp được truyền tải</span>, trong khi Content Angle quyết định WHAT — thông điệp là gì.</div>
+  </div>
+  <h2>Content Framework ≠ Content Angle</h2>
+  <div class="cmp-grid">
+    <div class="cmp-card"><div class="cmp-head"><span style="font-size:20px;color:#854F0B">⊙</span><span class="cmp-title">Content Angle</span></div>
+      <div class="cmp-row">· WHAT — Tập trung vào thông điệp nào</div>
+      <div class="cmp-row">· Strategic direction (định hướng chiến lược)</div>
+      <div class="cmp-row">· Một core idea (ý tưởng cốt lõi)</div>
+      <div class="cmp-row" style="font-style:italic;color:#854F0B">· Ví dụ: "Comfort without struggle"</div>
+    </div>
+    <div class="cmp-card"><div class="cmp-head"><span style="font-size:20px;color:#3B6D11">⊞</span><span class="cmp-title">Content Framework</span></div>
+      <div class="cmp-row">· HOW — Thông điệp được truyền tải thế nào</div>
+      <div class="cmp-row">· Execution structure (cấu trúc thực thi)</div>
+      <div class="cmp-row">· Messaging sequence (trình tự thông điệp)</div>
+      <div class="cmp-row" style="font-style:italic;color:#3B6D11">· Ví dụ: Hook → pain → solution → payoff</div>
+    </div>
+  </div>
+  <h2>Framework làm được gì — 6 functions</h2>
+  <div class="func-grid">
+    <div class="func-card"><div class="func-icon" style="color:#639922">👁</div><div class="func-title">Organizes attention</div><div class="func-desc">Quyết định audience thấy gì trước</div></div>
+    <div class="func-card"><div class="func-icon" style="color:#639922">♡</div><div class="func-title">Structures persuasion</div><div class="func-desc">Sắp xếp emotional flow và logic</div></div>
+    <div class="func-card"><div class="func-icon" style="color:#639922">⏱</div><div class="func-title">Controls pacing</div><div class="func-desc">Điều tiết tốc độ thông tin</div></div>
+    <div class="func-card"><div class="func-icon" style="color:#639922">☑</div><div class="func-title">Prioritizes messaging</div><div class="func-desc">Chọn message nào quan trọng nhất</div></div>
+    <div class="func-card"><div class="func-icon" style="color:#639922">💡</div><div class="func-title">Increases clarity</div><div class="func-desc">Giúp creative dễ hiểu nhanh</div></div>
+    <div class="func-card"><div class="func-icon" style="color:#639922">⧉</div><div class="func-title">Improves scalability</div><div class="func-desc">Dễ tạo nhiều variations</div></div>
+  </div>
+  <h2>Bảng chi tiết tất cả Frameworks</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th style="width:100px">Category</th><th style="width:190px">Framework</th><th>Structure (Cấu trúc)</th><th style="width:150px">Best For</th><th style="width:100px">AppLovin</th></tr></thead>
+      <tbody>
+        <tr class="gr-dk-green"><td colspan="5">Persuasion Frameworks (Thuyết phục)</td></tr>
+        <tr><td>Persuasion</td><td><strong>PAS</strong></td><td>Problem → Agitate → Solution</td><td>Emotional conversion</td><td><span class="star">★★★★★</span></td></tr>
+        <tr><td></td><td><strong>AIDA</strong></td><td>Attention → Interest → Desire → Action</td><td>General conversion flow</td><td></td></tr>
+        <tr><td></td><td><strong>Problem → Solution</strong></td><td>Pain → Product → Relief</td><td>Simple DTC ads</td><td></td></tr>
+        <tr><td></td><td><strong>4P</strong></td><td>Picture → Promise → Prove → Push</td><td>Direct response</td><td></td></tr>
+        <tr><td></td><td><strong>ACCA</strong></td><td>Awareness → Comprehension → Conviction → Action</td><td>Trust building</td><td></td></tr>
+        <tr class="gr-dk-green"><td colspan="5">Storytelling Frameworks (Kể chuyện)</td></tr>
+        <tr><td>Storytelling</td><td><strong>BAB</strong></td><td>Before → After → Bridge</td><td>Transformation ads</td><td><span class="star">★★★★</span></td></tr>
+        <tr><td></td><td><strong>Transformation Arc</strong></td><td>Pain → Change → New Identity</td><td>Emotional products</td><td></td></tr>
+        <tr><td></td><td><strong>Testimonial Story</strong></td><td>Problem → Discovery → Result</td><td>UGC / Reviews</td><td></td></tr>
+        <tr><td></td><td><strong>Day-in-the-Life</strong></td><td>Daily routine narrative</td><td>Lifestyle brands</td><td></td></tr>
+        <tr class="gr-dk-green"><td colspan="5">Product Communication Frameworks (Truyền thông sản phẩm)</td></tr>
+        <tr><td>Product</td><td><strong>FAB</strong></td><td>Feature → Advantage → Benefit</td><td>Product explanation</td><td></td></tr>
+        <tr><td></td><td><strong>FBE</strong></td><td>Feature → Benefit → Emotion</td><td>Emotional DTC</td><td></td></tr>
+        <tr><td></td><td><strong>Mechanism-First</strong></td><td>Mechanism → Why it matters</td><td>Strong USP products</td><td><span class="star">★★★★★</span></td></tr>
+        <tr><td></td><td><strong>Demo Framework</strong></td><td>Problem demo → Product demo → Result</td><td>Physical products</td><td><span class="star">★★★★★</span></td></tr>
+        <tr><td></td><td><strong>Comparison</strong></td><td>Old way vs New way</td><td>Competitive positioning</td><td><span class="star">★★★★</span></td></tr>
+        <tr><td></td><td><strong>Tradeoff Removal</strong></td><td>"Without sacrificing X"</td><td>Emotional positioning</td><td></td></tr>
+        <tr><td></td><td><strong>Proof Framework</strong></td><td>Claim → Evidence → Result</td><td>Trust building</td><td></td></tr>
+        <tr><td></td><td><strong>Objection Handling</strong></td><td>Objection → Clarification → Proof</td><td>Retargeting</td><td></td></tr>
+        <tr class="gr-dk-green"><td colspan="5">Creative Execution Frameworks (Thực thi creative)</td></tr>
+        <tr><td>Execution</td><td><strong>Hook → Problem → Solution → CTA</strong></td><td>Standard short-form flow</td><td>Universal DTC</td><td><span class="star">★★★★★</span></td></tr>
+        <tr><td></td><td><strong>Scroll-Stop → Reveal</strong></td><td>Curiosity-first flow</td><td>AppLovin / TikTok</td><td><span class="star">★★★★★</span></td></tr>
+        <tr><td></td><td><strong>Step-by-Step Demo</strong></td><td>Sequential explanation</td><td>Mechanism products</td><td></td></tr>
+        <tr><td></td><td><strong>Split-Screen Comparison</strong></td><td>Old vs New</td><td>Product comparison</td><td></td></tr>
+        <tr><td></td><td><strong>Visual Transformation</strong></td><td>Before → After visuals</td><td>Beauty / wellness</td><td></td></tr>
+        <tr><td></td><td><strong>Listicle</strong></td><td>Top 3 / Top 5</td><td>Easy scanning</td><td></td></tr>
+        <tr><td></td><td><strong>Review Stack</strong></td><td>Testimonials sequence</td><td>Trust-heavy products</td><td></td></tr>
+        <tr class="gr-dk-green"><td colspan="5">Hook / Headline Frameworks</td></tr>
+        <tr><td>Hook</td><td><strong>Problem Hook</strong></td><td>Immediate pain</td><td>PAS creatives</td><td><span class="star">★★★★</span></td></tr>
+        <tr><td></td><td><strong>Curiosity Hook</strong></td><td>Open loop / missing info</td><td>Scroll stop</td><td><span class="star">★★★★</span></td></tr>
+        <tr><td></td><td><strong>Identity Hook</strong></td><td>Self-image trigger</td><td>Emotional products</td><td></td></tr>
+        <tr><td></td><td><strong>Contrarian Hook</strong></td><td>Opposite expectation</td><td>Pattern interrupt</td><td></td></tr>
+        <tr><td></td><td><strong>Seasonal Hook</strong></td><td>Time relevance</td><td>Seasonal campaigns</td><td></td></tr>
+        <tr><td></td><td><strong>Comparison Hook</strong></td><td>"Most X vs this"</td><td>Competitive angles</td><td></td></tr>
+        <tr><td></td><td><strong>Mechanism Hook</strong></td><td>"How it works"</td><td>Product USP</td><td></td></tr>
+        <tr><td></td><td><strong>Question Hook</strong></td><td>Audience self-identification</td><td>Cold traffic</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h2>Ví dụ thực tế — Veracomfort</h2>
+  <div class="vera-wrap vb-green">
+    <div class="vera-head vh-green"><span class="vera-badge vbdg-green">Veracomfort</span><span class="vera-title vt-green">Framework theo từng Angle</span></div>
+    <div class="vera-body">
+      <div class="angle-label">Angle 1 — "Your summer bra should feel lighter, not tighter."</div>
+      <div class="fw-pair">
+        <div class="fw-mini"><div class="fw-mini-head">PNG — PAS</div><table class="mt-sm"><tbody><tr><td>Problem</td><td>"Bras feel tighter in summer heat."</td></tr><tr><td>Agitate</td><td>Sweat, restriction, discomfort all day</td></tr><tr><td>Solution</td><td>Veracomfort adjusts for breathable comfort</td></tr></tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">PNG — BAB</div><table class="mt-sm"><tbody><tr><td>Before</td><td>Tight, sweaty, uncomfortable bra</td></tr><tr><td>After</td><td>Relaxed, breathable comfort</td></tr><tr><td>Bridge</td><td>Adjustable wireless comfort</td></tr></tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">HTML — Scroll-Stop → Reveal</div><table class="mt-sm"><tbody><tr><td>Scroll Stop</td><td>"Too hot for tight bras?"</td></tr><tr><td>Reveal</td><td>Strap loosens → bra relaxes</td></tr><tr><td>Payoff</td><td>"Summer comfort anytime."</td></tr></tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">HTML — Visual Transformation</div><table class="mt-sm"><tbody><tr><td>State 1</td><td>Tight uncomfortable fit</td></tr><tr><td>Transition</td><td>Velcro adjustment animation</td></tr><tr><td>State 2</td><td>Relaxed breathable fit</td></tr></tbody></table></div>
+      </div>
+      <div class="angle-label" style="border-color:#1D9E75;background:#E1F5EE">Angle 2 — "Tighten for support. Loosen for relaxation."</div>
+      <div class="fw-pair">
+        <div class="fw-mini"><div class="fw-mini-head">PNG — Mechanism-First</div><table class="mt-sm"><tbody><tr><td>Mechanism</td><td>Adjustable velcro system</td></tr><tr><td>Meaning</td><td>Customize support anytime</td></tr><tr><td>Outcome</td><td>Comfort your way</td></tr></tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">PNG — Comparison</div><table class="mt-sm"><tbody><tr><td>Old Bra</td><td>One fixed fit, restrictive all day</td></tr><tr><td>Veracomfort</td><td>Adjustable anytime, flexible support</td></tr></tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">HTML — Demo Framework</div><table class="mt-sm"><tbody><tr><td>Demo 1</td><td>Tighten straps → more support shown</td></tr><tr><td>Demo 2</td><td>Loosen straps → relaxed comfort mode</td></tr></tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">HTML — Step-by-Step</div><table class="mt-sm"><tbody><tr><td>Step 1</td><td>"Need more support?" → tighten</td></tr><tr><td>Step 2</td><td>"Need more comfort?" → loosen</td></tr></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PART 4 -->
+<div class="section-block" id="p4">
+  <span class="part-chip chip-p6">Phần 4</span>
+  <h1>Content Flow <span class="sub">(Luồng dẫn dắt nội dung)</span></h1>
+  <p class="lead">Trình tự mà thông tin, cảm xúc và attention (sự chú ý) được dẫn dắt bên trong một creative.</p>
+  <h2 style="margin-top:0">Định nghĩa</h2>
+  <div class="def-card dc-purple">
+    <div class="def-label lc-purple">Content Flow là gì?</div>
+    <div class="def-body">Content Flow là <span class="hl-purple">trình tự dẫn dắt (movement)</span> bên trong creative. Bao gồm <span class="hl-purple">Visual Flow</span> (dòng chảy thị giác — mắt nhìn vào đâu trước) và <span class="hl-purple">Logical / Narrative Flow</span> (dòng chảy logic — thứ tự câu chuyện và thông điệp).</div>
+  </div>
+  <h2>Framework = Structure · Flow = Movement</h2>
+  <div class="flow-compare">
+    <div class="flow-card"><div class="flow-head">Framework — Structure (cấu trúc)</div><div class="flow-sub">PAS: Problem → Agitate → Solution</div><div class="flow-body">Định nghĩa các <strong>thành phần</strong> cần có trong creative</div></div>
+    <div class="flow-card"><div class="flow-head">Flow — Movement (chuyển động)</div><div class="flow-sub">Cùng PAS, nhưng có thể có 3 flows khác nhau:</div><div class="flow-body">Flow A: Hook pain → emotional escalation → relief<br>Flow B: Visual curiosity → reveal problem → demo solution<br>Flow C: Transformation → explanation → proof</div><div class="example-box">Cùng framework — nhưng <strong>emotional experience khác nhau</strong></div></div>
+  </div>
+  <h2>Content Flow Controls — 6 lớp kiểm soát</h2>
+  <div class="ctrl-grid">
+    <div class="ctrl-card"><div class="ctrl-icon">👁</div><div class="ctrl-title">Attention Flow</div><div class="ctrl-desc">Audience nhìn gì trước</div></div>
+    <div class="ctrl-card"><div class="ctrl-icon">♡</div><div class="ctrl-title">Emotional Flow</div><div class="ctrl-desc">Audience cảm thấy gì theo thứ tự</div></div>
+    <div class="ctrl-card"><div class="ctrl-icon">ℹ</div><div class="ctrl-title">Information Flow</div><div class="ctrl-desc">Audience hiểu gì và khi nào</div></div>
+    <div class="ctrl-card"><div class="ctrl-icon">◎</div><div class="ctrl-title">Visual Flow</div><div class="ctrl-desc">Mắt di chuyển thế nào</div></div>
+    <div class="ctrl-card"><div class="ctrl-icon">✦</div><div class="ctrl-title">Persuasion Flow</div><div class="ctrl-desc">Conviction được build ra sao</div></div>
+    <div class="ctrl-card"><div class="ctrl-icon">↗</div><div class="ctrl-title">Momentum Flow</div><div class="ctrl-desc">Creative có giữ attention được không</div></div>
+  </div>
+  <h2>Common Mistakes (Lỗi thường gặp)</h2>
+  <div class="tbl-wrap">
+    <table><thead><tr><th style="width:220px">Mistake (Lỗi)</th><th>Result (Hậu quả)</th></tr></thead>
+    <tbody>
+      <tr><td>Slow hook (hook quá chậm)</td><td>Audience drops — bỏ qua ngay</td></tr>
+      <tr><td>Too many messages (quá nhiều thông điệp)</td><td>Confusing creative — gây rối, khó hiểu</td></tr>
+      <tr><td>Weak hierarchy (phân cấp thị giác yếu)</td><td>Poor scan path — mắt không biết nhìn đâu</td></tr>
+      <tr><td>Decorative motion (animation chỉ trang trí)</td><td>No persuasion value — không có giá trị thuyết phục</td></tr>
+      <tr><td>Reveal too late (tiết lộ USP quá muộn)</td><td>USP never lands — thông điệp chính không đến được người xem</td></tr>
+    </tbody></table>
+  </div>
+  <hr>
+  <span class="sub-chip sc-png">Phần 4.1 — PNG Content Flow</span>
+  <h2 style="margin-top:8px">PNG Content Flow</h2>
+  <p style="font-size:14px;color:#555;margin-bottom:16px">Cách audience scan, đọc và hiểu thông tin bên trong một static creative (ảnh tĩnh) thông qua visual hierarchy (phân cấp thị giác), layout structure và attention direction.</p>
+  <div class="tbl-wrap">
+    <table><thead><tr><th style="width:150px">Flow Type</th><th style="width:150px">Eye Movement</th><th>Best For</th><th>Typical Structure</th><th style="width:120px">Strength</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Z-Pattern</strong></td><td>TL → TR → BL → BR</td><td>Banner, emotional ads</td><td>Logo → Hook → Product → CTA</td><td>Clean, balanced</td></tr>
+      <tr><td><strong>F-Pattern</strong></td><td>Horizontal → horizontal → vertical</td><td>Text-heavy, listicle</td><td>Hook → Bullets → CTA</td><td>Easy reading</td></tr>
+      <tr><td><strong>Center-Focused</strong></td><td>Center → secondary → CTA</td><td>Branding, hero product</td><td>Large product center → CTA</td><td>Strong visual impact</td></tr>
+      <tr><td><strong>Transformation Flow</strong></td><td>Problem → after state</td><td>Comfort, beauty, wellness</td><td>Before → Relief → CTA</td><td>Emotional payoff</td></tr>
+      <tr><td><strong>Mechanism Flow</strong></td><td>USP → how it works</td><td>Functional products</td><td>Feature → Demo → Benefit</td><td>Explains innovation</td></tr>
+    </tbody></table>
+  </div>
+  <div class="rules-grid">
+    <div class="rule-card"><div class="rule-head rh-ok">✓ PNG Rules (Quy tắc)</div><table class="rt-sm"><tbody>
+      <tr><td>1 focal point</td><td>Prevent attention conflict</td></tr>
+      <tr><td>Hero ≥ 50% frame</td><td>Product clarity</td></tr>
+      <tr><td>Max 3 text groups</td><td>Faster scanning</td></tr>
+      <tr><td>Strong CTA contrast</td><td>Better click intent</td></tr>
+      <tr><td>Clear hierarchy</td><td>Easier comprehension</td></tr>
+      <tr><td>Safe spacing</td><td>Avoid clutter / crop</td></tr>
+    </tbody></table></div>
+    <div class="rule-card"><div class="rule-head rh-err">✗ Common Mistakes PNG</div><table class="rt-sm"><tbody>
+      <tr><td>Too many elements</td><td>Cognitive overload</td></tr>
+      <tr><td>Weak hierarchy</td><td>Audience confusion</td></tr>
+      <tr><td>Multiple focal points</td><td>Eye chaos</td></tr>
+      <tr><td>Small product image</td><td>Weak product clarity</td></tr>
+      <tr><td>Tiny copy</td><td>Poor readability</td></tr>
+      <tr><td>Weak CTA visibility</td><td>Lower CTR</td></tr>
+    </tbody></table></div>
+  </div>
+  <hr>
+  <span class="sub-chip sc-html">Phần 4.2 — HTML Content Flow</span>
+  <h2 style="margin-top:8px">HTML Content Flow</h2>
+  <p style="font-size:14px;color:#555;margin-bottom:16px">AppLovin HTML không phải mini video ad — mà là <strong>animated poster với layered motion (3–4 layers)</strong>. Flow = layout (bố cục) + timing (thứ tự xuất hiện theo thời gian).</p>
+  <div class="tbl-wrap">
+    <table><thead><tr><th style="width:160px">Flow Type</th><th style="width:200px">Structure</th><th>Best For</th><th>Why It Works</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Demo Flow</strong></td><td>Hook → demo → benefit → CTA</td><td>Functional USP</td><td>Motion explains mechanism</td></tr>
+      <tr><td><strong>Transformation Flow</strong></td><td>Discomfort → transformation → relief</td><td>Comfort / wellness</td><td>Emotional progression</td></tr>
+      <tr><td><strong>Curiosity Flow</strong></td><td>Pattern interrupt → reveal → payoff</td><td>Cold traffic</td><td>Boosts attention retention</td></tr>
+      <tr><td><strong>Attention Cycling</strong></td><td>Hook → product → benefit → CTA loop</td><td>AppLovin HTML</td><td>Continuous eye movement</td></tr>
+      <tr><td><strong>Offer Flow</strong></td><td>Product → offer → urgency → CTA</td><td>Retargeting / sale</td><td>Creates urgency</td></tr>
+    </tbody></table>
+  </div>
+  <h3>HTML Timing Rules</h3>
+  <div class="timing-grid">
+    <div class="timing-card"><div class="timing-val">≤ 0.5s</div><div class="timing-lbl">Hook reveal</div></div>
+    <div class="timing-card"><div class="timing-val">≤ 3s</div><div class="timing-lbl">Total sequence</div></div>
+    <div class="timing-card"><div class="timing-val">0.2–0.4s</div><div class="timing-lbl">Layer stagger</div></div>
+    <div class="timing-card"><div class="timing-val">Early + persistent</div><div class="timing-lbl">CTA visibility</div></div>
+  </div>
+  <h2>Ví dụ thực tế — Veracomfort</h2>
+  <div class="vera-wrap vb-purple">
+    <div class="vera-head vh-purple"><span class="vera-badge vbdg-purple">Veracomfort</span><span class="vera-title vt-purple">Content Flow theo từng Angle</span></div>
+    <div class="vera-body">
+      <div class="angle-label">Angle 1 — "Your summer bra should feel lighter, not tighter."</div>
+      <div class="flow-pair">
+        <div class="fw-mini"><div class="fw-mini-head">PNG — PAS + Z-Pattern</div><table class="flt-tbl"><tbody>
+          <tr><td>Top</td><td>Hook: câu hỏi gợi cảm xúc</td></tr>
+          <tr><td>Center</td><td>Model thư giãn + sản phẩm</td></tr>
+          <tr><td>Side</td><td>Breathable / wireless / soft support</td></tr>
+          <tr><td>Bottom</td><td>CTA — "Shop Now"</td></tr>
+        </tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">HTML — PAS + Desire Flow</div>
+          <div class="layer-row"><span class="layer-n">L1 · 0s</span><span class="layer-t">Static hero visual + product</span><span class="layer-a">fade in</span></div>
+          <div class="layer-row"><span class="layer-n">L2 · 0.3s</span><span class="layer-t">"Too hot for tight bras?"</span><span class="layer-a">fade in</span></div>
+          <div class="layer-row"><span class="layer-n">L3 · 0.8s</span><span class="layer-t">Bra loosens + "Feel lighter instantly"</span><span class="layer-a">transform</span></div>
+          <div class="layer-row"><span class="layer-n">L4 · 1.3s</span><span class="layer-t">CTA "Shop Now"</span><span class="layer-a">pulse</span></div>
+        </div>
+      </div>
+      <div class="angle-label" style="border-color:#1D9E75;background:#E1F5EE">Angle 2 — "Tighten for support. Loosen for relaxation."</div>
+      <div class="flow-pair">
+        <div class="fw-mini"><div class="fw-mini-head">PNG — FAB + F-Pattern</div><table class="flt-tbl"><tbody>
+          <tr><td>Top</td><td>Hook: "One bra. Two comfort modes."</td></tr>
+          <tr><td>Center</td><td>Split visual: Support mode vs Relax mode</td></tr>
+          <tr><td>Side</td><td>Velcro-adjustable system</td></tr>
+          <tr><td>Bottom</td><td>CTA — "Try Veracomfort Today"</td></tr>
+        </tbody></table></div>
+        <div class="fw-mini"><div class="fw-mini-head">HTML — FAB + Demo Flow</div>
+          <div class="layer-row"><span class="layer-n">L1 · 0s</span><span class="layer-t">Static centered bra</span><span class="layer-a">static</span></div>
+          <div class="layer-row"><span class="layer-n">L2 · 0.3s</span><span class="layer-t">"Tighten for support" + tighten animation</span><span class="layer-a">slide in</span></div>
+          <div class="layer-row"><span class="layer-n">L3 · 0.9s</span><span class="layer-t">"Loosen for relaxation" + loosen animation</span><span class="layer-a">transform</span></div>
+          <div class="layer-row"><span class="layer-n">L4 · 1.5s</span><span class="layer-t">CTA "Adjust Your Comfort"</span><span class="layer-a">pulse</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PART 5 -->
+<div class="section-block" id="p5">
+  <span class="part-chip chip-p7">Phần 5</span>
+  <h1>Content Brief <span class="sub">(Tài liệu định hướng sản xuất)</span></h1>
+  <p class="lead">Tài liệu giúp creative team hiểu rõ: cần communicate (truyền đạt) điều gì, cho ai, trong context nào và bằng cách nào.</p>
+  <h2 style="margin-top:0">Định nghĩa</h2>
+  <div class="def-card dc-blue">
+    <div class="def-label lc-blue">Content Brief là gì?</div>
+    <div class="def-body">Content Brief là <span class="hl-blue">tài liệu định hướng execution (thực thi)</span> — giúp creative team hiểu rõ cần communicate điều gì, cho ai, trong context nào và bằng cách nào. Brief tốt không chỉ mô tả sản phẩm trông như thế nào — mà xác định <span class="hl-blue">tại sao creative tồn tại</span>, cho ai, nói điều gì và thành công được đo bằng gì.</div>
+  </div>
+  <h2>3 Sections chính của Content Brief</h2>
+  <div class="sec-cards">
+    <div class="sc-card sc1">
+      <div class="sc-num sc-num1">Section 1</div>
+      <div class="sc-title sc-t1">COPY</div>
+      <div class="sc-items sc-items1">
+        <div>· Hook / Headline</div><div>· Text Overlay</div><div>· Body Copy (optional)</div><div>· Promo / CTA</div>
+      </div>
+      <div class="sc-note sc-n1">Viết chính xác từng chữ, có giới hạn độ dài</div>
+    </div>
+    <div class="sc-card sc2">
+      <div class="sc-num sc-num2">Section 2</div>
+      <div class="sc-title sc-t2">VISUAL & FLOW</div>
+      <div class="sc-items sc-items2">
+        <div>· Visual Description</div><div>· Style & Color</div><div>· Reference (Link)</div><div>· Content Flow (từng layer cho HTML)</div>
+      </div>
+      <div class="sc-note sc-n2">Bố cục, màu sắc và luồng chuyển động</div>
+    </div>
+    <div class="sc-card sc3">
+      <div class="sc-num sc-num3">Section 3</div>
+      <div class="sc-title sc-t3">TECH SPECS</div>
+      <div class="sc-items sc-items3">
+        <div>· Format & Size</div><div>· File Limits</div><div>· Safe Area</div>
+      </div>
+      <div class="sc-note sc-n3">Chuẩn xác để code / xuất file</div>
+    </div>
+  </div>
+  <h2>PNG Brief vs HTML Brief — Điểm khác nhau</h2>
+  <div class="diff-grid">
+    <div class="cmp-card"><div class="cmp-head"><span style="font-size:20px;color:#185FA5">🖼</span><span class="cmp-title">PNG Brief — Tư duy không gian</span></div>
+      <div class="cmp-row">· Visual zone: Zone nào ở đâu, element nào ưu tiên</div>
+      <div class="cmp-row">· Visual hierarchy (phân cấp thị giác) đi theo chiều nào</div>
+      <div class="cmp-row">· Layout pattern: Z-pattern, F-pattern, Center-focused</div>
+      <div class="cmp-row">· Safe zone: vùng an toàn khi platform tự crop</div>
+      <div class="cmp-row">· File size limits: Max KB theo từng platform</div>
+    </div>
+    <div class="cmp-card"><div class="cmp-head"><span style="font-size:20px;color:#854F0B">⌨</span><span class="cmp-title">HTML Brief — Tư duy thời gian</span></div>
+      <div class="cmp-row">· Layer sequence: layer nào xuất hiện trước, khi nào</div>
+      <div class="cmp-row">· Timing cụ thể cho từng layer (giây)</div>
+      <div class="cmp-row">· Animation type: fade, slide, scale, pulse</div>
+      <div class="cmp-row">· Fallback image: static frame nếu HTML không load</div>
+      <div class="cmp-row">· Loop behavior: loop một lần hay lặp liên tục</div>
+    </div>
+  </div>
+  <h2>Ví dụ thực tế — Veracomfort · 4 Briefs</h2>
+  <div class="vera-wrap vb-blue">
+    <div class="vera-head vh-blue"><span class="vera-badge vbdg-blue">Veracomfort</span><span class="vera-title vt-blue">4 Briefs — 2 Angles × 2 Formats</span></div>
+    <div class="vera-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e0ddd5;border-radius:0 0 12px 12px;overflow:hidden">
+
+        <div class="brief-card">
+          <div class="brief-num">Brief 01 — PNG</div>
+          <div class="brief-title">Angle 1</div>
+          <div class="brief-angle">"Your summer bra should feel lighter, not tighter."</div>
+          <div class="brief-section"><span class="bsl bsl-copy">1 · COPY</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Hook</td><td>"Still struggling with your bra — in this heat?"</td></tr>
+              <tr><td>Text Overlay</td><td>LEFT: "Other bras" · RIGHT: "Veracomfort"</td></tr>
+              <tr><td>Body Copy</td><td>100% cotton comfort · Velcro front-wrap · Adjusts all day</td></tr>
+              <tr><td>Promo / CTA</td><td>Summer Sale — 70% OFF · "Shop Now →"</td></tr>
+            </tbody></table>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-visual">2 · VISUAL & FLOW</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Visual</td><td>Split before/after. LEFT: sweating woman indoors. RIGHT: relaxed woman outdoors wearing Veracomfort.</td></tr>
+              <tr><td>Style & Mood</td><td>Soft summer lighting · Warm beige palette · Breathable feel</td></tr>
+              <tr><td>Visual Priority</td><td>1. Emotional contrast 2. Product visibility 3. CTA</td></tr>
+              <tr><td>Content Flow</td><td>BAB + Z-pattern</td></tr>
+              <tr><td>Reading Flow</td><td>Hook → Before/After → Benefits → CTA</td></tr>
+            </tbody></table>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-tech">3 · TECH SPECS</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Format & Size</td><td>PNG — 1080×1920</td></tr>
+              <tr><td>File Limits</td><td>Lightweight export</td></tr>
+              <tr><td>Safe Area</td><td>40px margins · avoid bottom-right crowding</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+
+        <div class="brief-card">
+          <div class="brief-num">Brief 02 — HTML</div>
+          <div class="brief-title">Angle 1</div>
+          <div class="brief-angle">"Your summer bra should feel lighter, not tighter."</div>
+          <div class="brief-section"><span class="bsl bsl-copy">1 · COPY</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Hook</td><td>"Too hot for tight bras?"</td></tr>
+              <tr><td>Text Overlay</td><td>"Feel lighter instantly."</td></tr>
+              <tr><td>Body Copy</td><td>Wireless comfort · Adjustable fit · Breathable support</td></tr>
+              <tr><td>Promo / CTA</td><td>Summer Sale — "Shop Now →"</td></tr>
+            </tbody></table>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-visual">2 · VISUAL & FLOW</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Visual</td><td>Single-frame summer lifestyle scene. Product visible immediately.</td></tr>
+              <tr><td>Style & Mood</td><td>Bright · Airy · Breathable · Minimal</td></tr>
+              <tr><td>Visual Priority</td><td>1. Product on body 2. Relief emotion 3. CTA</td></tr>
+              <tr><td>HTML Flow</td><td>Desire Flow</td></tr>
+            </tbody></table>
+            <div style="margin-top:8px">
+              <div class="layer-row"><span class="layer-n">L1 · 0s</span><span class="layer-t">Static hero visual + product</span><span class="layer-a">fade in</span></div>
+              <div class="layer-row"><span class="layer-n">L2 · 0.3s</span><span class="layer-t">Hook fades in</span><span class="layer-a">fade in</span></div>
+              <div class="layer-row"><span class="layer-n">L3 · 0.8s</span><span class="layer-t">Bra loosens + "Feel lighter instantly"</span><span class="layer-a">transform</span></div>
+              <div class="layer-row"><span class="layer-n">L4 · 1.3s</span><span class="layer-t">CTA pulse animation</span><span class="layer-a">pulse</span></div>
+            </div>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-tech">3 · TECH SPECS</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Format & Size</td><td>HTML5</td></tr>
+              <tr><td>File Limits</td><td>≤3s · lightweight motion · loop once</td></tr>
+              <tr><td>Safe Area</td><td>Avoid AppLovin UI overlap</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+
+        <div class="brief-card">
+          <div class="brief-num">Brief 03 — PNG</div>
+          <div class="brief-title">Angle 2</div>
+          <div class="brief-angle">"Tighten for support. Loosen for relaxation."</div>
+          <div class="brief-section"><span class="bsl bsl-copy">1 · COPY</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Hook</td><td>"Tighten for support. Loosen for relaxation."</td></tr>
+              <tr><td>Text Overlay</td><td>"Your comfort, your way."</td></tr>
+              <tr><td>Body Copy</td><td>Velcro-adjustable straps & underband · Custom comfort anytime</td></tr>
+              <tr><td>Promo / CTA</td><td>"Try Veracomfort Today →"</td></tr>
+            </tbody></table>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-visual">2 · VISUAL & FLOW</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Visual</td><td>Dual-state demo. LEFT: relaxing at home. RIGHT: going out confidently. Focus on adjustable mechanism.</td></tr>
+              <tr><td>Style & Mood</td><td>Modern · Functional comfort · Feminine confidence</td></tr>
+              <tr><td>Visual Priority</td><td>1. Velcro system 2. Lifestyle versatility 3. CTA</td></tr>
+              <tr><td>Content Flow</td><td>FAB + F-pattern</td></tr>
+              <tr><td>Reading Flow</td><td>Headline → Product mechanism → Benefits → CTA</td></tr>
+            </tbody></table>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-tech">3 · TECH SPECS</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Format & Size</td><td>PNG — 1080×1920</td></tr>
+              <tr><td>File Limits</td><td>Optimized for mobile readability</td></tr>
+              <tr><td>Safe Area</td><td>Safe margins for crop tolerance</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+
+        <div class="brief-card">
+          <div class="brief-num">Brief 04 — HTML</div>
+          <div class="brief-title">Angle 2</div>
+          <div class="brief-angle">"Tighten for support. Loosen for relaxation."</div>
+          <div class="brief-section"><span class="bsl bsl-copy">1 · COPY</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Hook</td><td>"One bra. Two comfort modes."</td></tr>
+              <tr><td>Text Overlay</td><td>"Tighten or loosen anytime."</td></tr>
+              <tr><td>Body Copy</td><td>Custom support without wires</td></tr>
+              <tr><td>Promo / CTA</td><td>"Shop Now →"</td></tr>
+            </tbody></table>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-visual">2 · VISUAL & FLOW</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Visual</td><td>Product-centered HTML demo. Visible strap adjustment animation.</td></tr>
+              <tr><td>Style & Mood</td><td>Functional · Interactive · Clean DTC</td></div>
+              <tr><td>Visual Priority</td><td>1. Adjustment mechanism 2. Comfort transformation 3. CTA</td></tr>
+              <tr><td>HTML Flow</td><td>Problem-Solution Demo Flow</td></tr>
+            </tbody></table>
+            <div style="margin-top:8px">
+              <div class="layer-row"><span class="layer-n">L1 · 0s</span><span class="layer-t">Static centered bra</span><span class="layer-a">static</span></div>
+              <div class="layer-row"><span class="layer-n">L2 · 0.3s</span><span class="layer-t">"Tighten for support" + tighten animation</span><span class="layer-a">slide in</span></div>
+              <div class="layer-row"><span class="layer-n">L3 · 0.9s</span><span class="layer-t">"Loosen for relaxation" + loosen animation</span><span class="layer-a">transform</span></div>
+              <div class="layer-row"><span class="layer-n">L4 · 1.5s</span><span class="layer-t">CTA pulse</span><span class="layer-a">pulse</span></div>
+            </div>
+          </div>
+          <div class="brief-section"><span class="bsl bsl-tech">3 · TECH SPECS</span>
+            <table class="bt-sm"><tbody>
+              <tr><td>Format & Size</td><td>HTML5 — 320×480</td></tr>
+              <tr><td>File Limits</td><td>≤3s · 3–4 layers only · smooth loop</td></tr>
+              <tr><td>Safe Area</td><td>Avoid CTA near device UI</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="section-block" id="summary">
+  <span class="part-chip chip-sum">Summary</span>
+  <h1 style="text-align:center;margin-bottom:6px">Content Creation Skill</h1>
+  <p style="text-align:center;font-size:15px;color:#666;margin-bottom:32px">Tóm tắt 5 bước quy trình — từ Inputs đến Brief</p>
+  <h2 style="margin-top:0">5 bước — Định nghĩa và việc cần làm</h2>
+  <div class="flow-steps">
+    <div class="step-s s1"><div class="sn">Bước 1</div><div class="sm">Inputs</div><div class="sd">Dữ liệu đầu vào — nền tảng của toàn bộ quy trình</div><div class="sb">Thu thập Audience Insight · xác định USP · phân tích Context. Thiếu một trong ba → angle thiếu chiều sâu.</div></div>
+    <div class="step-s s2"><div class="sn">Bước 2</div><div class="sm">Angle</div><div class="sd">Góc nhìn duy nhất để truyền tải thông điệp</div><div class="sb">Chọn một angle duy nhất từ Inputs. Angle = Tension + Insight + Reframe. Angle ≠ Hook.</div></div>
+    <div class="step-s s3"><div class="sn">Bước 3</div><div class="sm">Framework</div><div class="sd">Cấu trúc logic tổ chức nội dung</div><div class="sb">Chọn framework phù hợp với angle và format. Framework = structure — không phải flow.</div></div>
+    <div class="step-s s4"><div class="sn">Bước 4</div><div class="sm">Flow</div><div class="sd">Trình tự dẫn dắt thị giác và cảm xúc</div><div class="sb">PNG: Z / F / Center-focused. HTML: 3–4 layers ≤3s. Cùng framework có thể có nhiều flow khác nhau.</div></div>
+    <div class="step-s s5"><div class="sn">Bước 5</div><div class="sm">Brief</div><div class="sd">Tài liệu hóa mọi quyết định để execute</div><div class="sb">3 sections: Copy · Visual & Flow · Tech Specs. PNG = tư duy không gian. HTML = tư duy thời gian.</div></div>
+  </div>
+  <h2>Mối quan hệ giữa các bước</h2>
+  <div class="rel-grid">
+    <div class="rel-card"><div class="rel-from">Inputs → Angle</div><div class="rel-title-s">Chất lượng quyết định hướng đi</div><div class="rel-body-s">Insight càng sâu, USP càng rõ → Angle càng cụ thể và có chiều sâu. <em>Inputs generic = Angle generic.</em></div></div>
+    <div class="rel-card"><div class="rel-from">Angle → Framework</div><div class="rel-title-s">Góc nhìn chọn cấu trúc</div><div class="rel-body-s">Angle "nỗi đau" → PAS. Angle "cơ chế sản phẩm" → Mechanism-First. <em>Angle sai thì framework không phù hợp.</em></div></div>
+    <div class="rel-card"><div class="rel-from">Framework → Flow → Brief</div><div class="rel-title-s">Cấu trúc sinh ra chuyển động</div><div class="rel-body-s">Cùng Framework PAS nhưng Flow có thể khác nhau tùy format PNG hay HTML. <em>Brief là nơi mọi quyết định được ghi lại.</em></div></div>
+  </div>
+  <h2>Công thức cốt lõi</h2>
+  <div class="formula-box">
+    <div class="formula-label">Inputs → Content Angle</div>
+    <div class="formula-row">
+      <span class="fi fi-1">Audience Insight</span>
+      <span class="fsep">+</span>
+      <span class="fi fi-2">USP</span>
+      <span class="fsep">+</span>
+      <span class="fi fi-3">Context</span>
+      <span class="feq">=</span>
+      <span class="fresult">Content Angle</span>
+    </div>
+    <div class="formula-note">Audience Insight = WHAT people feel · USP = WHY your product matters · Context = HOW the message should be delivered right now → Content Angle = a message people instantly care about.</div>
+  </div>
+  <h2>Điểm cần nhớ — mỗi bước</h2>
+  <div class="tbl-wrap">
+    <table><thead><tr><th style="width:120px">Bước</th><th>Điều quan trọng nhất cần nhớ</th></tr></thead>
+    <tbody>
+      <tr><td>Inputs</td><td>Insight mạnh phải chạm self-perception, emotional tension hoặc hidden frustration — không chỉ mô tả demographic hay product problem.</td></tr>
+      <tr><td>Angle</td><td>Một creative chỉ có một angle duy nhất. Angle ≠ Hook. Angle phải khớp với audience stage: Cold → Desire/Curiosity, Warm → Social Proof/Transformation, Hot → Scarcity/Urgency.</td></tr>
+      <tr><td>Framework</td><td>Framework quyết định HOW — cấu trúc thuyết phục. Chọn framework dựa trên angle và format (PNG hay HTML), không chọn theo sở thích.</td></tr>
+      <tr><td>Flow</td><td>PNG: 1 focal point duy nhất tại mỗi zone. HTML: chỉ 1 element động tại mỗi thời điểm, tổng sequence ≤3s. Decorative motion không có persuasion value.</td></tr>
+      <tr><td>Brief</td><td>Brief tốt không chỉ mô tả sản phẩm trông như thế nào — mà xác định tại sao creative tồn tại. PNG brief = tư duy không gian. HTML brief = tư duy thời gian.</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
