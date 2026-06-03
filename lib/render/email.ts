@@ -1,4 +1,6 @@
-import type { Brand, Campaign, ImageOverrides, Product, VariantCopy } from "../config/types";
+import type { Brand, Campaign, ImageOverrides, Product } from "../config/types";
+import type { GenBrief, GenProductBlock } from "../briefgen";
+import { segJsonKey } from "../briefgen";
 import { buildUrl, paragraphsToHtml, parseInlineMarkdown } from "./markdown";
 
 // Renders a real SendGrid **Design** (module format) so the exported HTML round-trips into
@@ -21,9 +23,14 @@ function attr(url: string): string {
   return String(url || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Product grid arrangement. stack = 1/row, two = 2/row, three = 3/row, hero_grid = hero full + rest 2/row. */
+export type ProductLayout = "stack" | "two" | "three" | "hero_grid";
+
 export interface RenderOptions {
   /** Render a logo image block above the hero (off by default — not all emails have one). */
   includeLogo?: boolean;
+  /** Product grid layout (default "stack"). */
+  productLayout?: ProductLayout;
 }
 
 // ---- module-id generator (data-muid); counter-based, deterministic per render ----
@@ -70,16 +77,22 @@ function columnsSingle(inner: string, blockPad: string, colWidth: number, colMar
 </table>`;
 }
 
-// ---- two-column wrapper (data-distribution="1,1"), two 282 cells ----
-function columnsTwo(left: string, right: string): string {
-  return `<table border="0" cellpadding="0" cellspacing="0" align="center" width="100%" role="module" data-type="columns" style="padding:0px 9px 18px 9px;" bgcolor="" data-distribution="1,1">
+// ---- multi-column wrappers (mobile-stacks via the .column rule in the head CSS) ----
+/** A row of N equal columns, each `colWidth`px with `gutter`px between. Empty cells pad the row. */
+function columnsRow(cells: string[], colWidth: number, gutter: number, blockPad: string): string {
+  const dist = cells.map(() => "1").join(",");
+  const cols = cells
+    .map((inner, i) => {
+      const left = i === 0 ? 0 : gutter / 2;
+      const right = i === cells.length - 1 ? 0 : gutter / 2;
+      return `<table width="${colWidth}" style="width:${colWidth}px; border-spacing:0; border-collapse:collapse; margin:0px ${right}px 0px ${left}px;" cellpadding="0" cellspacing="0" align="left" border="0" bgcolor="" class="column column-${i}">
+      <tbody><tr><td style="padding:0px;margin:0px;border-spacing:0;">${inner}</td></tr></tbody>
+    </table>`;
+    })
+    .join("\n    ");
+  return `<table border="0" cellpadding="0" cellspacing="0" align="center" width="100%" role="module" data-type="columns" style="padding:${blockPad};" bgcolor="" data-distribution="${dist}">
   <tbody><tr role="module-content"><td height="100%" valign="top">
-    <table width="282" style="width:282px; border-spacing:0; border-collapse:collapse; margin:0px 9px 0px 0px;" cellpadding="0" cellspacing="0" align="left" border="0" bgcolor="" class="column column-0">
-      <tbody><tr><td style="padding:0px;margin:0px;border-spacing:0;">${left}</td></tr></tbody>
-    </table>
-    <table width="282" style="width:282px; border-spacing:0; border-collapse:collapse; margin:0px 0px 0px 9px;" cellpadding="0" cellspacing="0" align="left" border="0" bgcolor="" class="column column-1">
-      <tbody><tr><td style="padding:0px;margin:0px;border-spacing:0;">${right}</td></tr></tbody>
-    </table>
+    ${cols}
   </td></tr></tbody>
 </table>`;
 }
@@ -117,26 +130,6 @@ function textBlock(text: string, brand: Brand, accent: string, muid: () => strin
     "0px 18px 18px 18px",
     528,
     "0px 18px 0px 18px"
-  );
-}
-
-function productImageInner(brand: Brand, product: Product, images: ImageOverrides, muid: () => string): string {
-  const src = attr(images.products?.[product.slug] || ph(265, 265, product.name));
-  return imageModule(muid(), buildUrl(brand, product.slug), src, product.name, 282, 18, true);
-}
-
-/** A 2-up product image row (or a single full-width image for an odd leftover). */
-function productRow(brand: Brand, pair: Product[], images: ImageOverrides, muid: () => string): string {
-  if (pair.length === 2) {
-    return columnsTwo(productImageInner(brand, pair[0], images, muid), productImageInner(brand, pair[1], images, muid));
-  }
-  const p = pair[0];
-  const src = attr(images.products?.[p.slug] || ph(564, 280, p.name));
-  return columnsSingle(
-    imageModule(muid(), buildUrl(brand, p.slug), src, p.name, 564, 0, true),
-    "0px 9px 18px 9px",
-    564,
-    "0px 9px 0px 9px"
   );
 }
 
@@ -232,55 +225,112 @@ ${modules}
 </html>`;
 }
 
-function toPairs(products: Product[]): Product[][] {
-  const pairs: Product[][] = [];
-  for (let i = 0; i < products.length; i += 2) pairs.push(products.slice(i, i + 2));
-  return pairs;
+// ---- banner caption (main/sub headline + supplied review, rendered under the hero image) ----
+function bannerCaptionBlock(brand: Brand, accent: string, banner: GenBrief["banner"], muid: () => string): string {
+  const parts: string[] = [];
+  if (banner.main_text) parts.push(`==${banner.main_text.replace(/\n+/g, " ")}==`);
+  if (banner.sub_text) parts.push(banner.sub_text);
+  if (banner.review_quote) parts.push(`*${banner.review_quote}*`);
+  if (!parts.length) return "";
+  return textBlock(parts.join("\n\n"), brand, accent, muid, "center");
 }
 
-/** Render a full SendGrid-format email for one variant. */
+// ---- product caption (design-brief copy rendered beneath the product image) ----
+// `compact` shrinks type for narrow 2-/3-up columns.
+function productCaptionInner(brand: Brand, accent: string, slug: string | null, pb: GenProductBlock, compact = false): string {
+  const f = compact
+    ? { main: 15, sub: 12, usp: 12, rev: 12, badge: 10, ctaFont: 13, ctaPad: "7px 16px" }
+    : { main: 18, sub: 14, usp: 13, rev: 13, badge: 11, ctaFont: 14, ctaPad: "9px 22px" };
+  const lines: string[] = [];
+  if (pb.popup_badge) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.badge}px; letter-spacing:1px; color:${accent}; text-align:center;"><strong>${parseInlineMarkdown(pb.popup_badge, brand, accent)}</strong></div>`);
+  if (pb.main_text) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.main}px; color:#000000; text-align:center; padding-top:4px;"><strong>${parseInlineMarkdown(pb.main_text, brand, accent)}</strong></div>`);
+  if (pb.sub_text) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.sub}px; color:#000000; text-align:center; padding-top:2px;">${parseInlineMarkdown(pb.sub_text, brand, accent)}</div>`);
+  (pb.usps || []).forEach((u) => u && lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.usp}px; color:#000000; text-align:center; padding-top:2px;">${parseInlineMarkdown(u, brand, accent)}</div>`));
+  if (pb.review) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.rev}px; color:#606060; text-align:center; padding-top:4px;"><em>${parseInlineMarkdown(pb.review, brand, accent)}</em></div>`);
+  if (pb.cta) {
+    const href = buildUrl(brand, slug);
+    lines.push(`<div style="text-align:center; padding-top:8px;"><a href="${href}" style="display:inline-block; background-color:${accent}; color:#ffffff; font-family:arial,helvetica,sans-serif; font-size:${f.ctaFont}px; font-weight:bold; text-decoration:none; padding:${f.ctaPad}; border-radius:4px;">${parseInlineMarkdown(pb.cta, brand, accent)}</a></div>`);
+  }
+  return `<div>${lines.join("\n")}<div></div></div>`;
+}
+
+/** A full-width product block: image + caption (used for stack layout + hero_grid's hero). */
+function productBlock(brand: Brand, accent: string, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string): string {
+  const slug = product?.slug || null;
+  const src = attr((slug && images.products?.[slug]) || ph(564, 280, pb.name || product?.name || "Product"));
+  const img = imageModule(muid(), buildUrl(brand, slug), src, pb.name || product?.name || "Product", 564, 0, true);
+  return (
+    columnsSingle(img, "0px 9px 6px 9px", 564, "0px 9px 0px 9px") +
+    "\n" +
+    columnsSingle(textModule(muid(), productCaptionInner(brand, accent, slug, pb)), "0px 18px 18px 18px", 528, "0px 18px 0px 18px")
+  );
+}
+
+/** A product cell (image + caption stacked) for one column of a multi-up row. */
+function productCellInner(brand: Brand, accent: string, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string, imgW: number): string {
+  const slug = product?.slug || null;
+  const src = attr((slug && images.products?.[slug]) || ph(imgW, Math.round(imgW * 0.9), pb.name || product?.name || "Product"));
+  const img = imageModule(muid(), buildUrl(brand, slug), src, pb.name || product?.name || "Product", imgW, 6, true);
+  return img + "\n" + textModule(muid(), productCaptionInner(brand, accent, slug, pb, true), 20, "0px 4px 0px 4px");
+}
+
+/**
+ * Render a full SendGrid-format email for ONE segment of a generated brief.
+ * Pulls the segment's subject/preheader + body variant and renders the shared
+ * banner + per-product design-brief blocks.
+ */
 export function renderEmailHTML(
   brand: Brand,
   campaign: Campaign,
   products: Product[],
-  copy: VariantCopy,
+  brief: GenBrief,
+  segment: string,
   images: ImageOverrides = {},
   options: RenderOptions = {}
 ): string {
-  const accent = copy.accent || brand.accent;
-  const layout = campaign.layout || brand.layout;
+  const accent = brand.accent;
   const muid = muidFactory();
+  const key = segJsonKey(segment);
 
-  // Hero product first.
+  const sl = brief.subject_lines?.[key];
+  const preheader = sl?.preheader || "";
+  const bodyText = brief.body?.[key] || brief.body?.base || "";
+
+  // Product copy blocks come from the brief; pair each to a catalog product by slot order.
   const ordered = [...products].sort((a, b) =>
     a.slug === brand.heroSlug ? -1 : b.slug === brand.heroSlug ? 1 : 0
   );
-  const pairs = toPairs(ordered);
+  const blocks = [...(brief.products || [])].sort((a, b) => (a.slot || 0) - (b.slot || 0));
 
   const mods: string[] = [];
-  mods.push(preheaderBlock(copy.preheader));
+  mods.push(preheaderBlock(preheader));
   if (options.includeLogo) mods.push(logoBlock(brand, images, muid));
   mods.push(heroBlock(brand, images, muid));
-  mods.push(textBlock(copy.intro, brand, accent, muid));
+  if (brief.banner) {
+    const cap = bannerCaptionBlock(brand, accent, brief.banner, muid);
+    if (cap) mods.push(cap);
+  }
+  if (bodyText) mods.push(textBlock(bodyText, brand, accent, muid));
 
-  if (layout === "narrative") {
-    // hero → intro → row → middle → row → closing → row(s) → P.S. → footer
-    if (pairs[0]) mods.push(productRow(brand, pairs[0], images, muid));
-    mods.push(textBlock(copy.middle, brand, accent, muid));
-    if (pairs[1]) mods.push(productRow(brand, pairs[1], images, muid));
-    if (copy.closing) mods.push(textBlock(copy.closing, brand, accent, muid));
-    for (const pair of pairs.slice(2)) mods.push(productRow(brand, pair, images, muid));
-    if (copy.ps) {
-      // Strip a leading "P.S." the model may already have written, so we don't double it.
-      const psBody = copy.ps.replace(/^\s*p\.?\s*s\.?\s*[:.\-]?\s*/i, "");
-      mods.push(textBlock(`**P.S.** ${psBody}`, brand, accent, muid, "center"));
+  // Product grid — arrangement chosen by the user.
+  const layout = options.productLayout || "stack";
+  const cell = (idx: number, imgW: number) =>
+    idx < blocks.length ? productCellInner(brand, accent, ordered[idx], blocks[idx], images, muid, imgW) : "";
+  const gridRows = (start: number, perRow: number, colW: number, imgW: number, gutter: number) => {
+    for (let i = start; i < blocks.length; i += perRow) {
+      const cells = Array.from({ length: perRow }, (_, j) => cell(i + j, imgW));
+      mods.push(columnsRow(cells, colW, gutter, "0px 9px 18px 9px"));
     }
+  };
+  if (layout === "two") {
+    gridRows(0, 2, 282, 282, 18);
+  } else if (layout === "three") {
+    gridRows(0, 3, 176, 176, 12);
+  } else if (layout === "hero_grid") {
+    if (blocks[0]) mods.push(productBlock(brand, accent, ordered[0], blocks[0], images, muid));
+    gridRows(1, 2, 282, 282, 18);
   } else {
-    // simple: hero → intro → row → row → middle → row(s) → footer
-    if (pairs[0]) mods.push(productRow(brand, pairs[0], images, muid));
-    if (pairs[1]) mods.push(productRow(brand, pairs[1], images, muid));
-    mods.push(textBlock(copy.middle, brand, accent, muid));
-    for (const pair of pairs.slice(2)) mods.push(productRow(brand, pair, images, muid));
+    blocks.forEach((pb, i) => mods.push(productBlock(brand, accent, ordered[i], pb, images, muid)));
   }
 
   mods.push(footerBlock(brand, campaign, muid));

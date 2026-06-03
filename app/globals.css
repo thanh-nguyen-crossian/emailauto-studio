@@ -1,20 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
+/* Light theme — mirrors email-brief-generator.html palette. */
 :root {
-  --background: #0b0d12;
-  --surface: #14171f;
-  --surface-2: #1b1f29;
-  --border: #2a3040;
-  --text: #e7eaf0;
-  --muted: #9aa3b2;
-  --accent: #6d8bff;
+  --background: #f4f7f8;
+  --surface: #ffffff;
+  --surface-2: #eef2f3;
+  --border: #d7dee0;
+  --text: #1f2a28;
+  --muted: #5f6b69;
+  --accent: #23665a;
+  --accent-2: #d66f3f;
+  /* semantic states (tuned for contrast on white) */
+  --ok: #1a7f5a;
+  --warn: #b06a00;
+  --bad: #c83434;
 }
 
 html,
 body {
   background: var(--background);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+code,
+kbd,
+.mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {

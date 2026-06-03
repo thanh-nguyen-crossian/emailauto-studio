@@ -37,64 +37,48 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-sm flex flex-col gap-4 p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)]"
-      >
-        <div className="flex flex-col gap-3">
+    // Dark, branded sign-in — independent of the app's light theme (scoped .auth-* styles).
+    <div className="auth-root min-h-screen flex items-center justify-center px-6">
+      <form onSubmit={submit} className="auth-card w-full max-w-sm flex flex-col gap-4 p-7 rounded-2xl">
+        <div className="flex flex-col items-center gap-4 mb-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/crossian-logo.svg" alt="Crossian" className="h-7 w-auto self-start" />
-          <div>
+          <img src="/crossian-logo.svg" alt="Crossian" className="h-8 w-auto" />
+          <div className="text-center">
             <h1 className="text-xl font-bold">EmailAuto Studio</h1>
-            <p className="text-sm text-[var(--muted)] mt-1">
+            <p className="text-sm auth-muted mt-1">
               {mode === "signin" ? "Sign in to your account" : "Create an account"}
             </p>
           </div>
         </div>
         <label className="flex flex-col gap-1 text-sm">
           Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input"
-            autoComplete="email"
-          />
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="auth-input" autoComplete="email" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Password
-          <input
-            type="password"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input"
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
-          />
+          <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="auth-input" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
         </label>
-        {error && <div className="text-xs text-[#ff6b6b]">{error}</div>}
-        {notice && <div className="text-xs text-[#3ecf8e]">{notice}</div>}
-        <button type="submit" disabled={busy} className="btn-primary">
+        {error && <div className="text-xs" style={{ color: "#ff7a7a" }}>{error}</div>}
+        {notice && <div className="text-xs" style={{ color: "#54d6a0" }}>{notice}</div>}
+        <button type="submit" disabled={busy} className="auth-btn">
           {busy ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
         </button>
         <button
           type="button"
-          onClick={() => {
-            setMode(mode === "signin" ? "signup" : "signin");
-            setError(null);
-            setNotice(null);
-          }}
-          className="text-xs text-[var(--muted)] hover:text-[var(--text)] underline"
+          onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(null); setNotice(null); }}
+          className="text-xs auth-muted hover:opacity-80 underline self-center"
         >
           {mode === "signin" ? "No account? Sign up" : "Have an account? Sign in"}
         </button>
         <style>{`
-          .input { width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:14px; }
-          .btn-primary { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
-          .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+          .auth-root { background:#0b0d12; color:#e7eaf0; }
+          .auth-card { background:#14171f; border:1px solid #242b39; box-shadow:0 12px 40px rgba(0,0,0,.45); }
+          .auth-muted { color:#9aa3b2; }
+          .auth-input { width:100%; background:#1b1f29; border:1px solid #2a3040; border-radius:8px; padding:9px 11px; color:#e7eaf0; font-size:14px; }
+          .auth-input:focus { outline:none; border-color:#2f8d79; }
+          .auth-btn { background:#23665a; color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+          .auth-btn:hover { background:#2a7768; }
+          .auth-btn:disabled { opacity:.5; cursor:not-allowed; }
         `}</style>
       </form>
     </div>

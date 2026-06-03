@@ -1,21 +1,33 @@
 "use client";
 
 import { supabase } from "./supabase";
-import type { ImageOverrides, TierCode, VariantCopyMap } from "./config/types";
+import type { ImageOverrides, LastSend, OfferType, Urgency } from "./config/types";
+import type { GenBrief } from "./briefgen";
+import type { ProductLayout } from "./render/email";
 
 // Everything needed to fully restore a generation back into the studio.
 export interface VersionPayload {
   brandId: string;
   sendDate: string;
-  offer: string;
+  theme?: string;
+  offerType?: OfferType;
+  offerValue?: string;
+  urgency?: Urgency;
+  offer?: string;
   hookContract: string;
   recipientName: string;
-  tiers: TierCode[];
-  productTypes: string[];
-  selectedSlugs: string[];
+  /** Selected segment codes (the variant axis; SantaFare = lifecycle tiers). */
+  segments: string[];
+  /** Per-slot product picks with chosen URL + selected USPs (slot 0 = hero). */
+  slots: { slug: string; url: string; usps: string[] }[];
   includeLogo: boolean;
+  /** Product grid arrangement chosen in the output step. */
+  productLayout?: ProductLayout;
   images: ImageOverrides;
-  copy: VariantCopyMap;
+  /** The two generated options (combined copy + design brief). */
+  options: { a?: GenBrief; b?: GenBrief };
+  lastSend?: LastSend;
+  winningContent?: string;
 }
 
 export interface SavedVersion {

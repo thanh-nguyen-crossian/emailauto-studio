@@ -47,14 +47,16 @@ export function History({
           <h2 className="text-lg font-semibold">History</h2>
           <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--text)]">✕</button>
         </div>
-        {error && <div className="text-xs text-[#ff6b6b] mb-3">{error}</div>}
+        {error && <div className="text-xs text-[var(--bad)] mb-3">{error}</div>}
         {items === null && !error && <div className="text-sm text-[var(--muted)]">Loading…</div>}
         {items && items.length === 0 && (
           <div className="text-sm text-[var(--muted)]">No saved versions yet. Generate a campaign and Save it on the Export step.</div>
         )}
         <ul className="flex flex-col gap-2">
           {items?.map((v) => {
-            const variants = Object.keys(v.data?.copy || {}).length;
+            const segs = v.data?.segments?.length || 0;
+            const opts = (v.data?.options?.a ? 1 : 0) + (v.data?.options?.b ? 1 : 0);
+            const variants = segs * (opts || 1);
             return (
               <li key={v.id} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
                 <div className="flex items-center justify-between gap-2">

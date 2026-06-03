@@ -2,27 +2,34 @@
 // Source of truth for brand/tier/product logic — copy prompts must derive from these,
 // never duplicate the logic (see CLAUDE.md "Never duplicate brand/tier/product logic").
 
-export type TierCode = "A" | "B" | "C" | "D" | "F";
-
 export type LayoutType = "narrative" | "simple";
 
 export interface ProductSegment {
-  /** Product type code, e.g. "21". Used in the variant key `${tier}${productType}`. */
+  /** Segment code, e.g. "21" (BraGoddess) or "1-A" (SantaFare lifecycle tier). */
   code: string;
+  /** Segment name shown in the wizard, matching email-brief-generator (e.g. "Bralettes/Comfort"). */
   label: string;
-  /** Playbook Prompt-4 segment guidance: how to adapt copy for this buyer segment. */
-  guidance: string;
+  /** Short descriptor shown under the name + used in the prompt (e.g. "Low AOV · High freq"). */
+  meta: string;
+  /** Optional richer copy-strategy note (supplements name — meta in the prompt). */
+  guidance?: string;
 }
 
 export interface Product {
   slug: string; // lowercase, no spaces — used in UTM and product links
   name: string;
-  /** Product type code this product belongs to (matches a ProductSegment.code). */
-  segment: string;
   /** Default display price, e.g. "12.99" (no currency symbol — rendered with the spam-safe 💲). */
   price: string;
-  /** True for the brand's locked position-1 hero product. */
+  /** True for a recommended hero product (UI pre-selects the first into slot 1). */
   hero?: boolean;
+  /** Selling points used to ground the copy + brief. */
+  usps?: string[];
+  /** Short customer review quote. */
+  review?: string;
+  /** Canonical product URL. */
+  url?: string;
+  /** Optional category hint; products are a flat campaign-level selection, not segment-filtered. */
+  segment?: string;
 }
 
 export interface Brand {
@@ -64,52 +71,48 @@ export interface Brand {
   catalog: Product[];
 }
 
-export interface TierPsychology {
-  code: TierCode;
-  label: string;
-  mindset: string;
-  pricingFraming: string;
-  tone: string;
-  urgency: string;
-  psHint: string;
+export type OfferType = "sitewide_pct" | "fixed_price" | "free_ship" | "none";
+export type Urgency = "h24" | "h48" | "weekend" | "none";
+
+/** Last-send context to rotate angles / avoid repetition. */
+export interface LastSend {
+  ctr?: string;
+  hero?: string;
+  angle?: string;
+  note?: string;
 }
 
-/** A single email variant: a tier × productType pair, keyed `${tier}${productType}`. */
+/** A campaign. The variant axis is the selected segments (per brand; SantaFare = lifecycle tiers). */
 export interface Campaign {
   brandId: string;
   sendDate: string; // ISO date string
-  tiers: TierCode[];
-  productTypes: string[]; // subset of the brand's productSegments codes
+  segments: string[]; // selected segment codes from the brand's productSegments
   layout: LayoutType; // defaults to brand.layout, overridable
-  /** The campaign theme / offer brief, e.g. "Spring sale, up to 80% off, ends midnight". */
+  /** The campaign theme, e.g. "Spring comfort sale". */
+  theme: string;
+  /** Structured promo. */
+  offerType: OfferType;
+  offerValue: string; // e.g. "70% OFF" or "$12.99" or "Free Shipping $35+"
+  urgency: Urgency;
+  /** Synthesized promo line (derived from offerType/value/urgency) for prompt convenience. */
   offer: string;
   /**
-   * The Hook Contract — the single source of truth for all copy (playbook core concept):
+   * The Hook Contract — the single source of truth for all copy:
    * segment insight + emotion + hero product + price/proof + urgency + avoid rule.
    * If blank, the model constructs one from the offer before writing.
    */
   hookContract: string;
   /** Recipient name merge token shown in copy (defaults to the dataset token). */
   recipientName: string;
+  /** Optional last-send context. */
+  lastSend?: LastSend;
+  /** Optional winning-email reference to mirror structure/pacing. */
+  winningContent?: string;
 }
-
-/** Copy fields for one variant, returned by the model keyed on `${tier}${productType}`. */
-export interface VariantCopy {
-  subject: string;
-  preheader: string;
-  intro: string; // named-person micro-story body opener (markdown)
-  middle: string; // supporting paragraph (markdown)
-  closing?: string; // narrative layout only — closing + sign-off (markdown)
-  ps?: string; // narrative layout only — P.S. line (markdown)
-  ctaText: string; // 2–4 word action CTA
-  accent?: string; // optional per-variant accent override (defaults to brand.accent)
-}
-
-export type VariantCopyMap = Record<string, VariantCopy>;
 
 /**
  * Per-campaign image URLs (paste from SendGrid's image library or any email-safe CDN).
- * Shared across all variants — logo/hero/product images don't change per tier.
+ * Shared across all segments — logo/hero/product images don't change per segment.
  */
 export interface ImageOverrides {
   logo?: string;

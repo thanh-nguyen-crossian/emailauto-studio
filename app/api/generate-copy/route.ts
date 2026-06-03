@@ -1,36 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateAllVariants } from "@/lib/anthropic";
+import { generateOptions } from "@/lib/anthropic";
 import { BRANDS } from "@/lib/config/brands";
-import type { Campaign } from "@/lib/config/types";
+import type { Campaign, Product } from "@/lib/config/types";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // allow time for one Claude call per tier
+export const maxDuration = 120; // two sequential generations (A, then B)
 
-function validate(body: unknown): { ok: true; campaign: Campaign } | { ok: false; error: string } {
-  const c = body as Partial<Campaign>;
+function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {
+  const c = body as Partial<Campaign> & { products?: Product[] };
   if (!c || typeof c !== "object") return { ok: false, error: "Missing body" };
   if (!c.brandId || !BRANDS[c.brandId]) return { ok: false, error: "Unknown or missing brandId" };
-  if (!Array.isArray(c.tiers) || c.tiers.length === 0) return { ok: false, error: "Select at least one tier" };
-  if (!Array.isArray(c.productTypes) || c.productTypes.length === 0)
-    return { ok: false, error: "Select at least one product type" };
+  if (!Array.isArray(c.segments) || c.segments.length === 0) return { ok: false, error: "Select at least one segment" };
 
   const brand = BRANDS[c.brandId];
-  const validCodes = new Set(brand.productSegments.map((s) => s.code));
-  const bad = c.productTypes.filter((p) => !validCodes.has(p));
-  if (bad.length) return { ok: false, error: `Invalid product types for ${brand.name}: ${bad.join(", ")}` };
+  const valid = new Set(brand.productSegments.map((s) => s.code));
+  const bad = c.segments.filter((s) => !valid.has(s));
+  if (bad.length) return { ok: false, error: `Invalid segments for ${brand.name}: ${bad.join(", ")}` };
 
   const campaign: Campaign = {
     brandId: c.brandId,
     sendDate: c.sendDate || new Date().toISOString().slice(0, 10),
-    tiers: c.tiers,
-    productTypes: c.productTypes,
+    segments: c.segments,
     layout: c.layout || brand.layout,
-    offer: c.offer || "Limited-time offer",
+    theme: c.theme || "Limited-time offer",
+    offerType: c.offerType || "none",
+    offerValue: c.offerValue || "",
+    urgency: c.urgency || "none",
+    offer: c.offer || "",
     hookContract: c.hookContract || "",
     recipientName: c.recipientName || "son.nln",
+    lastSend: c.lastSend,
+    winningContent: c.winningContent,
   };
-  return { ok: true, campaign };
+  const products = Array.isArray(c.products) ? c.products : [];
+  return { ok: true, campaign, products };
 }
 
 export async function POST(req: NextRequest) {
@@ -51,18 +55,10 @@ export async function POST(req: NextRequest) {
   const v = validate(body);
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
 
-  // Optional reviewed/edited prompts from the "prompts" step.
-  const promptsRaw = (body as { prompts?: { system?: string; byTier?: Record<string, string> } }).prompts;
-  const overrides = promptsRaw
-    ? { system: promptsRaw.system, byTier: promptsRaw.byTier }
-    : undefined;
-
-  try {
-    const { copy, errors } = await generateAllVariants(v.campaign, overrides);
-    return NextResponse.json({ copy, errors });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Generation failed";
-    const status = message.includes("ANTHROPIC_API_KEY") ? 500 : 502;
-    return NextResponse.json({ error: message }, { status });
+  const result = await generateOptions(v.campaign, v.products);
+  if (result.error) {
+    const status = result.error.includes("ANTHROPIC_API_KEY") ? 500 : 502;
+    return NextResponse.json({ error: result.error }, { status });
   }
+  return NextResponse.json({ a: result.a, b: result.b });
 }

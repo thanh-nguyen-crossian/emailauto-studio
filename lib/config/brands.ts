@@ -14,7 +14,7 @@ export const BRANDS: Record<string, Brand> = {
     layout: "narrative",
     accent: "#c12a4e",
     accentRange: ["#a02338", "#d63268"],
-    heroSlug: "daisy-bra",
+    heroSlug: "daisybra",
     heroImage: "https://bragoddess.com/email/hero.jpg",
     logoImage: "https://bragoddess.com/email/logo.png",
     persona: "Sandra",
@@ -30,45 +30,66 @@ export const BRANDS: Record<string, Brand> = {
     productSegments: [
       {
         code: "21",
-        label: "Bralettes / Comfort",
+        label: "Bralettes/Comfort",
+        meta: "Low AOV · High freq",
         guidance:
           "Daily comfort seekers — loyal, high-frequency buyers. Acknowledge the ritual of a bra that makes life easier; speak to first-look access and the update they deserve.",
       },
       {
         code: "22",
-        label: "Contour / Push-Up",
+        label: "Contour/Push-Up",
+        meta: "Med AOV · Med freq",
         guidance:
           "Structure/shape-focused buyers — they want lift, support, confidence. Name the exact shape goal; bridge to styles that elevate what they already love.",
       },
       {
         code: "45",
-        label: "Shapers & Panties",
+        label: "Shapers/Panties",
+        meta: "Med AOV · Low freq",
         guidance:
           "Infrequent add-on buyers — they complete the set. Cross-sell: \"your wardrobe is almost complete\"; suggest a specific pairing.",
       },
       {
         code: "8",
-        label: "Sleepwear & Tights",
+        label: "Sleepwear/Tights",
+        meta: "Med AOV · Med freq",
         guidance:
           "Comfort-first lifestyle buyers — prioritize softness. Bridge from sleepwear comfort language to everyday bra comfort.",
       },
       {
         code: "3",
-        label: "Strapless / Special Occasion",
+        label: "Strapless/Special-Occasion",
+        meta: "Med AOV · Low freq",
         guidance:
           "Special-occasion buyers — bought for a moment or outfit. Acknowledge the occasion; bridge to the next event; urgency is event-driven, not generic time pressure.",
       },
     ],
     catalog: [
-      { slug: "daisy-bra", name: "Daisy Bra", segment: "21", price: "12.99", hero: true },
-      { slug: "posy", name: "Posy", segment: "21", price: "13.99" },
-      { slug: "ziplacy", name: "ZipLacy", segment: "21", price: "14.99" },
-      { slug: "bustella", name: "Bustella", segment: "22", price: "14.98" },
-      { slug: "zenalift", name: "ZenaLift", segment: "22", price: "16.99" },
-      { slug: "uplacy", name: "UpLacy", segment: "45", price: "9.99" },
-      { slug: "silk-brief", name: "Silk Brief", segment: "45", price: "8.99" },
-      { slug: "cloud-tight", name: "Cloud Tight", segment: "8", price: "11.99" },
-      { slug: "dream-strapless", name: "Dream Strapless", segment: "3", price: "17.99" },
+      { slug: "daisybra", name: "Daisy Bra 3", price: "12.99", hero: true, url: "https://bragoddess.com/daisybra", usps: ["Easy snap front closure", "Wire-free lift & support", "Breathable soft fabric", "3-second front fasten"], review: `"Forgot it's there!" — Helen R.` },
+      { slug: "posybra", name: "Posy Bra", price: "13.99", url: "https://bragoddess.com/posybra", usps: ["Front-hook ease", "Smoothing back panel", "Lace detail", "Comfortable all-day"], review: `"My 2nd order!" — Sharon M.` },
+      { slug: "sonashape", name: "SonaShape", price: "15.99", url: "https://bragoddess.com/sonashape", usps: ["Daily comfort seamless fit", "Invisible under clothing", "Gentle lift", "Zero wire"], review: `"Underwires? Never again." — Claire T.` },
+      { slug: "activabra", name: "Activa Bra 2.0", price: "16.99", url: "https://bragoddess.com/activabra", usps: ["Gentle support", "Wide comfort straps", "All-day wear", "Upgraded v2.0 fit"], review: `"Best decision ever!" — Judith K.` },
+      { slug: "zoeshape", name: "ZoeShape", price: "17.99", url: "https://bragoddess.com/zoeshape", usps: ["Powerful lifting & shaping", "Full coverage", "Smooths everything"], review: `"Smooths everything!" — Barbara H.` },
+      { slug: "ziplacy", name: "ZipLacy", price: "14.99", url: "https://bragoddess.com/ziplacy", usps: ["Front zip closure", "Powerful support", "Quick on/off"], review: `"Game-changer!" — Shirley D.` },
+      { slug: "mirahug", name: "MiraHug", price: "18.99", url: "https://bragoddess.com/mirahug", usps: ["Ultimate lifting & shaping", "Posture-corrector design", "Hugs all day"], review: `"Like a hug all day!" — Frances T.` },
+      { slug: "bustella", name: "Bustella", price: "16.99", url: "https://bragoddess.com/bustella", usps: ["Full bust support", "Wire-free comfort", "Adjustable straps"], review: `"Finally found my fit!" — Grace H.` },
+      { slug: "moonabra", name: "Moona Bra 2", price: "13.99", url: "https://bragoddess.com/moonabra", usps: ["3-second front snap", "Easy on/off", "Comfort support"], review: `"So easy to put on!" — Martha O.` },
+      { slug: "easeblooming", name: "EaseBlooming", price: "15.99", url: "https://bragoddess.com/easeblooming", usps: ["Bloom-like wire-free fit", "Ultra-soft fabric", "Gentle lift"], review: `"Feels like a second skin!" — Dorothy P.` },
+      { slug: "lushfitting", name: "LushFitting", price: "14.99", url: "https://bragoddess.com/lushfitting", usps: ["Lush comfort fit", "Perfect body contour", "Seamless design"], review: `"Perfect every time!" — Norma B.` },
+      { slug: "zenchicbra", name: "ZenChic Bra", price: "17.99", url: "https://bragoddess.com/zenchicbra", usps: ["Zen comfort design", "Chic lace overlay", "Smooth silhouette"], review: `"Elegant and comfortable!" — Eleanor W.` },
+      { slug: "zenalift", name: "ZenaLift", price: "16.99", url: "https://bragoddess.com/zenalift", usps: ["Ultimate lift", "Zero discomfort", "Innovative shape"], review: `"Amazing support!" — Evelyn P.` },
+      { slug: "fionabra", name: "Fiona Bra", price: "18.99", url: "https://bragoddess.com/fionabra", usps: ["Elegant lace design", "Wire-free support", "Beautiful detailing"], review: `"Feels luxurious!" — Fiona D.` },
+      { slug: "aerisoft", name: "AeriSoft", price: "14.99", url: "https://bragoddess.com/aerisoft", usps: ["Airy soft mesh fabric", "Wire-free comfort", "Lightweight design"], review: `"Like wearing a cloud!" — Ruth A.` },
+      { slug: "elisebra", name: "EliseBra", price: "15.99", url: "https://bragoddess.com/elisebra", usps: ["Elegant Elise design", "Wire-free freedom", "Smooth finish"], review: `"My daily favourite!" — Elise M.` },
+      { slug: "ellebloom", name: "ElleBloom", price: "15.99", url: "https://bragoddess.com/ellebloom", usps: ["Blooming comfort style", "Soft breathable fabric", "All-day wear"], review: `"Love the design!" — Lorraine C.` },
+      { slug: "curvylace", name: "CurvyLace", price: "17.99", url: "https://bragoddess.com/curvylace", usps: ["Curvy fit design", "Beautiful lace overlay", "All sizes welcome"], review: `"Made for my shape!" — Marge R.` },
+      { slug: "lunahug", name: "LunaHug", price: "14.99", url: "https://bragoddess.com/lunahug", usps: ["Luna gentle support", "Hugging comfort", "Soft stretch fabric"], review: `"Gentle and supportive!" — Luna K.` },
+      { slug: "senobra", name: "Senobra", price: "13.99", url: "https://bragoddess.com/senobra", usps: ["Senior-comfort focused", "Extra-wide soft straps", "Easy front closure"], review: `"Designed for comfort!" — Irene T.` },
+      { slug: "ivylift", name: "IvyLift", price: "18.99", url: "https://bragoddess.com/ivylift", usps: ["Seamless wire-free push-up", "Sculpt & define", "Lightweight feel"], review: `"Never going back!" — Nancy W.` },
+      { slug: "honeycurve", name: "HoneyCurve", price: "19.99", url: "https://bragoddess.com/honeycurve", usps: ["Powerful custom-lift support", "Honeycomb design", "Shaping technology"], review: `"Perfect shape!" — Patricia L.` },
+      { slug: "rosylift", name: "RosyLift", price: "16.99", url: "https://bragoddess.com/rosylift", usps: ["Best-selling custom lift", "Adjustable support", "Wire-free comfort"], review: `"My favourite!" — Linda S.` },
+      { slug: "liftyglow", name: "LiftyGlow", price: "17.99", url: "https://bragoddess.com/liftyglow", usps: ["Flexi-lift comfy bra", "Flexible underwire-free", "Glowing comfort"], review: `"Incredible lift!" — Joyce B.` },
+      { slug: "evaglow-bra", name: "EvaGlow Bra", price: "18.99", url: "https://bragoddess.com/evaglow-bra", usps: ["Seamless powerful lift", "Cleavage boost", "Breathable fabric"], review: `"Feels like nothing!" — Rose C.` },
     ],
   },
 
@@ -96,31 +117,44 @@ export const BRANDS: Record<string, Brand> = {
       {
         code: "71",
         label: "Men's Tops",
+        meta: "Med AOV · High freq",
         guidance:
           "Frequent tops buyers — they return regularly. Acknowledge style consistency; make the case the bottoms complete what they already own. Wardrobe completion, not isolated purchase.",
       },
       {
         code: "72",
         label: "Men's Bottoms",
+        meta: "High AOV · Med freq",
         guidance:
           "Premium pants buyers — high value, high churn risk. Speak to fit specificity, durability data, and exactly how these differ from what they have.",
       },
       {
         code: "73",
         label: "Men's Others",
+        meta: "Med AOV · Low freq",
         guidance:
           "Lapsed or peripheral buyers — bought something small/non-core. Step them up to the flagship; lead with one compelling reason and remove risk via guarantee + easy returns.",
       },
     ],
     catalog: [
-      { slug: "jettjeans", name: "JettJeans", segment: "72", price: "29.99", hero: true },
-      { slug: "flexcamo", name: "FlexCamo", segment: "72", price: "27.99", hero: true },
-      { slug: "icy-shorts", name: "Icy Shorts", segment: "72", price: "19.99" },
-      { slug: "steelstitch", name: "SteelStitch", segment: "72", price: "32.99" },
-      { slug: "easemotions", name: "EaseMotions", segment: "72", price: "24.99" },
-      { slug: "northpeak-tee", name: "NorthPeak Tee", segment: "71", price: "16.99" },
-      { slug: "ridge-henley", name: "Ridge Henley", segment: "71", price: "21.99" },
-      { slug: "leather-belt", name: "Leather Belt", segment: "73", price: "14.99" },
+      { slug: "jettjeans", name: "JettJeans", price: "29.99", hero: true, url: "https://gentslux.com/jettjeans", usps: ["Comfortable sit/bend/walk", "4-way stretch fabric", "Classic tailored look"], review: `"Comfortable all day." — Terry D.` },
+      { slug: "icyshorts", name: "IcyShorts", price: "19.99", url: "https://gentslux.com/icyshorts", usps: ["Ice silk cooling fabric", "Quick-dry 4× faster", "Stays cool all day"], review: `"Saved my summer!" — Frank D.` },
+      { slug: "flexcamo", name: "FlexCamo", price: "27.99", url: "https://gentslux.com/flexcamo", usps: ["Tactical camo design", "4-way flex fabric", "6 deep pockets"], review: `"Great for everything!" — Mike R.` },
+      { slug: "timelessflex", name: "TimelessFlex", price: "32.99", url: "https://gentslux.com/timelessflex", usps: ["Timeless classic style", "Pull-on elastic waist", "Versatile dress-casual"], review: `"Looks sharp, feels great." — Robert W.` },
+      { slug: "meshirons", name: "MeshIrons", price: "24.99", url: "https://gentslux.com/meshirons", usps: ["Breathable mesh panels", "Wrinkle-resistant fabric", "Easy care wash"], review: `"Always looks pressed." — Carl M.` },
+      { slug: "easetactic", name: "EaseTactic", price: "26.99", url: "https://gentslux.com/easetactic", usps: ["Tactical ease design", "Stretch-flex waist", "Light & durable"], review: `"Built for action." — James B.` },
+      { slug: "oldenease", name: "OldenEase", price: "24.99", url: "https://gentslux.com/oldenease", usps: ["Senior comfort focused", "No belt wrestling", "Gentle elastic waist"], review: `"Finally pants that fit." — Harold P.` },
+      { slug: "stretchactive", name: "StretchActive", price: "27.99", url: "https://gentslux.com/stretchactive", usps: ["Super stretch 4-way", "Machine washable", "Casual to sport"], review: `"Stretches perfectly." — Dennis W.` },
+      { slug: "easeflexor", name: "EaseFlexor", price: "25.99", url: "https://gentslux.com/easeflexor", usps: ["Ease of movement", "Pull-on comfort waist", "All-day wear"], review: `"Move without restriction." — George K.` },
+      { slug: "multipants", name: "MultiPants", price: "28.99", url: "https://gentslux.com/multipants", usps: ["6 deep pockets", "4-way stretch", "No-fuss design"], review: `"Everything fits!" — Harold B.` },
+      { slug: "airflexion", name: "AirFlexion", price: "26.99", url: "https://gentslux.com/airflexion", usps: ["Pull-on elastic waist", "No belt wrestling", "360° stretch"], review: `"Step in, ready to go!" — George P.` },
+      { slug: "easemotions", name: "EaseMotions", price: "24.99", url: "https://gentslux.com/easemotions", usps: ["Ease of motion design", "Stretch fabric", "Lightweight feel"], review: `"Moves with me all day." — Larry S.` },
+      { slug: "modenease", name: "ModenEase", price: "29.99", url: "https://gentslux.com/modenease", usps: ["Modern ease design", "Stretch waistband", "Smart casual look"], review: `"Modern and comfortable." — Steven H.` },
+      { slug: "stretchmotions", name: "StretchMotions", price: "31.99", url: "https://gentslux.com/stretchmotions", usps: ["Superb stretch", "6 deep pockets", "All-terrain wear"], review: `"Best pants I own!" — Dennis W.` },
+      { slug: "tactishirt", name: "TactiShirt", price: "21.99", url: "https://gentslux.com/tactishirt", usps: ["Tactical shirt design", "Breathable mesh back", "Rugged daily wear"], review: `"Perfect outdoor shirt." — Brian K.` },
+      { slug: "glidepants", name: "GlidePants", price: "26.99", url: "https://gentslux.com/glidepants", usps: ["Smooth glide fabric", "Easy pull-on fit", "Active comfort"], review: `"Glides on perfectly." — Alan T.` },
+      { slug: "glideactive", name: "GlideActive", price: "27.99", url: "https://gentslux.com/glideactive", usps: ["Active glide fit", "Quick-dry fabric", "Sport-casual design"], review: `"Great for all activities." — Paul R.` },
+      { slug: "ice-strider", name: "IceStrider", price: "24.99", url: "https://gentslux.com/ice-strider", usps: ["Room without sloppiness", "Cool ice fabric", "Sharp look"], review: `"Sharp and comfy." — Robert K.` },
     ],
   },
 
@@ -131,7 +165,7 @@ export const BRANDS: Record<string, Brand> = {
     layout: "simple",
     accent: "#f2305f",
     accentRange: ["#e7324a", "#fe397b"],
-    heroSlug: "stretchactive",
+    heroSlug: "stretchactive-lf",
     heroImage: "https://luxfitting.com/email/hero.jpg",
     logoImage: "https://luxfitting.com/email/logo.png",
     persona: "Adele",
@@ -148,36 +182,48 @@ export const BRANDS: Record<string, Brand> = {
       {
         code: "61",
         label: "Women's Tops",
+        meta: "Med AOV · High freq",
         guidance:
           "Frequent tops buyers — know what they like. Acknowledge style loyalty; cross-sell bottoms/dresses that complete the outfit. Effortless-outfit angle.",
       },
       {
         code: "62",
         label: "Women's Bottoms",
+        meta: "High AOV · High freq",
         guidance:
           "High-value bottoms buyers — spend more, return often, high competitor risk. Speak to fit precision, fabric quality, what makes these different.",
       },
       {
         code: "63",
         label: "Women's Dresses",
+        meta: "High AOV · Med freq",
         guidance:
           "Occasion-driven dress buyers — shop for moments, not routinely. Create occasion urgency; make it feel like it arrived at the right time.",
       },
       {
         code: "64",
         label: "Women's Others",
+        meta: "Med AOV · Low freq",
         guidance:
           "Infrequent peripheral buyers — bought something non-core. Bridge from what they bought to the main collection; remove risk; make the step up easy.",
       },
     ],
     catalog: [
-      { slug: "stretchactive", name: "StretchActive", segment: "62", price: "14.98", hero: true },
-      { slug: "icy-legging", name: "Icy Legging", segment: "62", price: "19.99" },
-      { slug: "flowpant", name: "FlowPant", segment: "62", price: "17.99" },
-      { slug: "airknit-tee", name: "AirKnit Tee", segment: "61", price: "12.99" },
-      { slug: "lumi-top", name: "Lumi Top", segment: "61", price: "13.99" },
-      { slug: "soiree-dress", name: "Soirée Dress", segment: "63", price: "29.99" },
-      { slug: "moverband", name: "MoverBand", segment: "64", price: "7.99" },
+      { slug: "stretchactive-lf", name: "StretchActive", price: "14.98", hero: true, url: "https://luxfitting.com/stretchactive", usps: ["4-way stretch comfort", "High-rise waist", "Machine washable"], review: `"Moves with me perfectly." — Sandra T.` },
+      { slug: "icy-shorts-lf", name: "Icy Shorts", price: "16.99", url: "https://luxfitting.com/icyshorts", usps: ["Ice silk cooling", "Easy stretch waist", "Light & breezy"], review: `"No pinching at all!" — Marissa T.` },
+      { slug: "airygrace", name: "AiryGrace", price: "19.99", url: "https://luxfitting.com/airygrace", usps: ["Airy drape fabric", "Pull-on ease", "Lightweight comfort"], review: `"Feels so light!" — Diane M.` },
+      { slug: "softygrace", name: "SoftyGrace", price: "17.99", url: "https://luxfitting.com/softygrace", usps: ["Silky pull-on waist", "No press or roll", "All-day soft comfort"], review: `"Wore it all day!" — Linda R.` },
+      { slug: "glamorease", name: "GlamorEase", price: "21.99", url: "https://luxfitting.com/glamorease", usps: ["Glamorous easy wear", "Stretch comfort waist", "Effortless style"], review: `"Glamorous and easy!" — Gloria P.` },
+      { slug: "comfijeans", name: "ComfiJeans", price: "24.99", url: "https://luxfitting.com/comfijeans", usps: ["Comfortable stretch jeans", "Soft elastic waist", "Smart casual look"], review: `"Jeans I actually love." — Carol S.` },
+      { slug: "flowycharm", name: "FlowyCharm", price: "19.99", url: "https://luxfitting.com/flowycharm", usps: ["Flowy charm design", "Lightweight drape fabric", "Breezy & elegant"], review: `"So charming and comfortable!" — Donna H.` },
+      { slug: "easeflexor-lf", name: "EaseFlexor", price: "17.99", url: "https://luxfitting.com/easeflexor", usps: ["Ease of movement", "Flex comfort waist", "Everyday versatile"], review: `"Easy to wear, easy to move." — Alice B.` },
+      { slug: "soraease", name: "SoraEase", price: "16.99", url: "https://luxfitting.com/soraease", usps: ["Soaring lightweight feel", "Breathable soft fabric", "All-day comfort"], review: `"Feels like nothing!" — Norma C.` },
+      { slug: "ellaflow", name: "EllaFlow", price: "19.99", url: "https://luxfitting.com/ellaflow", usps: ["Ella flow drape fabric", "Elegant silhouette", "Breathable wear"], review: `"Elegant and effortless!" — Ella W.` },
+      { slug: "linenglam", name: "LinenGlam", price: "22.99", url: "https://luxfitting.com/linenglam", usps: ["Ultra soft LinoWeave", "Glamorous style", "Wrinkle-resistant"], review: `"So classy!" — Beverly H.` },
+      { slug: "flexcozy", name: "FlexCozy", price: "17.99", url: "https://luxfitting.com/flexcozy", usps: ["Flexible cozy fit", "Soft stretch fabric", "Relaxed comfort"], review: `"Cozy and flexible!" — Marie K.` },
+      { slug: "loragrace", name: "LoraGrace", price: "21.99", url: "https://luxfitting.com/loragrace", usps: ["Lora grace design", "Comfort waist", "Timeless style"], review: `"Grace in every step!" — Laura N.` },
+      { slug: "ella-ease", name: "EllaEase", price: "18.99", url: "https://luxfitting.com/ellaease", usps: ["Gentle stretch", "Helps knee/leg movement", "Everyday comfort"], review: `"My legs feel free!" — Shirley D.` },
+      { slug: "suede-soft", name: "SuedeSoft", price: "24.99", url: "https://luxfitting.com/suedesoft", usps: ["Buttery suede feel", "Wrinkle-resistant", "Looks expensive"], review: `"Looks expensive!" — Patricia O.` },
     ],
   },
 
@@ -201,22 +247,19 @@ export const BRANDS: Record<string, Brand> = {
     offSymbol: "SAVING",
     freeShipThreshold: "45",
     defaultProductCount: 4,
-    // SantaFare is a single product segment differentiated by recency/lifecycle (tiers).
+    // SantaFare's variant axis is its gifting lifecycle (recency tiers), not categories.
     productSegments: [
-      {
-        code: "1",
-        label: "Personalized Gifts",
-        guidance:
-          "Single gifting segment, differentiated by recency tier (the campaign tiers). Active: next occasion is coming sooner than they think. Drifting: \"it's almost time again\". Lapsed: lead risk-free (free returns, guarantee). VIP: exclusive first-look + elevation.",
-      },
+      { code: "1-A", label: "Active", meta: "<90 days since last order", guidance: "Active gifters — acknowledge their recent gift; the next occasion is coming sooner than they think; gentle recency urgency." },
+      { code: "1-B", label: "Drifting", meta: "90–180 days", guidance: "Drifting — \"it's almost time again\"; reference the occasion type they last gifted for; a natural continuation, not a re-sell." },
+      { code: "1-C", label: "Lapsed", meta: ">180 days", guidance: "Lapsed — remove all friction; lead risk-free (free returns, gift guarantee); reference their last gift positively." },
+      { code: "1-D", label: "VIP", meta: "2+ orders", guidance: "VIP — exclusive gifting angle; first-look / limited availability; speak to elevation and trusted quality." },
     ],
     catalog: [
-      { slug: "pouchic", name: "Pouchic", segment: "1", price: "8.99", hero: true },
-      { slug: "timelessmark", name: "TimelessMark", segment: "1", price: "19.99", hero: true },
-      { slug: "bygonemark", name: "BygoneMark", segment: "1", price: "24.99" },
-      { slug: "heritage-tote", name: "Heritage Tote", segment: "1", price: "29.99" },
-      { slug: "leather-tag", name: "Leather Tag", segment: "1", price: "4.99" },
-      { slug: "scarf-wrap", name: "Scarf Wrap", segment: "1", price: "12.99" },
+      { slug: "pouchic", name: "Pouchic", price: "8.99", hero: true, url: "https://santafare.com/pouchic", usps: ["Snap closure leather", "Personalised engraving", "Gift-ready"], review: `"A stylish lifesaver!" — Kate W.` },
+      { slug: "timelessmark", name: "TimelessMark", price: "19.99", url: "https://santafare.com/timelessmark", usps: ["Mark your place", "Personalised text", "Premium quality"], review: `"Best 💲9 I've ever spent!" — David K.` },
+      { slug: "bygonemark", name: "BygoneMark", price: "24.99", url: "https://santafare.com/bygonemark", usps: ["Custom engraving", "Premium quality", "Unique keepsake"], review: `"Perfect personalised gift!" — Sarah M.` },
+      { slug: "snowflake", name: "Snowflake", price: "12.99", url: "https://santafare.com/snowflake", usps: ["Unique snowflake design", "Personalised name", "Gift-ready packaging"], review: `"They loved it!" — Jennifer L.` },
+      { slug: "winkkey", name: "WinkKey", price: "9.99", url: "https://santafare.com/winkkey", usps: ["Personalised key ring", "Durable metal build", "Thoughtful touch"], review: `"So thoughtful!" — Amanda R.` },
     ],
   },
 };
@@ -229,10 +272,9 @@ export function getBrand(brandId: string): Brand {
   return brand;
 }
 
-/** Products in a brand's catalog matching the selected product type codes. */
-export function productsForTypes(brandId: string, productTypes: string[]): Brand["catalog"] {
-  const brand = getBrand(brandId);
-  return brand.catalog.filter((p) => productTypes.includes(p.segment));
+/** Full product catalog for a brand (products are a flat campaign-level selection). */
+export function brandCatalog(brandId: string): Brand["catalog"] {
+  return getBrand(brandId).catalog;
 }
 
 /** Slugify on input: lowercase, strip anything outside [a-z0-9_-]. */
