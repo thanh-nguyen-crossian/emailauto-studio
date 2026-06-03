@@ -149,6 +149,11 @@ function similarity(a: string, b: string): number {
 }
 
 // ---- prompt builders ----
+/** The clause appended to Option B's system prompt forcing a different angle + framework than A. */
+export function contrastInstruction(optionADirection: GenCreativeDirection): string {
+  return `\nCRITICAL CONTRAST REQUIREMENT:\nOption A used Angle: ${optionADirection.angle}, Framework: ${optionADirection.framework}.\nYou MUST choose a DIFFERENT angle AND a DIFFERENT framework for Option B. State them in creative_direction BEFORE writing copy. Reusing either is INVALID.`;
+}
+
 export function buildSystemPrompt(
   campaign: Campaign,
   products: Product[],
@@ -190,10 +195,7 @@ export function buildSystemPrompt(
     )
     .join(",\n    ");
 
-  const contrast =
-    isOptionB && optionADirection
-      ? `\nCRITICAL CONTRAST REQUIREMENT:\nOption A used Angle: ${optionADirection.angle}, Framework: ${optionADirection.framework}.\nYou MUST choose a DIFFERENT angle AND a DIFFERENT framework for Option B. State them in creative_direction BEFORE writing copy. Reusing either is INVALID.`
-      : "";
+  const contrast = isOptionB && optionADirection ? contrastInstruction(optionADirection) : "";
   const winning = campaign.winningContent?.trim()
     ? `\nWINNING REFERENCE EMAIL (mirror its structure, pacing, hook style - write all-new copy):\n---\n${campaign.winningContent.trim().slice(0, 1800)}\n---`
     : "";

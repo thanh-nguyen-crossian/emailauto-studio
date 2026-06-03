@@ -23,6 +23,8 @@ export interface VersionPayload {
   includeLogo: boolean;
   /** Product grid arrangement chosen in the output step. */
   productLayout?: ProductLayout;
+  /** Manual HTML edits to the rendered email, keyed `${opt}:${segment}`. */
+  htmlOverrides?: Record<string, string>;
   images: ImageOverrides;
   /** The two generated options (combined copy + design brief). */
   options: { a?: GenBrief; b?: GenBrief };

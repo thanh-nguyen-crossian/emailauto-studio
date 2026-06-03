@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Campaign, Product } from "./config/types";
-import { buildSystemPrompt, buildUserPrompt, validateBrief, type GenBrief } from "./briefgen";
+import { buildSystemPrompt, buildUserPrompt, contrastInstruction, validateBrief, type GenBrief } from "./briefgen";
 
 // Generation engine wiring. Produces two contrasting options (A/B) — each a combined
 // content + design brief — using the ported brief-generator prompt, with parse-retry and
@@ -59,16 +59,31 @@ export interface GenerationResult {
   error?: string;
 }
 
-/** Generate two contrasting options (A + B), each a combined content + design brief. */
-export async function generateOptions(campaign: Campaign, products: Product[]): Promise<GenerationResult> {
-  try {
-    const a = validateBrief(
-      (await createAndParse(buildSystemPrompt(campaign, products, false), buildUserPrompt(campaign, false))) as unknown as GenBrief,
-      campaign
-    );
+/** Optional user-edited prompts from the review step (what-you-see-is-what's-sent). */
+export interface PromptOverrides {
+  system?: string;
+  user?: string;
+}
 
-    const sysB = buildSystemPrompt(campaign, products, true, a.creative_direction);
-    const usrB = buildUserPrompt(campaign, true);
+/** Generate two contrasting options (A + B), each a combined content + design brief. */
+export async function generateOptions(
+  campaign: Campaign,
+  products: Product[],
+  overrides?: PromptOverrides
+): Promise<GenerationResult> {
+  try {
+    const sysA = overrides?.system?.trim() || buildSystemPrompt(campaign, products, false);
+    const usrA = overrides?.user?.trim() || buildUserPrompt(campaign, false);
+    const a = validateBrief((await createAndParse(sysA, usrA)) as unknown as GenBrief, campaign);
+
+    // Option B keeps the contrast requirement even when the prompts are user-edited: append it
+    // to the (possibly edited) base rather than re-deriving from scratch.
+    const sysB = overrides?.system?.trim()
+      ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
+      : buildSystemPrompt(campaign, products, true, a.creative_direction);
+    const usrB = overrides?.user?.trim()
+      ? overrides.user.trim() + "\n\nGenerate Option B now — you MUST use a different angle AND framework than Option A."
+      : buildUserPrompt(campaign, true);
     let b = validateBrief((await createAndParse(sysB, usrB)) as unknown as GenBrief, campaign);
 
     // Auto-retry once if B reused A's angle or framework.

@@ -84,6 +84,9 @@ export default function Studio() {
   const [activeOption, setActiveOption] = useState<OptKey>("a");
   const [activeSegment, setActiveSegment] = useState<string>("");
   const [outputTab, setOutputTab] = useState<"preview" | "brief">("preview");
+  // Manual HTML edits to the rendered email, keyed `${opt}:${segment}` (overrides the render).
+  const [htmlOverrides, setHtmlOverrides] = useState<Record<string, string>>({});
+  const [editingHtml, setEditingHtml] = useState(false);
 
   const [apiError, setApiError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -270,6 +273,11 @@ export default function Studio() {
   // ---- prompt previews (for the Review step; what the server rebuilds and sends) ----
   const systemPromptA = useMemo(() => buildSystemPrompt(campaign, selectedProducts, false), [campaign, selectedProducts]);
   const userPromptA = useMemo(() => buildUserPrompt(campaign, false), [campaign]);
+  // Optional user edits to the prompts (null = use the generated default; what-you-see-is-what's-sent).
+  const [systemOverride, setSystemOverride] = useState<string | null>(null);
+  const [userOverride, setUserOverride] = useState<string | null>(null);
+  const effectiveSystem = systemOverride ?? systemPromptA;
+  const effectiveUser = userOverride ?? userPromptA;
 
   async function generate() {
     setGenerating(true);
@@ -277,6 +285,8 @@ export default function Studio() {
     setSaveState("idle");
     setSyncResults({});
     setTplResults({});
+    setHtmlOverrides({});
+    setEditingHtml(false);
     try {
       const res = await fetch("/api/generate-copy", {
         method: "POST",
@@ -286,6 +296,10 @@ export default function Studio() {
           products: selectedProducts.map((p) => ({
             name: p.name, slug: p.slug, price: p.price, usps: p.usps, review: p.review, url: p.url,
           })),
+          promptOverrides:
+            systemOverride !== null || userOverride !== null
+              ? { system: systemOverride ?? undefined, user: userOverride ?? undefined }
+              : undefined,
         }),
       });
       // Read as text first: a serverless timeout/crash returns a plain-text error page, not JSON.
@@ -320,10 +334,14 @@ export default function Studio() {
   const activeBrief = options[activeOption];
 
   function htmlFor(opt: OptKey, seg: string): string {
+    const key = `${opt}:${seg}`;
+    if (htmlOverrides[key] != null) return htmlOverrides[key]; // user-edited HTML wins
     const b = options[opt];
     if (!b) return "";
     return renderEmailHTML(brand, campaign, selectedProducts, b, seg, images, { includeLogo, productLayout });
   }
+  const activeHtmlKey = `${activeOption}:${activeSegment}`;
+  const activeHtmlEdited = htmlOverrides[activeHtmlKey] != null;
   function subjectFor(opt: OptKey, seg: string): string {
     return options[opt]?.subject_lines?.[segJsonKey(seg)]?.subject || `${brand.name} ${seg}`;
   }
@@ -406,7 +424,7 @@ export default function Studio() {
     try {
       const payload: VersionPayload = {
         brandId, sendDate, theme, offerType, offerValue, urgency, offer, hookContract, recipientName,
-        segments, slots, includeLogo, productLayout, images, options,
+        segments, slots, includeLogo, productLayout, images, options, htmlOverrides,
         lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote },
         winningContent,
       };
@@ -446,6 +464,9 @@ export default function Studio() {
     setSaveError(null);
     setSyncResults({});
     setTplResults({});
+    setSystemOverride(null);
+    setUserOverride(null);
+    setHtmlOverrides({});
     setVisited(new Set([0]));
     setOpenStep(0);
     setView("build");
@@ -474,6 +495,8 @@ export default function Studio() {
     setOptions(d.options || {});
     setActiveOption(d.options?.a ? "a" : "b");
     setActiveSegment((d.segments || [])[0] || "");
+    setHtmlOverrides(d.htmlOverrides || {});
+    setEditingHtml(false);
     setSyncResults({});
     setTplResults({});
     setSaveState("idle");
@@ -806,8 +829,22 @@ export default function Studio() {
           </p>
           {apiError && <Banner level="fail">{apiError}</Banner>}
 
-          <PromptBlock title="System prompt (shared, cached)" subtitle={`${brand.name} · ${brand.persona} — B also gets a contrast clause after A returns`} value={systemPromptA} />
-          <PromptBlock title="User prompt (shared by A & B)" subtitle="lead creative direction, then all copy sections" value={userPromptA} />
+          <PromptBlock
+            title="System prompt (shared, cached)"
+            subtitle={`${brand.name} · ${brand.persona} — B also gets a contrast clause after A returns`}
+            value={effectiveSystem}
+            edited={systemOverride !== null}
+            onChange={(v) => setSystemOverride(v)}
+            onReset={() => setSystemOverride(null)}
+          />
+          <PromptBlock
+            title="User prompt (shared by A & B)"
+            subtitle="lead creative direction, then all copy sections"
+            value={effectiveUser}
+            edited={userOverride !== null}
+            onChange={(v) => setUserOverride(v)}
+            onReset={() => setUserOverride(null)}
+          />
 
           <div className="flex items-center gap-2">
             <button onClick={() => setView("build")} className="btn-ghost">← Back to brief</button>
@@ -866,7 +903,35 @@ export default function Studio() {
                       <strong>{subjectFor(activeOption, activeSegment)}</strong>
                       <span className="text-[var(--muted)] ml-2">({subjectFor(activeOption, activeSegment).length} chars)</span>
                     </div>
-                    <LayoutPicker count={selectedProducts.length} value={productLayout} onChange={setProductLayout} />
+                    <LayoutPicker count={selectedProducts.length} value={productLayout} onChange={(v) => { setProductLayout(v); setHtmlOverrides({}); }} />
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        onClick={() => setEditingHtml((v) => !v)}
+                        className={`px-3 py-1 rounded text-sm border ${editingHtml ? "bg-[var(--accent)] text-white border-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                      >
+                        {editingHtml ? "✓ Done editing" : "✎ Edit HTML"}
+                      </button>
+                      {activeHtmlEdited && (
+                        <>
+                          <span className="text-xs text-[var(--accent-2)]">· edited</span>
+                          <button
+                            onClick={() => setHtmlOverrides((o) => { const n = { ...o }; delete n[activeHtmlKey]; return n; })}
+                            className="btn-ghost"
+                          >
+                            Reset to generated
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {editingHtml && (
+                      <textarea
+                        value={htmlFor(activeOption, activeSegment)}
+                        onChange={(e) => setHtmlOverrides((o) => ({ ...o, [activeHtmlKey]: e.target.value }))}
+                        spellCheck={false}
+                        className="w-full mono text-xs leading-relaxed p-3 mb-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] outline-none resize-y"
+                        style={{ height: 220 }}
+                      />
+                    )}
                     <Preview html={htmlFor(activeOption, activeSegment)} />
                   </div>
                   <div className="flex flex-col gap-4">
@@ -1040,18 +1105,37 @@ function Banner({ level, children }: { level: "warn" | "fail"; children: React.R
   );
 }
 
-function PromptBlock({ title, subtitle, value }: { title: string; subtitle: string; value: string }) {
+function PromptBlock({
+  title, subtitle, value, edited, onChange, onReset,
+}: {
+  title: string;
+  subtitle: string;
+  value: string;
+  edited: boolean;
+  onChange: (v: string) => void;
+  onReset: () => void;
+}) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--surface-2)]">
         <div className="flex-1">
-          <div className="text-sm font-semibold">{title}</div>
+          <div className="text-sm font-semibold">
+            {title}
+            {edited && <span className="ml-2 text-xs text-[var(--accent-2)]">· edited</span>}
+          </div>
           <div className="text-xs text-[var(--muted)]">{subtitle}</div>
         </div>
         <span className="text-xs text-[var(--muted)]">{value.length} chars</span>
         <button onClick={() => navigator.clipboard.writeText(value)} className="btn-ghost">Copy</button>
+        <button onClick={onReset} disabled={!edited} className="btn-ghost">Reset</button>
       </div>
-      <textarea value={value} readOnly spellCheck={false} className="w-full bg-transparent text-[var(--text)] mono text-xs leading-relaxed p-4 outline-none resize-y" style={{ height: 200 }} />
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        spellCheck={false}
+        className="w-full bg-transparent text-[var(--text)] mono text-xs leading-relaxed p-4 outline-none resize-y"
+        style={{ height: 220 }}
+      />
     </div>
   );
 }

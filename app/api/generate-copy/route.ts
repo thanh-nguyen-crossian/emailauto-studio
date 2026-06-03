@@ -57,7 +57,9 @@ export async function POST(req: NextRequest) {
   const v = validate(body);
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
 
-  const result = await generateOptions(v.campaign, v.products);
+  const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;
+  const overrides = po && (po.system || po.user) ? { system: po.system, user: po.user } : undefined;
+  const result = await generateOptions(v.campaign, v.products, overrides);
   if (result.error) {
     const status = result.error.includes("ANTHROPIC_API_KEY") ? 500 : 502;
     return NextResponse.json({ error: result.error }, { status });
