@@ -37,12 +37,19 @@ Every email locks ONE promise before writing: segment insight + emotion/curiosit
 - Mention free shipping over 💲${brand.freeShipThreshold} in the body.
 
 ## Body structure (non-negotiable)
-- Open with a 2–3 sentence NAMED-PERSON micro-story tied to one pain/occasion/product moment — never a bullet list.
+- Open with a NAMED-PERSON micro-story tied to one pain/occasion/product moment — never a bullet list.
 - Carry the SAME single hook from opener → CTA; introduce no competing angle.
 - Embed supplied proof as name + specific pain + product relief; never invent ratings/ages/counts.
 - State the specific price at least once in the body.
-- Include at least one inline product link by paragraph 2 (markdown \`[Name](slug:productslug)\`) — a natural, conversational secondary CTA.
+- Include at least one inline product link by the second paragraph (markdown \`[Name](slug:productslug)\`) — a natural, conversational secondary CTA.
 - CTA text: 2–4 words, action verb + object.
+
+## Formatting for scannability (non-negotiable)
+- SHORT paragraphs: 1–2 sentences each, ≤ ~220 characters. Never write a wall of text.
+- Separate EVERY paragraph with a blank line (\\n\\n between paragraphs).
+- Put the offer/price on its OWN short line for emphasis.
+- intro = 2 short sentences (the micro-story). middle = 2–4 short paragraphs, blank-line separated.
+- The whole body should read as several short, scannable blocks — easy to skim on a phone.
 
 ${GUARDRAILS}
 
@@ -57,8 +64,8 @@ Return ONLY a JSON object (no prose, no markdown fences). Keys are the EXACT var
 {
   "subject": string,      // ≤ ${brand.subjectMax} chars, inherits the hook, name in subject OR preheader (not both)
   "preheader": string,    // 60–90 chars, a NEW beat
-  "intro": string,        // 2–3 sentence named micro-story opener (markdown allowed)
-  "middle": string,       // bridges to the products; includes an inline product link + the price (markdown allowed)
+  "intro": string,        // named micro-story opener — 2 SHORT sentences
+  "middle": string,       // 2–4 SHORT paragraphs, blank-line (\\n\\n) separated; price on its own line; ≥1 inline product link
   ${brand.layout === "narrative" ? '"closing": string,     // closing + sign-off paragraph (narrative layout)\n  "ps": string,           // a single P.S. line (narrative layout)\n  ' : ""}"ctaText": string,      // 2–4 words
   "accent": "${brand.accent}"   // keep within ${brand.accentRange[0]}–${brand.accentRange[1]}
 }`;
