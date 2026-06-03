@@ -15,8 +15,8 @@ SendGrid **Design** or **Dynamic Template**. Backed by user accounts, saved hist
 ## Quick start
 
 ```bash
-git clone https://github.com/sonnln-eng/emailauto.git
-cd emailauto
+git clone https://github.com/minhhvle-crossian/emailauto-studio.git
+cd emailauto-studio
 npm install
 cp .env.example .env.local      # fill in the keys (see below)
 npm run dev                     # → http://localhost:3000
