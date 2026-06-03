@@ -51,6 +51,9 @@
   table.tech td{ padding:12px 14px; border-bottom:1px solid var(--border); font-size:17px; vertical-align:top; }
   table.tech td:first-child{ color:var(--muted); width:230px; }
   .ok{ color:#3ecf8e; } .warn{ color:#f5c451; }
+  .gap,.pot{ position:relative; padding-left:28px; font-size:17px; line-height:1.4; color:var(--text); }
+  .gap::before{ content:"△"; position:absolute; left:0; color:#f5c451; font-weight:700; }
+  .pot::before{ content:"↑"; position:absolute; left:0; color:#3ecf8e; font-weight:800; }
   .big{ font-size:22px; }
   .codepill{ font-family:ui-monospace,Menlo,monospace; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:2px 8px; font-size:14px; }
 </style>
@@ -194,7 +197,90 @@
   <div class="foot"><span>EmailAuto Studio</span><span>07</span></div>
 </section>
 
-<!-- 8 — Status -->
+<!-- 8 — Fee structure -->
+<section class="slide">
+  <div class="accent-bar"></div>
+  <div class="eyebrow">Fee structure</div>
+  <h2>Cost to run</h2>
+  <div class="grid g2">
+    <div class="card"><div class="k">Per Claude API call (one tier)</div><h3 class="ok" style="font-size:36px">~$0.015–0.02</h3><p>Output tokens dominate the cost; the brand system prompt is cached, so repeat tiers are cheaper.</p></div>
+    <div class="card"><div class="k">Per full campaign</div><h3 class="ok" style="font-size:36px">~$0.03–0.10</h3><p>A few tiers × segments. Example: 2 tiers × 2 segments = 2 calls ≈ <b>$0.033</b>.</p></div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card"><div class="k">Claude (variable)</div><p class="big">~$2–5 / mo</p><p>at ≈ 50 campaigns / month</p></div>
+    <div class="card"><div class="k">Hosting</div><p class="big">~$0–45 / mo</p><p>Vercel (Hobby free / Pro $20) · Supabase (Free / Pro $25)</p></div>
+    <div class="card"><div class="k">SendGrid</div><p class="big">Existing</p><p>uses your current plan — no added cost</p></div>
+  </div>
+  <p class="sub" style="margin-top:16px;font-size:14px;color:#5b6475">Estimated at Claude Sonnet rates ($3 / $15 per M tokens; cache read $0.30/M). Marginal cost ≈ a few cents per campaign.</p>
+  <div class="foot"><span>EmailAuto Studio</span><span>08</span></div>
+</section>
+
+<!-- 9 — Rollout roadmap -->
+<section class="slide">
+  <div class="accent-bar"></div>
+  <div class="eyebrow">Rollout roadmap</div>
+  <h2>From pilot to lifecycle automation</h2>
+  <div class="grid" style="grid-template-columns:repeat(5,1fr); gap:12px; margin-top:8px">
+    <div class="card"><div class="k ok">Now · Live</div><h3>Pilot</h3><p>Admin + core team · 4 brands · Design + Dynamic Template sync · history.</p></div>
+    <div class="card"><div class="k">Wk 1–2</div><h3>Onboard team</h3><p>Approve users, training, brand image libraries, first live sends.</p></div>
+    <div class="card"><div class="k">Wk 3–4</div><h3>Harden</h3><p>Rate-limit + spend caps, key rotation, audit log, monitoring.</p></div>
+    <div class="card"><div class="k">Month 2</div><h3>Lifecycle flows</h3><p>Single Send drafts + scheduling · welcome / winback · A/B variants.</p></div>
+    <div class="card"><div class="k">Month 3+</div><h3>Analytics loop</h3><p>Ingest SendGrid stats → insights → auto-optimize the playbook.</p></div>
+  </div>
+  <div class="foot"><span>EmailAuto Studio</span><span>09</span></div>
+</section>
+
+<!-- 10 — Gaps vs Potential -->
+<section class="slide">
+  <div class="accent-bar"></div>
+  <div class="eyebrow">Gaps vs Potential</div>
+  <h2>Where it is — and where it can go</h2>
+  <div class="grid g2">
+    <div class="card" style="border-color:#5a3030;background:#1b1416">
+      <div class="k" style="color:#ff6b6b">Gaps today</div>
+      <ul style="list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:13px">
+        <li class="gap">Sending &amp; scheduling are manual (human sends in SendGrid)</li>
+        <li class="gap">No performance / analytics loop yet</li>
+        <li class="gap">Images pasted manually — no upload or asset library</li>
+        <li class="gap">No rate-limiting / spend caps</li>
+        <li class="gap">No A/B variant tracking</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:#2c4a3a;background:#121a16">
+      <div class="k" style="color:#3ecf8e">Potential</div>
+      <ul style="list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:13px">
+        <li class="pot">End-to-end: trigger → generate → schedule → send</li>
+        <li class="pot">Closed-loop optimization from real SendGrid stats</li>
+        <li class="pot">Self-serve image upload + shared brand asset library</li>
+        <li class="pot">Scale to more brands, markets &amp; lifecycle flows</li>
+        <li class="pot">Auto-A/B that feeds winning patterns back into the playbook</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>EmailAuto Studio</span><span>10</span></div>
+</section>
+
+<!-- 11 — Improvement -->
+<section class="slide">
+  <div class="accent-bar"></div>
+  <div class="eyebrow">Improvement</div>
+  <h2>Near-term improvements</h2>
+  <div class="grid g2">
+    <ul class="clean">
+      <li>Rate-limit generation + spend caps<br><span>cap Claude cost per user</span></li>
+      <li>Rotate &amp; vault API keys; audit logging<br><span>security hygiene</span></li>
+      <li>Analytics agent<br><span>pull SendGrid stats → weekly insight reports</span></li>
+    </ul>
+    <ul class="clean">
+      <li>SendGrid Single Send draft + scheduling<br><span>closer to one-click send (human approves)</span></li>
+      <li>A/B subject &amp; variant testing<br><span>measure, then bake wins into the playbook</span></li>
+      <li>Brand image libraries + richer history<br><span>search, duplicate &amp; reuse assets</span></li>
+    </ul>
+  </div>
+  <div class="foot"><span>EmailAuto Studio</span><span>11</span></div>
+</section>
+
+<!-- 12 — Status -->
 <section class="slide">
   <div class="accent-bar"></div>
   <div class="eyebrow">Status</div>
@@ -205,7 +291,7 @@
     <div class="card"><div class="k">Security</div><h3 class="ok">Hardened</h3><p>Re-checked on the live deployment; headers and route auth in place.</p></div>
   </div>
   <p class="sub big" style="margin-top:30px">From hand-built emails to a guided, governed, one-click studio — in production.</p>
-  <div class="foot"><span>EmailAuto Studio · Crossian</span><span>08</span></div>
+  <div class="foot"><span>EmailAuto Studio · Crossian</span><span>12</span></div>
 </section>
 
 </body>
