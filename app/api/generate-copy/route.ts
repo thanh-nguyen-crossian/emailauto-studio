@@ -5,7 +5,9 @@ import type { Campaign, Product } from "@/lib/config/types";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
-export const maxDuration = 120; // two sequential generations (A, then B)
+// Two sequential generations (A, then B) scale with segment count: ~84s for 1 segment, ~122s for 2,
+// plus a possible B-contrast retry. 120s was too low (2+ segments timed out → non-JSON error page).
+export const maxDuration = 300;
 
 function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {
   const c = body as Partial<Campaign> & { products?: Product[] };

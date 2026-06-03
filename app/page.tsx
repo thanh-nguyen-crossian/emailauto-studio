@@ -288,7 +288,19 @@ export default function Studio() {
           })),
         }),
       });
-      const data = await res.json();
+      // Read as text first: a serverless timeout/crash returns a plain-text error page, not JSON.
+      const raw = await res.text();
+      let data: { a?: GenBrief; b?: GenBrief; error?: string };
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        if (res.status === 504 || /timeout|timed out|FUNCTION_INVOCATION/i.test(raw)) {
+          setApiError("The server timed out while generating. This can happen with many segments — try 1–2 segments at a time, then retry.");
+        } else {
+          setApiError(`Server returned an unexpected response (HTTP ${res.status}). Please retry.`);
+        }
+        return;
+      }
       if (!res.ok) {
         setApiError(data.error || "Generation failed");
         return;
