@@ -13,25 +13,31 @@ backed by user accounts, saved history, and admin approval.
 
 ## 1. Functions summary
 
-### Studio pipeline — `Brief → Products → Prompts → Copy → Preview → Export`
-- **Brief** — pick brand, send date, target tiers (A/B/C/D/F = lifecycle/recency), product
-  segments, the offer, and an optional **Hook Contract** (the single source of truth for all copy).
-- **Products** — choose products; the brand's **hero product is locked** into position 1.
-- **Prompts** — shows the exact **system + per-tier user prompts** before they're sent to Claude;
-  fully editable (what you see is what's sent), with copy/reset per prompt.
-- **Copy** — generates copy for every `tier × segment` variant; **one Claude call per tier**,
-  returning strict JSON keyed `${tier}${segment}` (e.g. `A21`). Inline-editable per variant.
-- **Preview** — live `<iframe>` render (sandboxed) with mobile/desktop width toggle, an
-  **image panel** (paste SendGrid CDN image URLs per block; logo optional), and a **pre-flight
-  panel** enforcing win-patterns (subject/preview length, single hook, hero-first, ≤6 products,
-  on-brand accent range, banned-phrase blocklist, hero image set).
-- **Export** — copy/download `.html` per variant or all as a `.zip`; **Save version** to history;
-  **↗ Design** and **↗ Dynamic Template** sync to SendGrid.
+### Studio flow — `Build brief → Review & generate → A/B output`
+- **Build (6-step accordion wizard)** — ① Brand · Date · Theme (+ optional Hook Contract)
+  ② Promo & Urgency ③ Products (up to 8 slots — pick product, set a Customer URL, tick the USPs
+  that feed the copy, or **auto-extract** them from the URL, plus add custom USPs) ④ Segments
+  (per-brand category segments; SantaFare = lifecycle tiers) ⑤ Last-send context ⑥ Winning reference.
+  The brand **hero product is locked** into slot 1.
+- **Review & generate** — a performance-intelligence panel, a pre-flight summary, and the **exact,
+  editable** system + user prompts (what-you-see-is-what's-sent). One combined prompt generates
+  **per-segment copy + the design brief together**, run twice for two contrasting options (**A/B**,
+  forced to a different angle + framework; auto-retry on overlap).
+- **A/B output** — switch **Option A/B** and **segment**; each shows:
+  - **Preview** — live sandboxed `<iframe>` with a **product-layout picker** (stacked / 2-up /
+    3-up / hero+grid), an **image panel** (paste SendGrid CDN URLs per block), an **editable-HTML**
+    toggle, and a **quality score + flags** (`validateBrief`).
+  - **Design brief** — creative direction, hook contract, banner, per-product blocks, self-QA;
+    download as Markdown or **Excel (.xls, A + B)**.
+  - **Export** — copy/download `.html` per option×segment or all as a `.zip`; **Save version** to
+    history; **↗ Design** and **↗ Dynamic Template** sync to SendGrid.
+- A **human is in the loop** at every step — nothing sends or schedules automatically.
 
 ### Copy quality (the playbook)
-Personas (Sandra/Jordan/Adele/Mary), the **Hook Contract**, brand-specific subject/urgency/
-preheader formulas, corrected per-brand segment IDs, and the full WIN/FAIL **DO/DON'T guardrails**
-from the campaign playbook are baked into the prompts.
+Personas (Sandra/Jordan/Adele/Mary), the **Hook Contract**, brand subject/urgency/preheader
+formulas, per-brand segment definitions, performance intelligence, and the full WIN/FAIL
+**DO/DON'T guardrails** are baked into the single combined prompt (`lib/briefgen.ts`), with a
+post-generation **validation engine** (`validateBrief`) scoring each option 0–100 and flagging issues.
 
 ### SendGrid integration (v3 API, server-side)
 - **Design** — `POST /v3/designs` (module-format HTML that round-trips into SendGrid's editor).
@@ -39,7 +45,7 @@ from the campaign playbook are baked into the prompts.
   strip builder metadata, click-tracking off, dark-mode CSS, `role="presentation"`, link
   formatter, preheader handling, size/CTA/unsubscribe QA) then creates the template + active
   version, returning the `d-…` Template ID.
-- Naming convention: `Brand_Sun31May26_<segment>`.
+- Naming convention: `Brand_Sun31May26_<segment>_<A|B>`.
 
 ### Accounts, history, admin
 - **Auth** — email/password; new signups are **`pending`** until an admin approves.
@@ -61,15 +67,20 @@ from the campaign playbook are baked into the prompts.
 | Hosting | **Vercel** (auto-deploy from `main`) |
 
 ### Key modules
-- `lib/config/` — `BRANDS`, `TIER_PSYCHOLOGY`, per-segment guidance (source of truth).
-- `lib/prompts.ts` — Hook-Contract system/user prompts + guardrails.
-- `lib/anthropic.ts` — per-tier generation, strict-JSON parsing.
-- `lib/render/` — SendGrid module-format HTML renderer + inline-markdown.
+- `lib/config/` — `BRANDS` (persona, voice, layout, `productSegments`, catalog), `intelligence.ts`
+  (performance data baked into the prompt), `types.ts` (source of truth).
+- `lib/briefgen.ts` — the combined-prompt engine: `buildSystemPrompt`/`buildUserPrompt`,
+  `validateBrief` (QA score), `contrastInstruction`, the `GenBrief` output shape + guardrails.
+- `lib/anthropic.ts` — `generateOptions(campaign, products, overrides?)`: two contrasting A/B
+  generations, strict-JSON parse-retry, prompt-caching.
+- `lib/render/` — SendGrid module-format HTML renderer (per segment, selectable product layout) + inline-markdown.
+- `lib/scrape.ts` — server-side USP extraction for the Customer URL field.
+- `lib/exportExcel.ts` — SpreadsheetML (.xls) export of the A/B briefs (zero-dep).
 - `lib/cleanEmail.ts` — Apps Script port (clean/optimize/QA for Dynamic Templates).
 - `lib/sendgrid.ts` — Design + Dynamic Template creation.
 - `lib/supabase.ts` / `lib/supabaseAdmin.ts` — browser client / server admin (service role).
-- `lib/history.ts`, `lib/profile.ts` — saved versions, profile/status.
-- `app/api/*` — `generate-copy`, `sync-sendgrid`, `sync-template`, `admin/users`, `admin/password`.
+- `lib/history.ts`, `lib/profile.ts` — saved versions (segments + A/B + edits), profile/status.
+- `app/api/*` — `generate-copy`, `scrape-usps`, `sync-sendgrid`, `sync-template`, `admin/users`, `admin/password`.
 - `supabase/migrations/` — `saved_versions` + `profiles` (+ auto-pending trigger) with RLS.
 
 ### Environment variables

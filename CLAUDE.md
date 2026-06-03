@@ -1,96 +1,154 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code / coding agents working in this repository. Read this before editing.
 
-## Project
+## What this is
 
-**EmailAuto** — a single-file React artifact (`email_template_studio.jsx`) that generates tier-aware, product-aware RMKT email HTML for four brands (BraGoddess, GentsLux, LuxFitting, SantaFare). It runs inside Claude's artifact sandbox; there is no build system, package manager, or server.
+**EmailAuto Studio** — a deployed **Next.js 15** web app that turns a campaign brief into
+on-brand, email-safe HTML for four RMKT brands (**BraGoddess, GentsLux, LuxFitting, SantaFare**),
+plus a matching **designer brief**. A marketer fills a 6-step brief, reviews the exact prompts,
+and gets back **two contrasting options (A/B)** with **per-segment** copy + a design brief, which
+they preview, edit, export, and push into SendGrid. Backed by Supabase auth/history/admin.
 
-## Architecture
+- **Live:** https://emailauto-studio.vercel.app
+- **Hosting:** Vercel (production = `vercel --prod`; env vars are set in the Vercel dashboard).
 
-### Single-file, no bundler
+> ⚠️ This app was **rewritten** from an earlier single-file React artifact. Ignore any old mention
+> of `TIER_PSYCHOLOGY`, `${tier}${productType}` variant keys, `window.storage`, or "one call per
+> tier" — none of that exists anymore. The current model is **segment-based A/B**, described below.
 
-The entire app lives in one JSX file. Tailwind utility classes are used inline via the artifact runtime. External fonts load from Google Fonts via `<link>` injected in the render. No `npm`, no `vite`, no tests.
+## Stack
 
-### Data config (top of file)
-
-Three static config objects drive everything:
-
-| Object | Purpose |
+| Layer | Choice |
 |---|---|
-| `BRANDS` | Per-brand identity: accent color, default layout/signature, `productSegments` map, voice brief, hero image URL |
-| `TIER_PSYCHOLOGY` | Per-tier `S–J` mindset, pricing framing, tone, urgency, P.S. hint |
-| `PRODUCT_PSYCHOLOGY` | Per product-segment copy guidance keyed by segment ID |
+| Framework | Next.js 15 (App Router, TypeScript), React 19 |
+| UI | Tailwind CSS v4, light theme (palette in `app/globals.css`) |
+| AI | Anthropic Claude `claude-sonnet-4-6` via `@anthropic-ai/sdk`, prompt-cached system prompt |
+| Email API | SendGrid v3 via `@sendgrid/client` (Designs + Dynamic Templates) |
+| Auth + DB | Supabase (Postgres + Auth), Row-Level Security, `@supabase/supabase-js` |
+| Export | `jszip` (zip of HTML); SpreadsheetML (hand-written, zero-dep Excel) |
 
-**Never duplicate brand/tier/product logic in copy prompts** — always derive it from these objects.
+## Run it
 
-### Variant key system
-
-A variant is a `tier × productType` pair. The key is `${tier}${productType}` (e.g., `"A21"`). All copy, preview, and export operations are keyed on this string.
-
-```
-campaign.tiers = ["A", "B"]
-campaign.productTypes = ["21", "22"]
-→ variants: A21, A22, B21, B22
-```
-
-`getAllVariants(campaign)` returns the full matrix. `generateAllVariants` makes **one Claude API call per tier** (not per variant) to keep prompts mindset-focused.
-
-### HTML generation pipeline
-
-```
-renderNarrativeHTML / renderSimpleHTML
-  └── htmlShell()          full DOCTYPE wrapper, dark-mode CSS, responsive breakpoints
-        ├── heroBlock()    full-width linked banner image
-        ├── textBlock()    body copy paragraph (calls paragraphsToHtml → parseInlineMarkdown)
-        ├── productRow()   2-up 282px product cells
-        └── footerBlock()  unsubscribe / privacy footer
+```bash
+npm install
+cp .env.example .env.local   # fill in the keys
+npm run dev                  # http://localhost:3000
 ```
 
-`renderEmailHTML(campaign, products, variantCopy)` dispatches to `narrative` or `simple` based on `campaign.layout`.
+`npm run build` / `npm run lint` for the prod build + lint. **Do not run `next build` or
+`rm -rf .next` while `next dev` is running** — it corrupts the `.next` cache (stop dev first).
 
-**Narrative layout** (BraGoddess): hero → intro → row → middle → row → closing+signoff → row → P.S. → footer
+## Core model: segments + A/B (read this carefully)
 
-**Simple layout** (others): hero → intro → row → row → middle → row → footer
+A **variant is a segment**, not a tier×product matrix. Each brand defines its segments in
+`lib/config/brands.ts → productSegments` (`{ code, label, meta, guidance }`):
 
-### Markdown conventions in body copy
+- BraGoddess: `21, 22, 45, 8, 3` · GentsLux: `71, 72, 73` · LuxFitting: `61, 62, 63, 64`
+- SantaFare: lifecycle tiers `1-A, 1-B, 1-C, 1-D`
 
-`parseInlineMarkdown()` converts these before emitting HTML:
+The user selects N segments + up to 8 product slots. **One combined prompt** produces, in a
+single Claude call, the per-segment copy **and** the design brief. That call is run **twice** to
+get two contrasting options (**A** and **B**) — B is forced to a different angle + framework than A.
+
+### Generation flow (`lib/anthropic.ts → generateOptions`)
+
+1. Build system + user prompt from the campaign (`lib/briefgen.ts`).
+2. Generate **Option A** → `validateBrief` (attaches `_flags` + `_score`).
+3. Generate **Option B** with `contrastInstruction(A.creative_direction)` appended ("A used angle
+   X / framework Y — pick different ones"). If B still overlaps A, retry once.
+4. Optional `PromptOverrides {system?, user?}` (from the user-edited review step) replace the
+   generated prompts; B's contrast clause is appended to the edited system prompt so divergence
+   survives edits.
+- Model: `claude-sonnet-4-6`, `max_tokens: 8192`, system prompt `cache_control: ephemeral`.
+- `createAndParse` retries **once** on a JSON parse failure with a correction note.
+- **Sequential A→B is slow** (~60s/segment). Route `maxDuration = 300`. Multi-segment sends take
+  1–3 min — this is expected, not a bug. (A future optimization is to parallelize A/B.)
+
+### The generated object — `GenBrief` (`lib/briefgen.ts`, snake_case to match the prompt schema)
+
+```
+creative_direction { angle, framework, hook_contract{…}, flow, differentiator }
+subject_lines      { [segKey]: { subject, preheader } }   // segKey = "seg_" + code.replace(/-/g,"_")
+theme              string (visual brief)
+banner             { logo_stars, main_text, sub_text, image_guidance, review_quote, cta }
+body               { base, [segKey]: "<per-segment body copy>" }
+products           [ { slot, name, main_text, sub_text, popup_badge, usps[], review, cta } ]
+quality_checks     { click_reason, hook_alignment, proof_safety, spam_risk, … }
+_flags / _score    // added by validateBrief (validation engine, 0–100)
+```
+
+Use `segJsonKey(code)` whenever mapping a segment code to its key in `subject_lines` / `body`.
+
+## Module map
+
+```
+lib/config/brands.ts     BRANDS (persona, voice, layout, accent, heroSlug, productSegments, catalog),
+                         BRAND_LIST, brandCatalog(); catalog products carry usps[]/review/url/price
+lib/config/types.ts      Brand, Product, ProductSegment, Campaign, OfferType, Urgency, ImageOverrides …
+lib/config/intelligence.ts  BRAND_INTELLIGENCE perf data → intelligencePromptBlock() (prompt) + Perf panel
+lib/briefgen.ts          THE prompt engine: buildSystemPrompt / buildUserPrompt / validateBrief /
+                         contrastInstruction, PLAYBOOK_RULES / PROMPT_CONTRACT / PLAYBOOK_ENFORCEMENT,
+                         GenBrief types, segJsonKey
+lib/anthropic.ts         getClient, createAndParse (parse-retry), generateOptions(campaign, products, overrides?)
+lib/render/email.ts      renderEmailHTML(brand, campaign, products, brief, segment, images, opts)
+                         → SendGrid module HTML for ONE segment. ProductLayout: stack|two|three|hero_grid
+lib/render/markdown.ts   parseInlineMarkdown / paragraphsToHtml / buildUrl (markdown → SendGrid HTML)
+lib/scrape.ts            extractUSPs(html) — USP scraping heuristic (JSON-unescape + li/strong + noise filter)
+lib/exportExcel.ts       exportBriefsToExcel — SpreadsheetML (.xls), one sheet per option, zero deps
+lib/cleanEmail.ts        cleanForTemplate — Dynamic Template HTML cleanup (port of the team's Apps Script)
+lib/sendgrid.ts          SendGrid v3 client helpers (Designs, Templates)
+lib/history.ts           VersionPayload + saveVersion/listVersions/deleteVersion (RLS-scoped)
+lib/supabase.ts          browser client (anon key)        lib/profile.ts  accessToken(), Profile
+lib/supabaseAdmin.ts     service-role client; requireActiveUser() / requireAdmin() route guards
+
+app/page.tsx             the whole Studio: 3 views — build (6-step accordion wizard) → review
+                         (editable prompts + pre-flight) → output (A/B preview, design brief, export)
+app/components/          Auth (dark, branded), History, AdminPanel, ImageEditor, Preview,
+                         PreflightPanel, BriefView (+ briefToMarkdown)
+app/api/generate-copy    POST → generateOptions, returns { a, b }   (auth: requireActiveUser)
+app/api/scrape-usps      POST { url } → { usps }                     (auth: requireActiveUser)
+app/api/sync-sendgrid    POST → create a SendGrid Design             (auth)
+app/api/sync-template    POST → clean + create a Dynamic Template, returns the d-… id (auth)
+app/api/admin/*          user approval / password reset              (auth: requireAdmin)
+supabase/migrations/     0001 saved_versions, 0002 profiles_admin (already applied)
+```
+
+## Markdown conventions in body copy (`parseInlineMarkdown`)
 
 | Syntax | Output |
 |---|---|
-| `[Name](slug:productslug)` | Product link with UTM + `{{paramurl}}` |
-| `[text](home)` | Homepage link |
-| `==text==` | Brand accent color + bold |
-| `**text**` | `<strong>` |
-| `*text*` | `<em>` |
-| `__text__` | `<u>` |
-| `ð²` instead of `$` | Spam filter dodge |
+| `[Name](slug:productslug)` | product link → `https://{domain}/{slug}?{{paramurl}}` |
+| `[text](home)` | homepage link |
+| `==text==` | brand accent + bold · `**b**` `*i*` `__u__` |
+| `💲` instead of `$` | spam-filter dodge |
 
-UTM params follow pattern: `?utm_term={slug}&{{paramurl}}` — `{{paramurl}}` is a SendGrid merge tag, never hardcode it.
+`{{paramurl}}` and `{{unsubscribe}}` are **SendGrid merge tags — emit literally, never hardcode a value.**
 
-### Claude API calls
+## Invariants & guardrails
 
-`generateCopyForTier(campaign, products, brand, tier)` POSTs directly to `https://api.anthropic.com/v1/messages`. The response must be strict JSON matching the variant key schema — the parser strips markdown fences before `JSON.parse`. If generation fails for a tier, the whole batch throws.
+- `campaign.segments` must be a subset of `brand.productSegments[].code` (`switchBrand` resets them).
+- Hero product (`brand.heroSlug`) is **locked into slot 0** and rendered first.
+- Subjects 42–58 chars (hard cap 60); preheaders 60–90; `{{first_name}}` in subject **or** preheader, not both.
+- Products ≤ 6 (SantaFare defaults to 4) — `validateBrief` warns at 7+.
+- Promo copy: write `$` as `💲`, "off" as `o.f.f`; no spam words (see `SPAM_WORDS` in `briefgen.ts`).
+- Never invent proof/scarcity/reviews not supplied in the product data.
+- **Never duplicate brand/segment/product logic in prompts** — derive it from `lib/config/*`.
 
-`suggestProducts(campaign, brand)` also calls the API and returns 6 slugged products. Images are NOT suggested — they must be added manually.
+## Security (do not regress)
 
-### Storage
+- Secrets live in `.env.local` (gitignored). **Never commit secrets.**
+- `SUPABASE_SERVICE_ROLE_KEY` is **server-only** — never `NEXT_PUBLIC`, never sent to the client.
+- Paid/admin routes are guarded: `requireActiveUser` (generate-copy, scrape-usps, sync-*) and
+  `requireAdmin` (admin/*). RLS scopes each user's saved versions.
+- `NEXT_PUBLIC_*` vars are inlined at **build** time — changing them on Vercel requires a redeploy.
+- Preview iframes use `sandbox=""` so pasted/edited HTML can't run scripts.
 
-Uses `window.storage` (Claude artifact KV API). Draft keys follow `draft:{sendDate}-{brand}-{timestamp}`. The `refreshDrafts()` call uses `window.storage.list("draft:")` prefix scan.
+## Deploy
 
-### Stage flow
-
+```bash
+git push origin <branch>
+npx vercel --prod --yes      # builds remotely, aliases emailauto-studio.vercel.app
 ```
-brief → products → copy → preview → export
-```
 
-State lives entirely in `EmailTemplateStudio` (parent): `campaign`, `products`, `copy`, `stage`, `activeVariant`. Each stage component receives only what it needs as props — no context, no global store.
-
-## Key invariants
-
-- `campaign.productTypes` must always be a subset of `Object.keys(BRANDS[campaign.brand].productSegments)` — `switchBrand()` resets them.
-- Hero image URLs must not contain `"PLACEHOLDER"` to pass the pre-flight check.
-- Subject line ≤ 50 chars; preview text 60–90 chars — enforced visually in the Pre-flight panel, not in code.
-- The `closing` field is only present in narrative layout; simple layout ends on `middle`.
-- Product slugs must be lowercase, no spaces (`/[^a-z0-9_-]/` stripped on input).
+Verify: `curl -s -o /dev/null -w "%{http_code}" https://emailauto-studio.vercel.app/` → `200`.
