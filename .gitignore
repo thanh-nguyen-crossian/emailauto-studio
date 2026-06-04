@@ -15,3 +15,10 @@ next-env.d.ts
 
 # keep the env template (placeholders only)
 !.env.example
+
+# Slide decks — kept local, not tracked (regenerate from HTML as needed)
+docs/EmailAuto-Studio-Presentation.html
+docs/EmailAuto-Studio-Presentation.pdf
+docs/EmailAuto-Studio-User-Flow.html
+docs/EmailAuto-Studio-User-Flow.pdf
+docs/*.pdf
