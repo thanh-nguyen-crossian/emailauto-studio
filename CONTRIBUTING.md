@@ -46,7 +46,8 @@ or set `profiles.status = 'active'` + `is_admin = true` directly in Supabase for
 
 ## Deploy
 
-Production is Vercel. After merging to `main`:
+**GitHub pushes do not auto-deploy** (`vercel.json` disables Vercel's GitHub integration).
+Production is deployed manually after merging to `main`:
 
 ```bash
 npx vercel --prod --yes

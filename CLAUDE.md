@@ -175,8 +175,9 @@ docs/                    Analysis, playbook, architecture, presentations (refere
 ## Deploy — who can, and who can't
 
 **Only the repo owner deploys, and only manually.** Git is intentionally **not** connected to
-Vercel, so no push (to any branch, including `main`) triggers a deployment. The Vercel project
-lives under the owner's account; contributors have **no Vercel access**.
+Vercel, so no push (to any branch, including `main`) triggers a deployment. `vercel.json` also
+sets `ignoreCommand: exit 0` as a belt-and-suspenders safeguard. The Vercel project lives under
+the owner's account; contributors have **no Vercel access**.
 
 - **Contributors / contributor agents:** do **not** run `vercel`. It will fail (no auth) and is not
   your job. Your workflow ends at: push your branch and open a PR. The owner reviews, merges, and
