@@ -73,6 +73,19 @@ export interface Brand {
 
 export type OfferType = "sitewide_pct" | "fixed_price" | "free_ship" | "none";
 export type Urgency = "h24" | "h48" | "weekend" | "none";
+export type AIProvider = "claude" | "gemini" | "openai";
+export type BodyLayout = "continuous" | "interspersed";
+export type ProductCopyStyle = "headline_winner" | "benefit_pair" | "proof_badge";
+
+export interface AIModelSelection {
+  provider: AIProvider;
+  model: string;
+}
+
+export interface AIModelPair {
+  a: AIModelSelection;
+  b: AIModelSelection;
+}
 
 /** Last-send context to rotate angles / avoid repetition. */
 export interface LastSend {
@@ -93,9 +106,15 @@ export interface Campaign {
   /** Structured promo. */
   offerType: OfferType;
   offerValue: string; // e.g. "70% OFF" or "$12.99" or "Free Shipping $35+"
+  /** Optional shipping bonus that can stack with discount/price offers. */
+  offerShipping?: string;
   urgency: Urgency;
   /** Synthesized promo line (derived from offerType/value/urgency) for prompt convenience. */
   offer: string;
+  /** Body placement in the rendered email: one continuous body or one opener before product blocks. */
+  bodyLayout?: BodyLayout;
+  /** Product block copy pattern, based on winning template behavior. */
+  productCopyStyle?: ProductCopyStyle;
   /**
    * The Hook Contract — the single source of truth for all copy:
    * segment insight + emotion + hero product + price/proof + urgency + avoid rule.
@@ -108,6 +127,8 @@ export interface Campaign {
   lastSend?: LastSend;
   /** Optional winning-email reference to mirror structure/pacing. */
   winningContent?: string;
+  /** Optional edited performance guidance injected into the system prompt. */
+  customPerfContext?: string;
 }
 
 /**

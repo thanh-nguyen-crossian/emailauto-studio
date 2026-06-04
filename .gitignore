@@ -4,6 +4,9 @@
 node_modules/
 *.log
 
+# local-only generator secrets
+docs/email-brief-generator.local.js
+
 # Next.js
 /.next/
 /out/

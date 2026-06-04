@@ -5,7 +5,7 @@
 // (A/B), label/value rows in 2-up pairs, fixed column widths, wrapped multiline cells.
 // Opens natively in Excel and Google Sheets.
 
-import { PLAYBOOK_REQUIRED_QA, type GenBrief } from "./briefgen";
+import type { GenBrief } from "./briefgen";
 
 type Row = (string | null)[];
 
@@ -17,26 +17,23 @@ function briefToRows(brief: GenBrief): Row[] {
 
   spacer();
 
-  const d = brief.creative_direction || ({} as GenBrief["creative_direction"]);
-  const h = d.hook_contract || ({} as GenBrief["creative_direction"]["hook_contract"]);
-  addRow("Angle", d.angle || "", "Framework", d.framework || "");
-  addRow("Flow", d.flow || "", "Differentiator", d.differentiator || "");
-  addRow(
-    "Hook Contract",
-    [
-      "Segment: " + (h.segment_insight || ""),
-      "Emotion: " + (h.emotion || ""),
-      "Hero: " + (h.hero_product || ""),
-      "Proof/price: " + (h.proof_or_price || ""),
-      "Urgency: " + (h.urgency || ""),
-      "Avoid: " + (h.avoid_rule || ""),
-    ].join("\n")
-  );
-  spacer();
-
   // Subject lines + preheaders — paired 2-per-row
   const segs = Object.entries(brief.subject_lines || {});
   const segCode = (k: string) => k.replace("seg_", "").replace("_", "-");
+  const subjectValue = (v: (typeof segs)[number][1] | undefined) =>
+    [
+      v?.subject || "",
+      ...(v?.options || []).map((o, i) => `Option ${i + 1} (${o.model_hint || o.style || "style"}): ${o.subject}`),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  const preheaderValue = (v: (typeof segs)[number][1] | undefined) =>
+    [
+      v?.preheader || "",
+      ...(v?.options || []).map((o, i) => `Option ${i + 1}: ${o.preheader}${o.shared_thread ? `\nThread: ${o.shared_thread}` : ""}`),
+    ]
+      .filter(Boolean)
+      .join("\n");
   for (let i = 0; i < segs.length; i += 2) {
     const [k1, v1] = segs[i];
     const pair = segs[i + 1];
@@ -44,11 +41,11 @@ function briefToRows(brief: GenBrief): Row[] {
     if (pair) {
       const [k2, v2] = pair;
       const s2 = segCode(k2);
-      addRow("Subject " + s1, v1?.subject || "", "Subject " + s2, v2?.subject || "");
-      addRow("PreHeader " + s1, v1?.preheader || "", "PreHeader " + s2, v2?.preheader || "");
+      addRow("Subject " + s1, subjectValue(v1), "Subject " + s2, subjectValue(v2));
+      addRow("PreHeader " + s1, preheaderValue(v1), "PreHeader " + s2, preheaderValue(v2));
     } else {
-      addRow("Subject " + s1, v1?.subject || "");
-      addRow("PreHeader " + s1, v1?.preheader || "");
+      addRow("Subject " + s1, subjectValue(v1));
+      addRow("PreHeader " + s1, preheaderValue(v1));
     }
   }
   spacer();
@@ -60,10 +57,16 @@ function briefToRows(brief: GenBrief): Row[] {
     "Banner",
     [
       b.logo_stars,
-      "Main text: " + (b.main_text || ""),
-      "Sub text: " + (b.sub_text || ""),
+      "Main text 1: " + (b.main_text_1 || b.main_text || ""),
+      "Main text 2: " + (b.main_text_2 || ""),
+      "Sub text 1: " + (b.sub_text_1 || b.sub_text || ""),
+      "Sub text 2: " + (b.sub_text_2 || ""),
+      "Main image: " + (b.main_image || ""),
+      "Sub image: " + (b.sub_image || ""),
+      "Trust-booster: " + (b.trust_booster || ""),
+      "Emergency: " + (b.emergency || ""),
       "Image: " + (b.image_guidance || ""),
-      "Review: " + (b.review_quote || ""),
+      "Review: " + ((b.review_texts || []).join("\n") || b.review_quote || ""),
       "CTA: " + (b.cta || ""),
     ]
       .filter(Boolean)
@@ -74,12 +77,7 @@ function briefToRows(brief: GenBrief): Row[] {
     .map(([k, v]) => (k === "base" ? "Base" : "SEG " + segCode(k).toUpperCase()) + "\n" + v)
     .join("\n\n");
   addRow("Body", bodyText);
-
-  const q = brief.quality_checks || ({} as GenBrief["quality_checks"]);
-  addRow(
-    "Quality Gate",
-    PLAYBOOK_REQUIRED_QA.map((field) => field.replace(/_/g, " ") + ": " + ((q as unknown as Record<string, string>)[field] || "")).join("\n")
-  );
+  if (brief.ps) addRow("P.S.", brief.ps);
 
   addRow("Product images", "Layout as previous template\n- model-wearing product shots\n- relevant supporting images");
   spacer();

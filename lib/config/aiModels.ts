@@ -1,0 +1,81 @@
+import type { AIModelPair, AIModelSelection, AIProvider } from "./types";
+
+export interface AIModelOption {
+  id: string;
+  label: string;
+  note?: string;
+}
+
+export interface AIProviderOption {
+  id: AIProvider;
+  label: string;
+  envVar: string;
+  models: AIModelOption[];
+}
+
+export const AI_PROVIDERS: AIProviderOption[] = [
+  {
+    id: "claude",
+    label: "Claude",
+    envVar: "ANTHROPIC_API_KEY",
+    models: [
+      { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", note: "Balanced default" },
+      { id: "claude-opus-4-8", label: "Claude Opus 4.8", note: "Highest quality" },
+      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", note: "Fast and economical" },
+    ],
+  },
+  {
+    id: "gemini",
+    label: "Gemini",
+    envVar: "GEMINI_API_KEY",
+    models: [
+      { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", note: "Fast" },
+      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", note: "Legacy quality option" },
+      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", note: "Legacy fast option" },
+    ],
+  },
+  {
+    id: "openai",
+    label: "ChatGPT",
+    envVar: "OPENAI_API_KEY",
+    models: [
+      { id: "gpt-5.5", label: "GPT-5.5", note: "Recommended production model" },
+      { id: "gpt-5.4", label: "GPT-5.4", note: "Lower cost frontier" },
+      { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", note: "Fast and economical" },
+      { id: "chat-latest", label: "ChatGPT Latest", note: "Tracks ChatGPT instant" },
+    ],
+  },
+];
+
+export const DEFAULT_AI_MODELS: AIModelPair = {
+  a: { provider: "claude", model: "claude-sonnet-4-6" },
+  b: { provider: "claude", model: "claude-sonnet-4-6" },
+};
+
+export function providerLabel(provider: AIProvider): string {
+  return AI_PROVIDERS.find((p) => p.id === provider)?.label || provider;
+}
+
+export function modelLabel(selection?: AIModelSelection): string {
+  if (!selection) return "";
+  const provider = AI_PROVIDERS.find((p) => p.id === selection.provider);
+  const model = provider?.models.find((m) => m.id === selection.model);
+  return model ? `${provider?.label || selection.provider} · ${model.label}` : `${provider?.label || selection.provider} · ${selection.model}`;
+}
+
+export function normalizeModelSelection(
+  selection: Partial<AIModelSelection> | undefined,
+  fallback: AIModelSelection
+): AIModelSelection {
+  const provider = AI_PROVIDERS.find((p) => p.id === selection?.provider) || AI_PROVIDERS.find((p) => p.id === fallback.provider) || AI_PROVIDERS[0];
+  const requestedModel = selection?.model || fallback.model;
+  const model = provider.models.find((m) => m.id === requestedModel)?.id || provider.models[0].id;
+  return { provider: provider.id, model };
+}
+
+export function normalizeModelPair(input?: Partial<AIModelPair>): AIModelPair {
+  return {
+    a: normalizeModelSelection(input?.a, DEFAULT_AI_MODELS.a),
+    b: normalizeModelSelection(input?.b, DEFAULT_AI_MODELS.b),
+  };
+}

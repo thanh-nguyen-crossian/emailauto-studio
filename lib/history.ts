@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "./supabase";
-import type { ImageOverrides, LastSend, OfferType, Urgency } from "./config/types";
+import type { AIModelPair, BodyLayout, ImageOverrides, LastSend, OfferType, ProductCopyStyle, Urgency } from "./config/types";
 import type { GenBrief } from "./briefgen";
 import type { ProductLayout } from "./render/email";
 
@@ -12,6 +12,7 @@ export interface VersionPayload {
   theme?: string;
   offerType?: OfferType;
   offerValue?: string;
+  offerShipping?: string;
   urgency?: Urgency;
   offer?: string;
   hookContract: string;
@@ -23,13 +24,20 @@ export interface VersionPayload {
   includeLogo: boolean;
   /** Product grid arrangement chosen in the output step. */
   productLayout?: ProductLayout;
+  /** Body placement chosen in output. */
+  bodyLayout?: BodyLayout;
+  /** Product block copy template chosen in build. */
+  productCopyStyle?: ProductCopyStyle;
   /** Manual HTML edits to the rendered email, keyed `${opt}:${segment}`. */
   htmlOverrides?: Record<string, string>;
   images: ImageOverrides;
   /** The two generated options (combined copy + design brief). */
   options: { a?: GenBrief; b?: GenBrief };
+  /** Per-option provider/model selections used to generate A and B. */
+  models?: AIModelPair;
   lastSend?: LastSend;
   winningContent?: string;
+  customPerfContext?: string;
 }
 
 export interface SavedVersion {

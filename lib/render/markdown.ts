@@ -17,6 +17,10 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /** Product/home URL following the real template pattern: path + ?{{paramurl}} (no UTM soup). */
 export function buildUrl(brand: Brand, slug: string | null): string {
   const path = slug ? slug : "";
@@ -34,12 +38,12 @@ export function parseInlineMarkdown(input: string, brand: Brand, accent: string)
   // [Name](slug:productslug) -> product link
   s = s.replace(
     /\[([^\]]+)\]\(slug:([a-z0-9_-]+)\)/g,
-    (_m, label, slug) => `<a href="${buildUrl(brand, slug)}">${accentSpan(label, accent)}</a>`
+    (_m, label, slug) => `<a clicktracking="off" href="${escapeAttr(buildUrl(brand, slug))}">${accentSpan(label, accent)}</a>`
   );
   // [text](home) -> homepage link
   s = s.replace(
     /\[([^\]]+)\]\(home\)/g,
-    (_m, label) => `<a href="${buildUrl(brand, null)}">${accentSpan(label, accent)}</a>`
+    (_m, label) => `<a clicktracking="off" href="${escapeAttr(buildUrl(brand, null))}">${accentSpan(label, accent)}</a>`
   );
   // ==text== -> accent + bold
   s = s.replace(/==([^=]+)==/g, (_m, t) => accentSpan(t, accent));

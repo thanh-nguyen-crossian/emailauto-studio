@@ -9,18 +9,20 @@ import { Auth } from "./components/Auth";
 import { History } from "./components/History";
 import { AdminPanel } from "./components/AdminPanel";
 import { BRAND_LIST, BRANDS } from "@/lib/config/brands";
-import type { Campaign, ImageOverrides, OfferType, Product, Urgency } from "@/lib/config/types";
+import { AI_PROVIDERS, DEFAULT_AI_MODELS, normalizeModelPair, type AIProviderOption } from "@/lib/config/aiModels";
+import type { AIModelSelection, BodyLayout, Campaign, ImageOverrides, OfferType, Product, ProductCopyStyle, Urgency } from "@/lib/config/types";
 import {
   buildSystemPrompt,
   buildUserPrompt,
   segJsonKey,
   type GenBrief,
 } from "@/lib/briefgen";
-import { getBrandIntelligence, PROGRAM_INTELLIGENCE } from "@/lib/config/intelligence";
+import { getBrandIntelligence, intelligencePromptBlock, PROGRAM_INTELLIGENCE } from "@/lib/config/intelligence";
 import { renderEmailHTML, type ProductLayout } from "@/lib/render/email";
 import { Preview } from "./components/Preview";
 import { PreflightPanel } from "./components/PreflightPanel";
 import { ImageEditor } from "./components/ImageEditor";
+import { HtmlFormatEditor } from "./components/HtmlFormatEditor";
 
 type View = "build" | "review" | "output";
 type OptKey = "a" | "b";
@@ -41,6 +43,7 @@ const OFFER_PRESETS: Record<OfferType, string[]> = {
   free_ship: ["Free Shipping 💲35+", "Free Shipping 💲45+", "Free Shipping 💲55+"],
   none: [],
 };
+const SHIPPING_PRESETS = ["Free Shipping 💲35+", "Free Shipping 💲45+", "Free Shipping 💲50+", "Free Shipping 💲55+"];
 
 // Format an ISO date (2026-05-31) as the team's naming token: Sun31May26.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -63,6 +66,7 @@ export default function Studio() {
   const [theme, setTheme] = useState("Spring comfort sale");
   const [offerType, setOfferType] = useState<OfferType>("sitewide_pct");
   const [offerValue, setOfferValue] = useState("70% O.F.F");
+  const [offerShipping, setOfferShipping] = useState("Free Shipping 💲35+");
   const [urgency, setUrgency] = useState<Urgency>("h24");
   const [hookContract, setHookContract] = useState("");
   const [recipientName, setRecipientName] = useState("son.nln");
@@ -71,6 +75,9 @@ export default function Studio() {
   const [lastCtr, setLastCtr] = useState("");
   const [lastNote, setLastNote] = useState("");
   const [winningContent, setWinningContent] = useState("");
+  const [customPerfContext, setCustomPerfContext] = useState<string | null>(null);
+  const [modelA, setModelA] = useState<AIModelSelection>(DEFAULT_AI_MODELS.a);
+  const [modelB, setModelB] = useState<AIModelSelection>(DEFAULT_AI_MODELS.b);
   const [segments, setSegments] = useState<string[]>(
     BRANDS[BRAND_LIST[0].id].productSegments.slice(0, 2).map((s) => s.code)
   );
@@ -78,6 +85,8 @@ export default function Studio() {
   const [images, setImages] = useState<ImageOverrides>({});
   const [includeLogo, setIncludeLogo] = useState(false);
   const [productLayout, setProductLayout] = useState<ProductLayout>("stack");
+  const [bodyLayout, setBodyLayout] = useState<BodyLayout>("continuous");
+  const [productCopyStyle, setProductCopyStyle] = useState<ProductCopyStyle>("headline_winner");
 
   // generated A/B options
   const [options, setOptions] = useState<{ a?: GenBrief; b?: GenBrief }>({});
@@ -87,6 +96,7 @@ export default function Studio() {
   // Manual HTML edits to the rendered email, keyed `${opt}:${segment}` (overrides the render).
   const [htmlOverrides, setHtmlOverrides] = useState<Record<string, string>>({});
   const [editingHtml, setEditingHtml] = useState(false);
+  const [revisionFeedback, setRevisionFeedback] = useState("");
 
   const [apiError, setApiError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -177,15 +187,17 @@ export default function Studio() {
   const brand = BRANDS[brandId];
   const layout = brand.layout;
 
-  const offer = offerType === "none" || !offerValue ? "No promo this send" : offerValue;
+  const offerParts = [offerValue, offerShipping].map((p) => p.trim()).filter(Boolean);
+  const offer = offerParts.length ? offerParts.join(" + ") : "No promo this send";
   const campaign: Campaign = useMemo(
     () => ({
       brandId, sendDate, segments, layout, theme,
-      offerType, offerValue, urgency, offer, hookContract, recipientName,
+      offerType, offerValue, offerShipping, urgency, offer, bodyLayout, productCopyStyle, hookContract, recipientName,
       lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote },
       winningContent,
+      customPerfContext: customPerfContext ?? undefined,
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, urgency, offer, hookContract, recipientName, lastCtr, lastHero, lastAngle, lastNote, winningContent]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, productCopyStyle, hookContract, recipientName, lastCtr, lastHero, lastAngle, lastNote, winningContent, customPerfContext]
   );
 
   // Filled slots → Product list, applying the per-slot URL + selected-USP overrides. Hero first.
@@ -206,6 +218,7 @@ export default function Studio() {
     setSlots(initSlots(id));
     setImages({});
     setOptions({});
+    setRevisionFeedback("");
   }
 
   function toggle<T>(list: T[], value: T, setter: (v: T[]) => void) {
@@ -273,13 +286,15 @@ export default function Studio() {
   // ---- prompt previews (for the Review step; what the server rebuilds and sends) ----
   const systemPromptA = useMemo(() => buildSystemPrompt(campaign, selectedProducts, false), [campaign, selectedProducts]);
   const userPromptA = useMemo(() => buildUserPrompt(campaign, false), [campaign]);
+  const perfContextDefault = useMemo(() => intelligencePromptBlock(brandId), [brandId]);
+  const effectivePerfContext = customPerfContext ?? perfContextDefault;
   // Optional user edits to the prompts (null = use the generated default; what-you-see-is-what's-sent).
   const [systemOverride, setSystemOverride] = useState<string | null>(null);
   const [userOverride, setUserOverride] = useState<string | null>(null);
   const effectiveSystem = systemOverride ?? systemPromptA;
   const effectiveUser = userOverride ?? userPromptA;
 
-  async function generate() {
+  async function generate(feedback?: string) {
     setGenerating(true);
     setApiError(null);
     setSaveState("idle");
@@ -300,6 +315,9 @@ export default function Studio() {
             systemOverride !== null || userOverride !== null
               ? { system: systemOverride ?? undefined, user: userOverride ?? undefined }
               : undefined,
+          models: normalizeModelPair({ a: modelA, b: modelB }),
+          feedback: feedback?.trim() || undefined,
+          existingOptions: feedback?.trim() ? options : undefined,
         }),
       });
       // Read as text first: a serverless timeout/crash returns a plain-text error page, not JSON.
@@ -324,6 +342,7 @@ export default function Studio() {
       setActiveSegment(segments[0]);
       setOutputTab("preview");
       setView("output");
+      if (feedback?.trim()) setRevisionFeedback("");
     } catch (e) {
       setApiError(e instanceof Error ? e.message : "Network error");
     } finally {
@@ -331,19 +350,62 @@ export default function Studio() {
     }
   }
 
+  function regenerateFromFeedback() {
+    const feedback = revisionFeedback.trim();
+    if (!feedback) {
+      setApiError("Add feedback first, then regenerate.");
+      return;
+    }
+    void generate(feedback);
+  }
+
+  function useQaFlagsAsFeedback() {
+    const flags = activeBrief?._flags || [];
+    if (!flags.length) return;
+    const lines = flags.map((f) => `- ${f.type.toUpperCase()}: ${f.msg}`).join("\n");
+    setRevisionFeedback((prev) => [prev.trim(), "Fix these QA/playbook issues:", lines].filter(Boolean).join("\n\n"));
+  }
+
   const activeBrief = options[activeOption];
+
+  function updateActiveBrief(next: GenBrief) {
+    setOptions((prev) => ({ ...prev, [activeOption]: next }));
+    setHtmlOverrides({});
+  }
 
   function htmlFor(opt: OptKey, seg: string): string {
     const key = `${opt}:${seg}`;
     if (htmlOverrides[key] != null) return htmlOverrides[key]; // user-edited HTML wins
     const b = options[opt];
     if (!b) return "";
-    return renderEmailHTML(brand, campaign, selectedProducts, b, seg, images, { includeLogo, productLayout });
+    return renderEmailHTML(brand, campaign, selectedProducts, b, seg, images, { includeLogo, productLayout, bodyLayout });
   }
   const activeHtmlKey = `${activeOption}:${activeSegment}`;
   const activeHtmlEdited = htmlOverrides[activeHtmlKey] != null;
   function subjectFor(opt: OptKey, seg: string): string {
     return options[opt]?.subject_lines?.[segJsonKey(seg)]?.subject || `${brand.name} ${seg}`;
+  }
+  function preheaderFor(opt: OptKey, seg: string): string {
+    return options[opt]?.subject_lines?.[segJsonKey(seg)]?.preheader || "";
+  }
+  function useSubjectOption(subject: string, preheader: string, style?: string, modelHint?: string, sharedThread?: string) {
+    if (!activeBrief || !activeSegment) return;
+    const key = segJsonKey(activeSegment);
+    const current = activeBrief.subject_lines?.[key] || { subject: "", preheader: "" };
+    updateActiveBrief({
+      ...activeBrief,
+      subject_lines: {
+        ...(activeBrief.subject_lines || {}),
+        [key]: {
+          ...current,
+          subject,
+          preheader,
+          style: style || current.style,
+          model_hint: modelHint || current.model_hint,
+          shared_thread: sharedThread || current.shared_thread,
+        },
+      },
+    });
   }
   const templateName = (opt: OptKey, seg: string) =>
     `${brand.name}_${dateToken(sendDate)}_${seg}_${opt.toUpperCase()}`;
@@ -423,10 +485,12 @@ export default function Studio() {
     setSaveError(null);
     try {
       const payload: VersionPayload = {
-        brandId, sendDate, theme, offerType, offerValue, urgency, offer, hookContract, recipientName,
-        segments, slots, includeLogo, productLayout, images, options, htmlOverrides,
+        brandId, sendDate, theme, offerType, offerValue, offerShipping, urgency, offer, hookContract, recipientName,
+        segments, slots, includeLogo, productLayout, bodyLayout, productCopyStyle, images, options, htmlOverrides,
+        models: normalizeModelPair({ a: modelA, b: modelB }),
         lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote },
         winningContent,
+        customPerfContext: customPerfContext ?? undefined,
       };
       await saveVersion(`${brand.name}_${dateToken(sendDate)}`, payload);
       setSaveState("saved");
@@ -445,6 +509,7 @@ export default function Studio() {
     setTheme("Spring comfort sale");
     setOfferType("sitewide_pct");
     setOfferValue("70% O.F.F");
+    setOfferShipping("Free Shipping 💲35+");
     setUrgency("h24");
     setHookContract("");
     setRecipientName("son.nln");
@@ -455,6 +520,8 @@ export default function Studio() {
     setImages({});
     setIncludeLogo(false);
     setProductLayout("stack");
+    setBodyLayout("continuous");
+    setProductCopyStyle("headline_winner");
     setOptions({});
     setActiveOption("a");
     setActiveSegment("");
@@ -466,7 +533,11 @@ export default function Studio() {
     setTplResults({});
     setSystemOverride(null);
     setUserOverride(null);
+    setCustomPerfContext(null);
+    setModelA(DEFAULT_AI_MODELS.a);
+    setModelB(DEFAULT_AI_MODELS.b);
     setHtmlOverrides({});
+    setRevisionFeedback("");
     setVisited(new Set([0]));
     setOpenStep(0);
     setView("build");
@@ -477,26 +548,34 @@ export default function Studio() {
     setBrandId(d.brandId);
     setSendDate(d.sendDate);
     setTheme(d.theme || "");
-    setOfferType(d.offerType || "none");
-    setOfferValue(d.offerValue || "");
+    setOfferType(d.offerType === "free_ship" ? "none" : d.offerType || "none");
+    setOfferValue(d.offerType === "free_ship" ? "" : d.offerValue || "");
+    setOfferShipping(d.offerShipping || (d.offerType === "free_ship" ? d.offerValue || "" : ""));
     setUrgency(d.urgency || "none");
     setLastCtr(d.lastSend?.ctr || "");
     setLastHero(d.lastSend?.hero || "");
     setLastAngle(d.lastSend?.angle || "");
     setLastNote(d.lastSend?.note || "");
     setWinningContent(d.winningContent || "");
+    setCustomPerfContext(d.customPerfContext ?? null);
+    const models = normalizeModelPair(d.models);
+    setModelA(models.a);
+    setModelB(models.b);
     setHookContract(d.hookContract || "");
     setRecipientName(d.recipientName);
     setSegments(d.segments || []);
     setSlots(d.slots && d.slots.length ? d.slots : initSlots(d.brandId));
     setIncludeLogo(d.includeLogo);
     setProductLayout(d.productLayout || "stack");
+    setBodyLayout(d.bodyLayout || "continuous");
+    setProductCopyStyle(d.productCopyStyle || "headline_winner");
     setImages(d.images || {});
     setOptions(d.options || {});
     setActiveOption(d.options?.a ? "a" : "b");
     setActiveSegment((d.segments || [])[0] || "");
     setHtmlOverrides(d.htmlOverrides || {});
     setEditingHtml(false);
+    setRevisionFeedback("");
     setSyncResults({});
     setTplResults({});
     setSaveState("idle");
@@ -541,10 +620,35 @@ export default function Studio() {
   const STEP_TITLES = ["Brand · Date · Theme", "Promo & Urgency", "Products", "Segments", "Last-Send Context", "Winning Reference"];
 
   const segLabel = (code: string) => brand.productSegments.find((s) => s.code === code)?.label || code;
+  const heroProduct = selectedProducts[0] || brand.catalog.find((p) => p.slug === brand.heroSlug) || brand.catalog[0];
+
+  function autoFillProductSet() {
+    const desired = Math.min(maxProducts, brand.defaultProductCount || maxProducts, brand.catalog.length);
+    const ordered = [
+      ...brand.catalog.filter((p) => p.slug === brand.heroSlug),
+      ...brand.catalog.filter((p) => p.slug !== brand.heroSlug),
+    ].slice(0, desired);
+    setSlots(
+      ordered.map((p) => ({
+        slug: p.slug,
+        url: p.url || "",
+        usps: [...(p.usps || [])],
+      }))
+    );
+  }
+
+  function buildSuggestedHookContract() {
+    const audience = segments.length ? segments.map((s) => `${s} ${segLabel(s)}`).join(", ") : "selected segments";
+    const avoid = [lastHero && `hero ${lastHero}`, lastAngle && `angle ${lastAngle}`, lastNote].filter(Boolean).join("; ") || "hook stacking and generic gratitude";
+    setHookContract(
+      `Audience: ${audience}. Emotion/curiosity: ${brand.urgencyType}. Hero product: ${heroProduct?.name || "selected hero"}. Proof/price: ${offer}; use supplied review/product facts only. Urgency: ${urgency}. Avoid: ${avoid}.`
+    );
+  }
+
   const stepSummary = (i: number): string => {
     switch (i) {
       case 0: return `${brand.name} · ${dateToken(sendDate)} · ${theme || "no theme"}`;
-      case 1: return offerType === "none" || !offerValue ? "No promo" : `${offerValue} · ${urgency}`;
+      case 1: return `${offerParts.length ? offerParts.join(" + ") : "No promo"} · ${urgency}`;
       case 2: return `${selectedProducts.length} product${selectedProducts.length === 1 ? "" : "s"} (hero: ${brand.catalog.find((p) => p.slug === brand.heroSlug)?.name})`;
       case 3: return segments.length ? segments.map((s) => `${s} ${segLabel(s)}`).join(" · ") : "none selected";
       case 4: return lastHero || lastAngle || lastCtr ? `${lastHero || "?"} · ${lastAngle || "?"} · ${lastCtr || "?"}%` : "skipped";
@@ -641,6 +745,15 @@ export default function Studio() {
         })}
       </nav>
 
+      <WorkflowSnapshot
+        brandName={brand.name}
+        send={dateToken(sendDate)}
+        offer={offer}
+        products={selectedProducts.length}
+        segments={segments.length}
+        score={activeBrief?._score}
+      />
+
       {/* ============ BUILD (6-step accordion wizard) ============ */}
       {view === "build" && (
         <section className="flex flex-col gap-3">
@@ -683,18 +796,29 @@ export default function Studio() {
                     <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="e.g. Spring comfort sale · Thank-you · Back in stock" className="input" />
                   </Field>
                   <Field label="Hook Contract (optional — leave blank to let the model build one)">
-                    <textarea value={hookContract} onChange={(e) => setHookContract(e.target.value)} rows={2} className="input" placeholder="segment insight + emotion + hero product + price/proof + urgency + avoid rule" />
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={buildSuggestedHookContract} className="btn-ghost">Auto-build from brief</button>
+                      <span className="text-xs text-[var(--muted)]">Uses current brand, segments, hero, offer, urgency, and avoid notes.</span>
+                    </div>
+                    <textarea value={hookContract} onChange={(e) => setHookContract(e.target.value)} rows={3} className="input" placeholder="segment insight + emotion + hero product + price/proof + urgency + avoid rule" />
                   </Field>
                 </div>
               )}
 
               {i === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <Field label="Offer">
+                  <Field label="Discount / price component">
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {([["sitewide_pct", "Sitewide % OFF"], ["fixed_price", "Fixed price"], ["free_ship", "Free shipping"], ["none", "No promo"]] as [OfferType, string][]).map(([v, lbl]) => (
-                        <button key={v} onClick={() => { setOfferType(v); setOfferValue(v === "none" ? "" : offerValue); }}
-                          className={`px-3 py-1.5 rounded-lg border text-sm ${offerType === v ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
+                      {([["sitewide_pct", "Sitewide % O.F.F"], ["fixed_price", "Fixed price"], ["none", "No discount"]] as [OfferType, string][]).map(([v, lbl]) => (
+                        <button
+                          key={v}
+                          onClick={() => {
+                            setOfferType(v);
+                            if (v === "none") setOfferValue("");
+                            else if (!offerValue) setOfferValue((OFFER_PRESETS[v] || [])[0] || "");
+                          }}
+                          className={`px-3 py-1.5 rounded-lg border text-sm ${offerType === v ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                        >
                           {lbl}
                         </button>
                       ))}
@@ -703,8 +827,11 @@ export default function Studio() {
                       <>
                         <div className="flex flex-wrap gap-2 mb-2">
                           {(OFFER_PRESETS[offerType] || []).map((v) => (
-                            <button key={v} onClick={() => setOfferValue(v)}
-                              className={`px-2.5 py-1 rounded-full border text-xs ${offerValue === v ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
+                            <button
+                              key={v}
+                              onClick={() => setOfferValue(v)}
+                              className={`px-2.5 py-1 rounded-full border text-xs ${offerValue === v ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                            >
                               {v}
                             </button>
                           ))}
@@ -712,6 +839,29 @@ export default function Studio() {
                         <input value={offerValue} onChange={(e) => setOfferValue(e.target.value)} placeholder="e.g. 80% O.F.F or 💲12.99" className="input" />
                       </>
                     )}
+                  </Field>
+                  <Field label="Free-shipping component">
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <button
+                        onClick={() => setOfferShipping("")}
+                        className={`px-3 py-1.5 rounded-lg border text-sm ${!offerShipping ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                      >
+                        No free shipping
+                      </button>
+                      {SHIPPING_PRESETS.map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setOfferShipping(v)}
+                          className={`px-2.5 py-1 rounded-full border text-xs ${offerShipping === v ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                    <input value={offerShipping} onChange={(e) => setOfferShipping(e.target.value)} placeholder="Custom shipping line, e.g. Free Shipping 💲35+" className="input" />
+                    <div className="offer-preview">
+                      Combined offer: <strong>{offer}</strong>
+                    </div>
                   </Field>
                   <Field label="Urgency window">
                     <div className="flex flex-wrap gap-2">
@@ -731,6 +881,9 @@ export default function Studio() {
                   <p className="text-sm text-[var(--muted)]">
                     Slot 1 is the <strong className="text-[var(--text)]">Hero</strong> (featured in banner + body). Add up to {MAX_SLOTS} slots. For each: pick the product, set a customer URL, and tick the USPs (or add your own) that should feed the copy + brief.
                   </p>
+                  <Field label="Product block template">
+                    <ProductStylePicker value={productCopyStyle} onChange={setProductCopyStyle} />
+                  </Field>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {slots.map((slot, si) => (
                       <ProductSlotCard
@@ -750,6 +903,7 @@ export default function Studio() {
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={addSlot} disabled={slots.length >= MAX_SLOTS} className="btn-ghost">+ Add product slot</button>
+                    <button onClick={autoFillProductSet} className="btn-ghost">Auto-fill recommended set</button>
                     <span className="text-sm">
                       Filled: <strong>{selectedProducts.length}</strong>
                       {selectedProducts.length > maxProducts && <span className="text-[var(--bad)]"> — 7+ hurts conversion</span>}
@@ -810,6 +964,7 @@ export default function Studio() {
       {view === "review" && (
         <section className="flex flex-col gap-4">
           <PerfPanel brandId={brandId} hero={selectedProducts[0]?.name} productCount={selectedProducts.length} />
+          <WinTemplateRhythm />
 
           <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
             <h3 className="text-sm font-semibold mb-2">Pre-flight summary</h3>
@@ -821,6 +976,8 @@ export default function Studio() {
               <Summary k="Urgency" v={urgency} />
               <Summary k="Segments" v={segments.map((s) => s).join(", ") || "—"} />
               <Summary k="Products" v={`${selectedProducts.length} (${selectedProducts.map((p) => p.name).join(", ")})`} />
+              <Summary k="Body layout" v={bodyLayout} />
+              <Summary k="Product copy" v={productCopyStyle.replace(/_/g, " ")} />
             </div>
           </div>
 
@@ -828,6 +985,20 @@ export default function Studio() {
             One combined prompt produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. We run it twice for two contrasting options. A and B share the same user prompt below; <strong className="text-[var(--text)]">B&apos;s divergence is enforced in its system prompt</strong> — once A returns, B is told <em>&ldquo;A used angle X / framework Y — pick different ones&rdquo;</em> (with an auto-retry if it overlaps). These are the exact prompts the server sends.
           </p>
           {apiError && <Banner level="fail">{apiError}</Banner>}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <ModelSelector label="Option A model" value={modelA} onChange={setModelA} providers={AI_PROVIDERS} />
+            <ModelSelector label="Option B model" value={modelB} onChange={setModelB} providers={AI_PROVIDERS} />
+          </div>
+
+          <PromptBlock
+            title="Performance context"
+            subtitle="Injected into the system prompt; edit to steer this campaign's intelligence"
+            value={effectivePerfContext}
+            edited={customPerfContext !== null}
+            onChange={(v) => setCustomPerfContext(v)}
+            onReset={() => setCustomPerfContext(null)}
+          />
 
           <PromptBlock
             title="System prompt (shared, cached)"
@@ -848,8 +1019,8 @@ export default function Studio() {
 
           <div className="flex items-center gap-2">
             <button onClick={() => setView("build")} className="btn-ghost">← Back to brief</button>
-            <button onClick={generate} disabled={generating || !canGenerate} className="btn-primary">
-              {generating ? "Generating A + B…" : "✨ Send to Claude · generate A + B"}
+            <button onClick={() => generate()} disabled={generating || !canGenerate} className="btn-primary">
+              {generating ? "Generating A + B…" : "✨ Generate A + B"}
             </button>
             {!canGenerate && <span className="text-xs text-[var(--warn)]">Pick at least one segment and 1–{maxProducts} products.</span>}
           </div>
@@ -875,11 +1046,37 @@ export default function Studio() {
                       className={`text-left px-4 py-2 rounded-lg border ${active ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)]"}`}>
                       <div className="text-sm font-semibold">Option {opt.toUpperCase()} <span className="ml-1 text-xs" style={{ color: scoreColor(b._score) }}>{b._score ?? "—"}/100</span></div>
                       <div className="text-xs text-[var(--muted)]">{cd.angle || "?"} · {cd.framework || "?"}</div>
+                      {b._model && <div className="text-[10px] mono text-[var(--muted)]">{b._provider || "AI"} · {b._model}</div>}
                     </button>
                   );
                 })}
                 <div className="flex-1" />
-                <button onClick={generate} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "↻ Regenerate A + B"}</button>
+                <button onClick={() => generate()} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "↻ Regenerate A + B"}</button>
+              </div>
+
+              {activeBrief && <FormatCoverage brief={activeBrief} />}
+
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div>
+                    <h3 className="text-sm font-semibold">Regenerate from feedback</h3>
+                    <p className="text-xs text-[var(--muted)]">Uses the current A/B output as context, then regenerates complete playbook-checked options.</p>
+                  </div>
+                  <button onClick={useQaFlagsAsFeedback} disabled={!activeBrief?._flags?.length} className="btn-ghost">Use QA flags</button>
+                </div>
+                <textarea
+                  value={revisionFeedback}
+                  onChange={(e) => setRevisionFeedback(e.target.value)}
+                  rows={3}
+                  className="input"
+                  placeholder="Example: Make Option B less discount-first, tighten the banner bullets, keep Daisy as hero, and add the shipping threshold in paragraph 1."
+                />
+                <div className="flex items-center gap-2 mt-2">
+                  <button onClick={regenerateFromFeedback} disabled={generating || !revisionFeedback.trim()} className="btn-primary">
+                    {generating ? "Regenerating…" : "Apply feedback · regenerate A + B"}
+                  </button>
+                  <button onClick={() => setRevisionFeedback("")} disabled={!revisionFeedback.trim()} className="btn-ghost">Clear</button>
+                </div>
               </div>
 
               {/* segment tabs */}
@@ -902,8 +1099,13 @@ export default function Studio() {
                       <span className="text-[var(--muted)]">Subject: </span>
                       <strong>{subjectFor(activeOption, activeSegment)}</strong>
                       <span className="text-[var(--muted)] ml-2">({subjectFor(activeOption, activeSegment).length} chars)</span>
+                      {preheaderFor(activeOption, activeSegment) && (
+                        <div className="text-xs text-[var(--muted)] mt-1">Preheader: {preheaderFor(activeOption, activeSegment)}</div>
+                      )}
                     </div>
+                    <SubjectOptionsPanel brief={activeBrief} segment={activeSegment} onUse={useSubjectOption} />
                     <LayoutPicker count={selectedProducts.length} value={productLayout} onChange={(v) => { setProductLayout(v); setHtmlOverrides({}); }} />
+                    <BodyLayoutPicker value={bodyLayout} onChange={(v) => { setBodyLayout(v); setHtmlOverrides({}); }} />
                     <div className="flex items-center gap-2 mb-2">
                       <button
                         onClick={() => setEditingHtml((v) => !v)}
@@ -924,12 +1126,10 @@ export default function Studio() {
                       )}
                     </div>
                     {editingHtml && (
-                      <textarea
+                      <HtmlFormatEditor
                         value={htmlFor(activeOption, activeSegment)}
-                        onChange={(e) => setHtmlOverrides((o) => ({ ...o, [activeHtmlKey]: e.target.value }))}
-                        spellCheck={false}
-                        className="w-full mono text-xs leading-relaxed p-3 mb-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] outline-none resize-y"
-                        style={{ height: 220 }}
+                        accent={brand.accent}
+                        onChange={(value) => setHtmlOverrides((o) => ({ ...o, [activeHtmlKey]: value }))}
                       />
                     )}
                     <Preview html={htmlFor(activeOption, activeSegment)} />
@@ -947,7 +1147,7 @@ export default function Studio() {
                     <button onClick={exportExcel} className="btn-primary">📊 Export to Excel (.xls · A + B)</button>
                     <span className="text-xs text-[var(--muted)]">One sheet per option, matching the email-brief format.</span>
                   </div>
-                  <BriefView brief={activeBrief} onDownload={downloadBrief} />
+                  <BriefView brief={activeBrief} onDownload={downloadBrief} onChange={updateActiveBrief} />
                 </div>
               )}
 
@@ -1029,6 +1229,99 @@ function Summary({ k, v }: { k: string; v: string }) {
     <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
       <div className="text-[10px] uppercase text-[var(--muted)]">{k}</div>
       <div className="mt-0.5 truncate" title={v}>{v}</div>
+    </div>
+  );
+}
+
+function WorkflowSnapshot({
+  brandName,
+  send,
+  offer,
+  products,
+  segments,
+  score,
+}: {
+  brandName: string;
+  send: string;
+  offer: string;
+  products: number;
+  segments: number;
+  score?: number;
+}) {
+  return (
+    <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-2">
+      <SnapshotChip label="Brand" value={`${brandName} · ${send}`} />
+      <SnapshotChip label="Offer stack" value={offer} />
+      <SnapshotChip label="Products" value={`${products} selected`} tone={products > 6 ? "bad" : products ? "ok" : "warn"} />
+      <SnapshotChip label="Segments" value={`${segments} variant${segments === 1 ? "" : "s"}`} tone={segments ? "ok" : "warn"} />
+      <SnapshotChip label="Launch score" value={typeof score === "number" ? `${score}/100` : "Not generated"} tone={typeof score === "number" ? (score >= 85 ? "ok" : score >= 60 ? "warn" : "bad") : undefined} />
+    </div>
+  );
+}
+
+function SnapshotChip({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" | "bad" }) {
+  const color = tone ? `var(--${tone})` : "var(--muted)";
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 min-w-0">
+      <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
+      <div className="mt-0.5 text-sm font-semibold truncate" title={value} style={{ color }}>{value}</div>
+    </div>
+  );
+}
+
+function WinTemplateRhythm() {
+  const items = [
+    ["Body rhythm", "3-5 short beats"],
+    ["Visual cadence", "5-8 linked images"],
+    ["Grid shape", "6-10 columns"],
+    ["Emphasis", "2-4 accent cues"],
+  ];
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <h3 className="text-sm font-semibold">Win-template rhythm</h3>
+        <span className="text-xs text-[var(--muted)]">WinEmailTemps reference set</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+            <div className="text-[10px] uppercase text-[var(--muted)]">{label}</div>
+            <div className="text-sm font-semibold mt-0.5">{value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FormatCoverage({ brief }: { brief: GenBrief }) {
+  const scan = JSON.stringify({ banner: brief.banner, body: brief.body, products: brief.products });
+  const accent = scan.match(/==[^=]+==/g)?.length || 0;
+  const bold = scan.match(/\*\*[^*]+\*\*/g)?.length || 0;
+  const links = scan.match(/\[[^\]]+\]\((?:slug:[a-z0-9_-]+|home)\)/gi)?.length || 0;
+  const chips = [
+    { label: "Accent color", value: `${accent}`, ok: accent >= 1 && accent <= 6 },
+    { label: "Bold beats", value: `${bold}`, ok: bold >= 1 },
+    { label: "Hyperlinks", value: `${links}`, ok: links >= 1 },
+  ];
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold mr-1">Formatting coverage</span>
+        {chips.map((chip) => (
+          <span
+            key={chip.label}
+            className="text-xs rounded-full border px-2.5 py-1"
+            style={{
+              borderColor: chip.ok ? "var(--ok)" : "var(--warn)",
+              color: chip.ok ? "var(--ok)" : "var(--warn)",
+              background: "var(--surface-2)",
+            }}
+          >
+            {chip.label}: {chip.value}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1157,6 +1450,122 @@ function VariantTabs({
   );
 }
 
+function SubjectOptionsPanel({
+  brief,
+  segment,
+  onUse,
+}: {
+  brief: GenBrief;
+  segment: string;
+  onUse: (subject: string, preheader: string, style?: string, modelHint?: string, sharedThread?: string) => void;
+}) {
+  const line = brief.subject_lines?.[segJsonKey(segment)];
+  const options = line?.options || [];
+  if (!line || !options.length) return null;
+  return (
+    <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h3 className="text-sm font-semibold">Subject options</h3>
+        <span className="text-xs text-[var(--muted)]">{options.length} styles</span>
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        {options.map((o, i) => {
+          const active = o.subject === line.subject && o.preheader === line.preheader;
+          return (
+            <div key={`${o.subject}-${i}`} className={`rounded border p-2 ${active ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)]"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                    {o.model_hint || "AI"} · {o.style || `Option ${i + 1}`}
+                  </div>
+                  <div className="text-sm font-semibold">{o.subject}</div>
+                  <div className="text-xs text-[var(--muted)] mt-0.5">{o.preheader}</div>
+                  {o.shared_thread && <div className="text-[11px] text-[var(--accent-2)] mt-1">Thread: {o.shared_thread}</div>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUse(o.subject, o.preheader, o.style, o.model_hint, o.shared_thread)}
+                  disabled={active}
+                  className="btn-ghost shrink-0"
+                >
+                  {active ? "Using" : "Use"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ModelSelector({
+  label,
+  value,
+  onChange,
+  providers,
+}: {
+  label: string;
+  value: AIModelSelection;
+  onChange: (v: AIModelSelection) => void;
+  providers: AIProviderOption[];
+}) {
+  const provider = providers.find((p) => p.id === value.provider) || providers[0];
+  const model = provider.models.find((m) => m.id === value.model) || provider.models[0];
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="text-xs font-semibold text-[var(--muted)] mb-2">{label}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <select
+          value={provider.id}
+          onChange={(e) => {
+            const next = providers.find((p) => p.id === e.target.value) || providers[0];
+            onChange({ provider: next.id, model: next.models[0].id });
+          }}
+          className="input"
+        >
+          {providers.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
+        <select
+          value={model.id}
+          onChange={(e) => onChange({ provider: provider.id, model: e.target.value })}
+          className="input"
+        >
+          {provider.models.map((m) => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
+        </select>
+      </div>
+      {model.note && <div className="text-[11px] text-[var(--muted)] mt-1">{model.note}</div>}
+    </div>
+  );
+}
+
+function ProductStylePicker({ value, onChange }: { value: ProductCopyStyle; onChange: (v: ProductCopyStyle) => void }) {
+  const opts: { id: ProductCopyStyle; label: string; note: string }[] = [
+    { id: "headline_winner", label: "Headline-led winner", note: "Short headline, tiny USPs" },
+    { id: "benefit_pair", label: "Benefit pair", note: "Two pain-to-relief cues" },
+    { id: "proof_badge", label: "Proof badge", note: "Review/trust leads" },
+  ];
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onChange(o.id)}
+          className={`text-left rounded-lg border px-3 py-2 ${value === o.id ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+        >
+          <div className="text-sm font-semibold">{o.label}</div>
+          <div className="text-xs mt-0.5">{o.note}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function LayoutPicker({ count, value, onChange }: { count: number; value: ProductLayout; onChange: (v: ProductLayout) => void }) {
   // Offer arrangements that make sense for the number of products in the email.
   const opts: { id: ProductLayout; label: string; rows: number[] }[] = [
@@ -1185,6 +1594,37 @@ function LayoutPicker({ count, value, onChange }: { count: number; value: Produc
                 ))}
               </span>
               <span>{o.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BodyLayoutPicker({ value, onChange }: { value: BodyLayout; onChange: (v: BodyLayout) => void }) {
+  const opts: { id: BodyLayout; label: string; rows: string[] }[] = [
+    { id: "continuous", label: "Continuous body", rows: ["Body", "P.S.", "Products"] },
+    { id: "interspersed", label: "Opener + products", rows: ["Opener", "Products", "Bridge/P.S."] },
+  ];
+  return (
+    <div className="mb-3">
+      <div className="text-xs text-[var(--muted)] mb-1">Body placement</div>
+      <div className="flex flex-wrap gap-2">
+        {opts.map((o) => {
+          const active = value === o.id;
+          return (
+            <button
+              key={o.id}
+              onClick={() => onChange(o.id)}
+              className={`px-3 py-2 rounded-lg border text-xs text-left min-w-40 ${active ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+            >
+              <span className="font-semibold block mb-1">{o.label}</span>
+              <span className="flex flex-col gap-0.5">
+                {o.rows.map((r) => (
+                  <span key={r} className="block rounded-sm px-2 py-0.5" style={{ background: active ? "rgba(35,102,90,.12)" : "var(--surface-2)" }}>{r}</span>
+                ))}
+              </span>
             </button>
           );
         })}
@@ -1279,6 +1719,8 @@ function Styles() {
       .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
       .btn-ghost { background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 12px; font-size:13px; cursor:pointer; }
       .btn-ghost:disabled { opacity:.4; cursor:not-allowed; }
+      .offer-preview { margin-top:8px; padding:7px 11px; background:#edf6f1; border:1px solid #b9d8cc; border-radius:6px; font-size:12px; color:#315c51; }
+      .offer-preview strong { font-weight:700; }
     `}</style>
   );
 }

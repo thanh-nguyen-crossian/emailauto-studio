@@ -47,7 +47,7 @@ export async function requireAdmin(req: Request): Promise<{ userId: string }> {
 
 /**
  * Require an active, signed-in user (any role) for paid/sensitive routes
- * (Claude generation, SendGrid sync). If Supabase isn't configured (local dev without keys),
+ * (AI generation, SendGrid sync). If Supabase isn't configured (local dev without keys),
  * returns null so local development still works.
  */
 export async function requireActiveUser(req: Request): Promise<{ userId: string } | null> {

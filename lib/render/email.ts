@@ -1,4 +1,4 @@
-import type { Brand, Campaign, ImageOverrides, Product } from "../config/types";
+import type { BodyLayout, Brand, Campaign, ImageOverrides, Product } from "../config/types";
 import type { GenBrief, GenProductBlock } from "../briefgen";
 import { segJsonKey } from "../briefgen";
 import { buildUrl, paragraphsToHtml, parseInlineMarkdown } from "./markdown";
@@ -31,6 +31,8 @@ export interface RenderOptions {
   includeLogo?: boolean;
   /** Product grid layout (default "stack"). */
   productLayout?: ProductLayout;
+  /** Body placement relative to product blocks (default campaign/body continuous). */
+  bodyLayout?: BodyLayout;
 }
 
 // ---- module-id generator (data-muid); counter-based, deterministic per render ----
@@ -54,7 +56,7 @@ function imageModule(
     : "display:block; color:#000000; text-decoration:none; font-family:Helvetica, arial, sans-serif; font-size:16px; max-width:100% !important; height:auto !important;";
   return `<table class="wrapper" role="module" data-type="image" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="${muid}">
   <tbody><tr><td style="font-size:6px; line-height:10px; padding:0px 0px ${bottomPad}px 0px;" valign="top" align="center">
-    <a href="${href}"><img class="max-width" border="0" style="${imgStyle}" width="${widthAttr}" alt="${alt}" data-proportionally-constrained="true" data-responsive="true" src="${src}"></a>
+    <a clicktracking="off" href="${attr(href)}" aria-label="${attr(alt)}"><img class="max-width" border="0" style="${imgStyle}" width="${widthAttr}" alt="${attr(alt)}" data-proportionally-constrained="true" data-responsive="true" src="${src}"></a>
   </td></tr></tbody>
 </table>`;
 }
@@ -143,10 +145,10 @@ function footerBlock(brand: Brand, campaign: Campaign, muid: () => string): stri
   const content = `<div>
 <div style="font-family: inherit; text-align: center">${sm(`Thanks for shopping at ${brand.name}`)}</div>
 <div style="font-family: inherit; text-align: center">${sm("You're part of the family! We hope you love your {{product_label}} from {{purchase_date}} (#{{code}}).")}</div>
-<div style="font-family: inherit; text-align: center">${sm("Want exclusive deals &amp; comfort tips? We'd love to keep in touch — but if you'd rather not, you can ")}<a href="{{unsubscribe}}">${sm("opt out here")}</a>${sm(".")}</div>
+<div style="font-family: inherit; text-align: center">${sm("Want exclusive deals &amp; comfort tips? We'd love to keep in touch — but if you'd rather not, you can ")}<a clicktracking="off" href="{{unsubscribe}}">${sm("opt out here")}</a>${sm(".")}</div>
 <div style="font-family: inherit; text-align: center">${sm(`Reply with questions — ${brand.persona} or our experts are ready to help.`)}</div>
-<div style="font-family: inherit; text-align: center"><a href="${home}">${sm(`${brand.name}.com`)}</a></div>
-<div style="font-family: inherit; text-align: center">${sm(`© ${year} ${brand.name} | `)}<a href="${privacy}">${sm("Privacy Policy")}</a>${sm(" | ")}<a href="${returns}">${sm("Exchanges &amp; Returns")}</a></div>
+<div style="font-family: inherit; text-align: center"><a clicktracking="off" href="${attr(home)}">${sm(`${brand.name}.com`)}</a></div>
+<div style="font-family: inherit; text-align: center">${sm(`© ${year} ${brand.name} | `)}<a clicktracking="off" href="${attr(privacy)}">${sm("Privacy Policy")}</a>${sm(" | ")}<a clicktracking="off" href="${attr(returns)}">${sm("Exchanges &amp; Returns")}</a></div>
 <div></div></div>`;
   return columnsSingle(
     textModule(muid(), content, 20, "0px 9px 0px 9px"),
@@ -228,9 +230,16 @@ ${modules}
 // ---- banner caption (main/sub headline + supplied review, rendered under the hero image) ----
 function bannerCaptionBlock(brand: Brand, accent: string, banner: GenBrief["banner"], muid: () => string): string {
   const parts: string[] = [];
-  if (banner.main_text) parts.push(`==${banner.main_text.replace(/\n+/g, " ")}==`);
-  if (banner.sub_text) parts.push(banner.sub_text);
-  if (banner.review_quote) parts.push(`*${banner.review_quote}*`);
+  const mainLines = [banner.main_text_1, banner.main_text_2].filter(Boolean) as string[];
+  const subLines = [banner.sub_text_1, banner.sub_text_2].filter(Boolean) as string[];
+  const reviews = banner.review_texts?.length ? banner.review_texts : banner.review_quote ? [banner.review_quote] : [];
+  if (mainLines.length) parts.push(mainLines.map((line) => `==${line.replace(/\n+/g, " ")}==`).join("\n"));
+  else if (banner.main_text) parts.push(`==${banner.main_text.replace(/\n+/g, " ")}==`);
+  if (subLines.length) parts.push(subLines.join("\n"));
+  else if (banner.sub_text) parts.push(banner.sub_text);
+  if (banner.trust_booster) parts.push(`**${banner.trust_booster}**`);
+  if (banner.emergency) parts.push(`==${banner.emergency}==`);
+  reviews.forEach((review) => review && parts.push(`*${review}*`));
   if (!parts.length) return "";
   return textBlock(parts.join("\n\n"), brand, accent, muid, "center");
 }
@@ -249,7 +258,8 @@ function productCaptionInner(brand: Brand, accent: string, slug: string | null, 
   if (pb.review) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.rev}px; color:#606060; text-align:center; padding-top:4px;"><em>${parseInlineMarkdown(pb.review, brand, accent)}</em></div>`);
   if (pb.cta) {
     const href = buildUrl(brand, slug);
-    lines.push(`<div style="text-align:center; padding-top:8px;"><a href="${href}" style="display:inline-block; background-color:${accent}; color:#ffffff; font-family:arial,helvetica,sans-serif; font-size:${f.ctaFont}px; font-weight:bold; text-decoration:none; padding:${f.ctaPad}; border-radius:4px;">${parseInlineMarkdown(pb.cta, brand, accent)}</a></div>`);
+    const label = pb.cta || pb.name || "Shop product";
+    lines.push(`<div style="text-align:center; padding-top:8px;"><a clicktracking="off" href="${attr(href)}" aria-label="${attr(label)}" style="display:inline-block; background-color:${accent}; color:#ffffff; font-family:arial,helvetica,sans-serif; font-size:${f.ctaFont}px; font-weight:bold; text-decoration:none; padding:${f.ctaPad}; border-radius:4px;">${parseInlineMarkdown(pb.cta, brand, accent)}</a></div>`);
   }
   return `<div>${lines.join("\n")}<div></div></div>`;
 }
@@ -295,6 +305,7 @@ export function renderEmailHTML(
   const sl = brief.subject_lines?.[key];
   const preheader = sl?.preheader || "";
   const bodyText = brief.body?.[key] || brief.body?.base || "";
+  const bodyLayout = options.bodyLayout || campaign.bodyLayout || "continuous";
 
   // Product copy blocks come from the brief; pair each to a catalog product by slot order.
   const ordered = [...products].sort((a, b) =>
@@ -310,28 +321,36 @@ export function renderEmailHTML(
     const cap = bannerCaptionBlock(brand, accent, brief.banner, muid);
     if (cap) mods.push(cap);
   }
-  if (bodyText) mods.push(textBlock(bodyText, brand, accent, muid));
+
+  const bodyParts = bodyText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  const beforeProducts = bodyLayout === "interspersed" ? bodyParts.slice(0, 1).join("\n\n") : bodyText;
+  const afterProducts = bodyLayout === "interspersed" ? bodyParts.slice(1).join("\n\n") : "";
+  if (beforeProducts) mods.push(textBlock(beforeProducts, brand, accent, muid));
 
   // Product grid — arrangement chosen by the user.
   const layout = options.productLayout || "stack";
   const cell = (idx: number, imgW: number) =>
     idx < blocks.length ? productCellInner(brand, accent, ordered[idx], blocks[idx], images, muid, imgW) : "";
-  const gridRows = (start: number, perRow: number, colW: number, imgW: number, gutter: number) => {
+  const pushGridRows = (start: number, perRow: number, colW: number, imgW: number, gutter: number) => {
     for (let i = start; i < blocks.length; i += perRow) {
       const cells = Array.from({ length: perRow }, (_, j) => cell(i + j, imgW));
       mods.push(columnsRow(cells, colW, gutter, "0px 9px 18px 9px"));
     }
   };
   if (layout === "two") {
-    gridRows(0, 2, 282, 282, 18);
+    pushGridRows(0, 2, 282, 282, 18);
   } else if (layout === "three") {
-    gridRows(0, 3, 176, 176, 12);
+    pushGridRows(0, 3, 176, 176, 12);
   } else if (layout === "hero_grid") {
     if (blocks[0]) mods.push(productBlock(brand, accent, ordered[0], blocks[0], images, muid));
-    gridRows(1, 2, 282, 282, 18);
+    pushGridRows(1, 2, 282, 282, 18);
   } else {
     blocks.forEach((pb, i) => mods.push(productBlock(brand, accent, ordered[i], pb, images, muid)));
   }
+
+  const psText = brief.ps ? `P.S. ${brief.ps}` : "";
+  const closingText = [afterProducts, psText].filter(Boolean).join("\n\n");
+  if (closingText) mods.push(textBlock(closingText, brand, accent, muid));
 
   mods.push(footerBlock(brand, campaign, muid));
 

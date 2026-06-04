@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateOptions } from "@/lib/anthropic";
+import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
 import type { Campaign, Product } from "@/lib/config/types";
+import type { GenBrief } from "@/lib/briefgen";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -28,12 +30,16 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
     theme: c.theme || "Limited-time offer",
     offerType: c.offerType || "none",
     offerValue: c.offerValue || "",
+    offerShipping: c.offerShipping || "",
     urgency: c.urgency || "none",
     offer: c.offer || "",
+    bodyLayout: c.bodyLayout || "continuous",
+    productCopyStyle: c.productCopyStyle || "headline_winner",
     hookContract: c.hookContract || "",
     recipientName: c.recipientName || "son.nln",
     lastSend: c.lastSend,
     winningContent: c.winningContent,
+    customPerfContext: c.customPerfContext,
   };
   const products = Array.isArray(c.products) ? c.products : [];
   return { ok: true, campaign, products };
@@ -59,7 +65,12 @@ export async function POST(req: NextRequest) {
 
   const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;
   const overrides = po && (po.system || po.user) ? { system: po.system, user: po.user } : undefined;
-  const result = await generateOptions(v.campaign, v.products, overrides);
+  const models = normalizeModelPair((body as { models?: Parameters<typeof normalizeModelPair>[0] }).models);
+  const revisionBody = body as { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } };
+  const revision = revisionBody.feedback?.trim()
+    ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
+    : undefined;
+  const result = await generateOptions(v.campaign, v.products, overrides, models, revision);
   if (result.error) {
     const status = result.error.includes("ANTHROPIC_API_KEY") ? 500 : 502;
     return NextResponse.json({ error: result.error }, { status });
