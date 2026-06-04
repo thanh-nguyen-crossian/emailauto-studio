@@ -11,7 +11,7 @@ and gets back **two contrasting options (A/B)** with **per-segment** copy + a de
 they preview, edit, export, and push into SendGrid. Backed by Supabase auth/history/admin.
 
 - **Live:** https://emailauto-studio.vercel.app
-- **Hosting:** Vercel (production = `vercel --prod`; env vars are set in the Vercel dashboard).
+- **Hosting:** Vercel. **Deploys are maintainer-only** (see Deploy) — Git is *not* connected to Vercel, so pushes never auto-deploy and contributors cannot deploy.
 
 > ⚠️ This app was **rewritten** from an earlier single-file React artifact. Ignore any old mention
 > of `TIER_PSYCHOLOGY`, `${tier}${productType}` variant keys, `window.storage`, or "one call per
@@ -35,10 +35,10 @@ npm run dev          # local dev server — http://localhost:3000
 npm run build        # production build (stop dev first — running both corrupts .next cache)
 npm run lint         # ESLint
 npx tsc --noEmit     # type-check without emitting
-npx vercel --prod --yes  # deploy to production
 ```
 
 **Before every commit, both must pass:** `npx tsc --noEmit` then `npm run build`.
+**Do not deploy** unless you are the maintainer with Vercel access — see Deploy.
 
 ## Environment variables
 
@@ -172,13 +172,24 @@ docs/                    Analysis, playbook, architecture, presentations (refere
   `requireAdmin` (admin/*). RLS scopes each user's saved versions.
 - Preview iframes use `sandbox=""` so pasted/edited HTML can't run scripts.
 
-## Deploy
+## Deploy — who can, and who can't
 
-```bash
-git push origin <branch>
-npx vercel --prod --yes      # builds remotely, aliases emailauto-studio.vercel.app
-```
+**Only the repo owner deploys, and only manually.** Git is intentionally **not** connected to
+Vercel, so no push (to any branch, including `main`) triggers a deployment. The Vercel project
+lives under the owner's account; contributors have **no Vercel access**.
 
-Verify: `curl -s -o /dev/null -w "%{http_code}" https://emailauto-studio.vercel.app/` → `200`.
+- **Contributors / contributor agents:** do **not** run `vercel`. It will fail (no auth) and is not
+  your job. Your workflow ends at: push your branch and open a PR. The owner reviews, merges, and
+  deploys. Don't add deploy steps, GitHub Actions that deploy, or `vercel.json` deploy hooks.
 
-**Gotcha:** if a Vercel serverless function times out, it returns a non-JSON error page. The client handles this gracefully, but it means the selected segment count is too high — reduce segments or revisit the `maxDuration` limit.
+- **Maintainer (owner) only** — after merging, ship manually:
+  ```bash
+  git checkout main && git pull
+  npm run build
+  npx vercel --prod --yes        # aliases emailauto-studio.vercel.app
+  curl -s -o /dev/null -w "%{http_code}" https://emailauto-studio.vercel.app/   # expect 200
+  ```
+
+**Gotcha:** if a Vercel serverless function times out, it returns a non-JSON error page. The client
+handles this gracefully, but it means the selected segment count is too high — reduce segments or
+revisit the `maxDuration` limit.
