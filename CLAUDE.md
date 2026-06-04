@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code / coding agents working in this repository. Read this before editing.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this is
 
@@ -28,16 +28,34 @@ they preview, edit, export, and push into SendGrid. Backed by Supabase auth/hist
 | Auth + DB | Supabase (Postgres + Auth), Row-Level Security, `@supabase/supabase-js` |
 | Export | `jszip` (zip of HTML); SpreadsheetML (hand-written, zero-dep Excel) |
 
-## Run it
+## Commands
 
 ```bash
-npm install
-cp .env.example .env.local   # fill in the keys
-npm run dev                  # http://localhost:3000
+npm run dev          # local dev server — http://localhost:3000
+npm run build        # production build (stop dev first — running both corrupts .next cache)
+npm run lint         # ESLint
+npx tsc --noEmit     # type-check without emitting
+npx vercel --prod --yes  # deploy to production
 ```
 
-`npm run build` / `npm run lint` for the prod build + lint. **Do not run `next build` or
-`rm -rf .next` while `next dev` is running** — it corrupts the `.next` cache (stop dev first).
+**Before every commit, both must pass:** `npx tsc --noEmit` then `npm run build`.
+
+## Environment variables
+
+| Var | Scope | Notes |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | server | Claude generation |
+| `SENDGRID_API_KEY` | server | needs Marketing + Templates scopes for `/v3/designs` |
+| `NEXT_PUBLIC_SUPABASE_URL` | browser | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | anon/publishable key — browser-safe, RLS-gated |
+| `SUPABASE_SERVICE_ROLE_KEY` | **server only** | admin + RLS bypass — never `NEXT_PUBLIC` |
+
+`NEXT_PUBLIC_*` are inlined at **build time** — changing them on Vercel requires a redeploy.
+
+**First-time Supabase setup:** run `supabase/migrations/` once in the Supabase SQL editor, then grant yourself admin:
+```sql
+update public.profiles set is_admin = true, status = 'active' where email = 'you@company.com';
+```
 
 ## Core model: segments + A/B (read this carefully)
 
@@ -63,7 +81,7 @@ get two contrasting options (**A** and **B**) — B is forced to a different ang
 - Model: `claude-sonnet-4-6`, `max_tokens: 8192`, system prompt `cache_control: ephemeral`.
 - `createAndParse` retries **once** on a JSON parse failure with a correction note.
 - **Sequential A→B is slow** (~60s/segment). Route `maxDuration = 300`. Multi-segment sends take
-  1–3 min — this is expected, not a bug. (A future optimization is to parallelize A/B.)
+  1–3 min — this is expected, not a bug.
 
 ### The generated object — `GenBrief` (`lib/briefgen.ts`, snake_case to match the prompt schema)
 
@@ -112,6 +130,10 @@ app/api/sync-sendgrid    POST → create a SendGrid Design             (auth)
 app/api/sync-template    POST → clean + create a Dynamic Template, returns the d-… id (auth)
 app/api/admin/*          user approval / password reset              (auth: requireAdmin)
 supabase/migrations/     0001 saved_versions, 0002 profiles_admin (already applied)
+
+agents/automation/       Python scripts for campaign generation + flow management (separate from the
+agents/analytics/        Next.js studio — not deployed by Vercel; see agents/README.md)
+docs/                    Analysis, playbook, architecture, presentations (reference only)
 ```
 
 ## Markdown conventions in body copy (`parseInlineMarkdown`)
@@ -134,14 +156,20 @@ supabase/migrations/     0001 saved_versions, 0002 profiles_admin (already appli
 - Promo copy: write `$` as `💲`, "off" as `o.f.f`; no spam words (see `SPAM_WORDS` in `briefgen.ts`).
 - Never invent proof/scarcity/reviews not supplied in the product data.
 - **Never duplicate brand/segment/product logic in prompts** — derive it from `lib/config/*`.
+- Prompt changes go in `lib/briefgen.ts` only; keep the prompt schema and `GenBrief` TS type in sync.
+- Email HTML changes go in `lib/render/email.ts` / `markdown.ts`; keep it SendGrid-module-format and email-safe (tables, inline styles, merge tags emitted literally).
+
+## Coding conventions
+
+- **TypeScript, no `any`** unless truly unavoidable; match surrounding style.
+- New API routes that cost money or touch user data must call `requireActiveUser` (or `requireAdmin`).
 
 ## Security (do not regress)
 
-- Secrets live in `.env.local` (gitignored). **Never commit secrets.**
+- Secrets live in `.env.local` (gitignored).
 - `SUPABASE_SERVICE_ROLE_KEY` is **server-only** — never `NEXT_PUBLIC`, never sent to the client.
 - Paid/admin routes are guarded: `requireActiveUser` (generate-copy, scrape-usps, sync-*) and
   `requireAdmin` (admin/*). RLS scopes each user's saved versions.
-- `NEXT_PUBLIC_*` vars are inlined at **build** time — changing them on Vercel requires a redeploy.
 - Preview iframes use `sandbox=""` so pasted/edited HTML can't run scripts.
 
 ## Deploy
@@ -152,3 +180,5 @@ npx vercel --prod --yes      # builds remotely, aliases emailauto-studio.vercel.
 ```
 
 Verify: `curl -s -o /dev/null -w "%{http_code}" https://emailauto-studio.vercel.app/` → `200`.
+
+**Gotcha:** if a Vercel serverless function times out, it returns a non-JSON error page. The client handles this gracefully, but it means the selected segment count is too high — reduce segments or revisit the `maxDuration` limit.
