@@ -57,7 +57,7 @@ async function createAndParseWithModel(
 async function callClaude(system: string, user: string, model: string): Promise<string> {
   const resp = await getClient().messages.create({
     model,
-    max_tokens: 8192,
+    max_tokens: 16000,
     temperature: 0.65,
     system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: user }],
@@ -80,7 +80,7 @@ async function callGemini(system: string, user: string, model: string): Promise<
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
         temperature: 0.65,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16000,
         responseMimeType: "application/json",
       },
     }),
@@ -108,7 +108,7 @@ async function callOpenAI(system: string, user: string, model: string): Promise<
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      max_completion_tokens: 8192,
+      max_completion_tokens: 16000,
       response_format: { type: "json_object" },
     }),
   });
