@@ -4,13 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { accessToken, type Profile } from "@/lib/profile";
 import { BriefView, briefToMarkdown } from "./components/BriefView";
-import { saveVersion, type SavedVersion, type VersionPayload } from "@/lib/history";
+import { listVersions, saveVersion, type SavedVersion, type VersionPayload } from "@/lib/history";
 import { Auth } from "./components/Auth";
 import { History } from "./components/History";
 import { AdminPanel } from "./components/AdminPanel";
 import { BRAND_LIST, BRANDS } from "@/lib/config/brands";
 import { AI_PROVIDERS, DEFAULT_AI_MODELS, normalizeModelPair, type AIProviderOption } from "@/lib/config/aiModels";
-import type { AIModelSelection, BodyLayout, Campaign, ImageOverrides, OfferType, Product, ProductCopyStyle, Urgency } from "@/lib/config/types";
+import {
+  RECIPIENT_NAME_TOKEN,
+  type AIModelSelection,
+  type BodyLayout,
+  type Campaign,
+  type EmailModuleKey,
+  type ImageOverrides,
+  type OfferType,
+  type Product,
+  type ProductCopyStyle,
+  type Urgency,
+} from "@/lib/config/types";
 import {
   buildSystemPrompt,
   buildUserPrompt,
@@ -44,6 +55,7 @@ const OFFER_PRESETS: Record<OfferType, string[]> = {
   none: [],
 };
 const SHIPPING_PRESETS = ["Free Shipping 💲35+", "Free Shipping 💲45+", "Free Shipping 💲50+", "Free Shipping 💲55+"];
+const DEFAULT_MODULE_LAYOUT: EmailModuleKey[] = ["hero", "body_1", "products_1_2", "products_3_4", "products_5_6", "body_2", "body_3"];
 
 // Format an ISO date (2026-05-31) as the team's naming token: Sun31May26.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -69,7 +81,7 @@ export default function Studio() {
   const [offerShipping, setOfferShipping] = useState("Free Shipping 💲35+");
   const [urgency, setUrgency] = useState<Urgency>("h24");
   const [hookContract, setHookContract] = useState("");
-  const [recipientName, setRecipientName] = useState("son.nln");
+  const [recipientName, setRecipientName] = useState(RECIPIENT_NAME_TOKEN);
   const [lastHero, setLastHero] = useState("");
   const [lastAngle, setLastAngle] = useState("");
   const [lastCtr, setLastCtr] = useState("");
@@ -86,6 +98,7 @@ export default function Studio() {
   const [includeLogo, setIncludeLogo] = useState(false);
   const [productLayout, setProductLayout] = useState<ProductLayout>("stack");
   const [bodyLayout, setBodyLayout] = useState<BodyLayout>("continuous");
+  const [moduleLayout, setModuleLayout] = useState<EmailModuleKey[]>(DEFAULT_MODULE_LAYOUT);
   const [productCopyStyle, setProductCopyStyle] = useState<ProductCopyStyle>("headline_winner");
 
   // generated A/B options
@@ -119,6 +132,7 @@ export default function Studio() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [recentProductSlugs, setRecentProductSlugs] = useState<string[]>([]);
 
   async function refreshAuth() {
     if (!supabaseConfigured()) {
@@ -169,6 +183,25 @@ export default function Studio() {
     };
   }, [userId]);
 
+  // Load the slugs from the last 3 saved versions for this brand so we can warn + avoid repeats.
+  useEffect(() => {
+    if (!supabaseConfigured() || !userId) { setRecentProductSlugs([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const versions = await listVersions();
+        const recent = versions
+          .filter((v) => v.brand_id === brandId)
+          .slice(0, 3)
+          .flatMap((v) => (v.data.slots || []).map((s: { slug: string }) => s.slug).filter(Boolean));
+        if (!cancelled) setRecentProductSlugs(Array.from(new Set(recent)));
+      } catch {
+        if (!cancelled) setRecentProductSlugs([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [brandId, userId]);
+
   async function signOut() {
     await supabase().auth.signOut();
     setAuthState("out");
@@ -192,12 +225,13 @@ export default function Studio() {
   const campaign: Campaign = useMemo(
     () => ({
       brandId, sendDate, segments, layout, theme,
-      offerType, offerValue, offerShipping, urgency, offer, bodyLayout, productCopyStyle, hookContract, recipientName,
+      offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, recipientName: RECIPIENT_NAME_TOKEN,
       lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote },
       winningContent,
       customPerfContext: customPerfContext ?? undefined,
+      recentProductSlugs: recentProductSlugs.length ? recentProductSlugs : undefined,
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, productCopyStyle, hookContract, recipientName, lastCtr, lastHero, lastAngle, lastNote, winningContent, customPerfContext]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, winningContent, customPerfContext, recentProductSlugs]
   );
 
   // Filled slots → Product list, applying the per-slot URL + selected-USP overrides. Hero first.
@@ -232,6 +266,8 @@ export default function Studio() {
   function pickProduct(i: number, slug: string) {
     const cat = brand.catalog.find((p) => p.slug === slug);
     updateSlot(i, { slug, url: cat?.url || "", usps: [...(cat?.usps || [])], scrapedUsps: [] });
+    // Auto-scrape additional USPs from the product page if a URL is available.
+    if (cat?.url) scrapeSlot(i, cat.url);
   }
   // Fetch the slot's URL server-side, extract USPs, merge into the pool and auto-select the top few.
   async function scrapeSlot(i: number, url: string): Promise<string> {
@@ -378,7 +414,7 @@ export default function Studio() {
     if (htmlOverrides[key] != null) return htmlOverrides[key]; // user-edited HTML wins
     const b = options[opt];
     if (!b) return "";
-    return renderEmailHTML(brand, campaign, selectedProducts, b, seg, images, { includeLogo, productLayout, bodyLayout });
+    return renderEmailHTML(brand, campaign, selectedProducts, b, seg, images, { includeLogo, productLayout, bodyLayout, moduleLayout });
   }
   const activeHtmlKey = `${activeOption}:${activeSegment}`;
   const activeHtmlEdited = htmlOverrides[activeHtmlKey] != null;
@@ -486,7 +522,7 @@ export default function Studio() {
     try {
       const payload: VersionPayload = {
         brandId, sendDate, theme, offerType, offerValue, offerShipping, urgency, offer, hookContract, recipientName,
-        segments, slots, includeLogo, productLayout, bodyLayout, productCopyStyle, images, options, htmlOverrides,
+        segments, slots, includeLogo, productLayout, bodyLayout, moduleLayout, productCopyStyle, images, options, htmlOverrides,
         models: normalizeModelPair({ a: modelA, b: modelB }),
         lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote },
         winningContent,
@@ -512,7 +548,7 @@ export default function Studio() {
     setOfferShipping("Free Shipping 💲35+");
     setUrgency("h24");
     setHookContract("");
-    setRecipientName("son.nln");
+    setRecipientName(RECIPIENT_NAME_TOKEN);
     setLastHero(""); setLastAngle(""); setLastCtr(""); setLastNote("");
     setWinningContent("");
     setSegments(BRANDS[first].productSegments.slice(0, 2).map((s) => s.code));
@@ -521,6 +557,7 @@ export default function Studio() {
     setIncludeLogo(false);
     setProductLayout("stack");
     setBodyLayout("continuous");
+    setModuleLayout(DEFAULT_MODULE_LAYOUT);
     setProductCopyStyle("headline_winner");
     setOptions({});
     setActiveOption("a");
@@ -562,12 +599,13 @@ export default function Studio() {
     setModelA(models.a);
     setModelB(models.b);
     setHookContract(d.hookContract || "");
-    setRecipientName(d.recipientName);
+    setRecipientName(RECIPIENT_NAME_TOKEN);
     setSegments(d.segments || []);
     setSlots(d.slots && d.slots.length ? d.slots : initSlots(d.brandId));
     setIncludeLogo(d.includeLogo);
     setProductLayout(d.productLayout || "stack");
     setBodyLayout(d.bodyLayout || "continuous");
+    setModuleLayout(d.moduleLayout || DEFAULT_MODULE_LAYOUT);
     setProductCopyStyle(d.productCopyStyle || "headline_winner");
     setImages(d.images || {});
     setOptions(d.options || {});
@@ -624,12 +662,13 @@ export default function Studio() {
 
   function autoFillProductSet() {
     const desired = Math.min(maxProducts, brand.defaultProductCount || maxProducts, brand.catalog.length);
-    const ordered = [
-      ...brand.catalog.filter((p) => p.slug === brand.heroSlug),
-      ...brand.catalog.filter((p) => p.slug !== brand.heroSlug),
-    ].slice(0, desired);
+    const hero = brand.catalog.filter((p) => p.slug === brand.heroSlug);
+    const support = brand.catalog.filter((p) => p.slug !== brand.heroSlug);
+    // Prefer support products not used in the last 3 sends; fall back to all if not enough fresh ones.
+    const freshSupport = support.filter((p) => !recentProductSlugs.includes(p.slug));
+    const pool = [...hero, ...(freshSupport.length >= desired - hero.length ? freshSupport : support)].slice(0, desired);
     setSlots(
-      ordered.map((p) => ({
+      pool.map((p) => ({
         slug: p.slug,
         url: p.url || "",
         usps: [...(p.usps || [])],
@@ -690,22 +729,22 @@ export default function Studio() {
   }
 
   return (
-    <main className="min-h-screen max-w-6xl mx-auto px-6 py-8">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
+    <main className="min-h-screen max-w-[1280px] mx-auto px-4 sm:px-6 py-5 sm:py-7">
+      <header className="app-header mb-5 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">EmailAuto Studio</h1>
           <p className="text-[var(--muted)] text-sm mt-1">
             Brief → A/B copy + design brief · {BRAND_LIST.length} brands · segment-targeted
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <button onClick={startNewBrief} className="btn-primary">✨ Start new brief</button>
+        <div className="header-actions shrink-0">
+          <button onClick={startNewBrief} className="btn-primary">New brief</button>
           {authState === "in" ? (
             <>
               {profile?.is_admin && (
-                <button onClick={() => setAdminOpen(true)} className="btn-ghost">🛠 Admin</button>
+                <button onClick={() => setAdminOpen(true)} className="btn-ghost">Admin</button>
               )}
-              <button onClick={() => setHistoryOpen(true)} className="btn-ghost">🕘 History</button>
+              <button onClick={() => setHistoryOpen(true)} className="btn-ghost">History</button>
               <span className="text-xs text-[var(--muted)]">{userEmail}</span>
               <button onClick={signOut} className="btn-ghost">Sign out</button>
             </>
@@ -723,7 +762,7 @@ export default function Studio() {
       )}
 
       {/* top view nav */}
-      <nav className="flex gap-2 mb-6">
+      <nav className="top-nav mb-5" aria-label="Workflow">
         {([
           ["build", "1 · Build brief"],
           ["review", "2 · Review & generate"],
@@ -735,9 +774,7 @@ export default function Studio() {
               key={v}
               onClick={() => enabled && setView(v)}
               disabled={!enabled}
-              className={`px-3 py-1.5 rounded-full text-sm border ${
-                view === v ? "bg-[var(--accent)] text-white border-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-40"
-              }`}
+              className={`nav-step ${view === v ? "nav-step-active" : ""}`}
             >
               {lbl}
             </button>
@@ -775,7 +812,7 @@ export default function Studio() {
                         <button
                           key={b.id}
                           onClick={() => switchBrand(b.id)}
-                          className={`px-4 py-2 rounded-lg border text-sm ${brandId === b.id ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)]"}`}
+                          className={`choice-card ${brandId === b.id ? "choice-card-active" : ""}`}
                         >
                           <span className="inline-block w-3 h-3 rounded-full mr-2 align-middle" style={{ background: b.accent }} />
                           {b.name}
@@ -789,7 +826,7 @@ export default function Studio() {
                       <input type="date" value={sendDate} onChange={(e) => setSendDate(e.target.value)} className="input" />
                     </Field>
                     <Field label="Recipient name token">
-                      <input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} className="input" />
+                      <input value={recipientName} readOnly className="input" />
                     </Field>
                   </div>
                   <Field label="Campaign theme">
@@ -817,7 +854,7 @@ export default function Studio() {
                             if (v === "none") setOfferValue("");
                             else if (!offerValue) setOfferValue((OFFER_PRESETS[v] || [])[0] || "");
                           }}
-                          className={`px-3 py-1.5 rounded-lg border text-sm ${offerType === v ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                          className={`choice-card ${offerType === v ? "choice-card-active" : ""}`}
                         >
                           {lbl}
                         </button>
@@ -830,7 +867,7 @@ export default function Studio() {
                             <button
                               key={v}
                               onClick={() => setOfferValue(v)}
-                              className={`px-2.5 py-1 rounded-full border text-xs ${offerValue === v ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                              className={`choice-pill ${offerValue === v ? "choice-pill-active" : ""}`}
                             >
                               {v}
                             </button>
@@ -844,7 +881,7 @@ export default function Studio() {
                     <div className="flex flex-wrap gap-2 mb-2">
                       <button
                         onClick={() => setOfferShipping("")}
-                        className={`px-3 py-1.5 rounded-lg border text-sm ${!offerShipping ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                        className={`choice-card ${!offerShipping ? "choice-card-active" : ""}`}
                       >
                         No free shipping
                       </button>
@@ -852,7 +889,7 @@ export default function Studio() {
                         <button
                           key={v}
                           onClick={() => setOfferShipping(v)}
-                          className={`px-2.5 py-1 rounded-full border text-xs ${offerShipping === v ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                          className={`choice-pill ${offerShipping === v ? "choice-pill-active" : ""}`}
                         >
                           {v}
                         </button>
@@ -867,7 +904,7 @@ export default function Studio() {
                     <div className="flex flex-wrap gap-2">
                       {([["h24", "24 hrs"], ["h48", "48 hrs"], ["weekend", "Weekend"], ["none", "No urgency"]] as [Urgency, string][]).map(([v, lbl]) => (
                         <button key={v} onClick={() => setUrgency(v)}
-                          className={`px-3 py-1.5 rounded-lg border text-sm ${urgency === v ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
+                          className={`choice-card ${urgency === v ? "choice-card-active" : ""}`}>
                           {lbl}
                         </button>
                       ))}
@@ -891,6 +928,8 @@ export default function Studio() {
                         index={si}
                         slot={slot}
                         catalog={brand.catalog}
+                        usedSlugs={slots.map((s) => s.slug).filter(Boolean)}
+                        recentSlugs={recentProductSlugs}
                         onPick={(slug) => pickProduct(si, slug)}
                         onUrl={(url) => updateSlot(si, { url })}
                         onScrape={(url) => scrapeSlot(si, url)}
@@ -920,7 +959,7 @@ export default function Studio() {
                   <div className="flex flex-col gap-2">
                     {brand.productSegments.map((s) => (
                       <button key={s.code} onClick={() => toggle(segments, s.code, setSegments)}
-                        className={`text-left px-3 py-2 rounded-lg border text-sm ${segments.includes(s.code) ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
+                        className={`choice-card ${segments.includes(s.code) ? "choice-card-active" : ""}`}>
                         <span className="font-mono mr-2">{s.code}</span><strong className="text-[var(--text)]">{s.label}</strong>
                         <span className="text-[var(--muted)] ml-2 text-xs">{s.meta}</span>
                       </button>
@@ -949,7 +988,7 @@ export default function Studio() {
 
               <div className="flex items-center gap-2 mt-4">
                 <button onClick={() => goNext(i)} className="btn-primary">
-                  {i === STEP_TITLES.length - 1 ? "Review & generate →" : "Next →"}
+                  {i === STEP_TITLES.length - 1 ? "Review & generate" : "Next"}
                 </button>
                 {(i === 4 || i === 5) && (
                   <button onClick={() => goNext(i)} className="btn-ghost">Skip</button>
@@ -966,7 +1005,7 @@ export default function Studio() {
           <PerfPanel brandId={brandId} hero={selectedProducts[0]?.name} productCount={selectedProducts.length} />
           <WinTemplateRhythm />
 
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="section-panel">
             <h3 className="text-sm font-semibold mb-2">Pre-flight summary</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
               <Summary k="Brand" v={brand.name} />
@@ -1018,9 +1057,9 @@ export default function Studio() {
           />
 
           <div className="flex items-center gap-2">
-            <button onClick={() => setView("build")} className="btn-ghost">← Back to brief</button>
+            <button onClick={() => setView("build")} className="btn-ghost">Back to brief</button>
             <button onClick={() => generate()} disabled={generating || !canGenerate} className="btn-primary">
-              {generating ? "Generating A + B…" : "✨ Generate A + B"}
+              {generating ? "Generating A + B…" : "Generate A + B"}
             </button>
             {!canGenerate && <span className="text-xs text-[var(--warn)]">Pick at least one segment and 1–{maxProducts} products.</span>}
           </div>
@@ -1043,7 +1082,7 @@ export default function Studio() {
                   const active = activeOption === opt;
                   return (
                     <button key={opt} onClick={() => setActiveOption(opt)}
-                      className={`text-left px-4 py-2 rounded-lg border ${active ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)]"}`}>
+                      className={`choice-card ${active ? "choice-card-active" : ""}`}>
                       <div className="text-sm font-semibold">Option {opt.toUpperCase()} <span className="ml-1 text-xs" style={{ color: scoreColor(b._score) }}>{b._score ?? "—"}/100</span></div>
                       <div className="text-xs text-[var(--muted)]">{cd.angle || "?"} · {cd.framework || "?"}</div>
                       {b._model && <div className="text-[10px] mono text-[var(--muted)]">{b._provider || "AI"} · {b._model}</div>}
@@ -1051,12 +1090,12 @@ export default function Studio() {
                   );
                 })}
                 <div className="flex-1" />
-                <button onClick={() => generate()} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "↻ Regenerate A + B"}</button>
+                <button onClick={() => generate()} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "Regenerate A + B"}</button>
               </div>
 
               {activeBrief && <FormatCoverage brief={activeBrief} />}
 
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div className="section-panel">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <div>
                     <h3 className="text-sm font-semibold">Regenerate from feedback</h3>
@@ -1086,8 +1125,8 @@ export default function Studio() {
               <div className="flex gap-2">
                 {(["preview", "brief"] as const).map((t) => (
                   <button key={t} onClick={() => setOutputTab(t)}
-                    className={`px-3 py-1 rounded text-sm border ${outputTab === t ? "bg-[var(--accent)] text-white border-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
-                    {t === "preview" ? "📧 Preview" : "🎨 Design brief"}
+                    className={`choice-pill ${outputTab === t ? "choice-pill-active" : ""}`}>
+                    {t === "preview" ? "Preview" : "Design brief"}
                   </button>
                 ))}
               </div>
@@ -1105,13 +1144,18 @@ export default function Studio() {
                     </div>
                     <SubjectOptionsPanel brief={activeBrief} segment={activeSegment} onUse={useSubjectOption} />
                     <LayoutPicker count={selectedProducts.length} value={productLayout} onChange={(v) => { setProductLayout(v); setHtmlOverrides({}); }} />
-                    <BodyLayoutPicker value={bodyLayout} onChange={(v) => { setBodyLayout(v); setHtmlOverrides({}); }} />
+                    <BodyLayoutPicker
+                      value={bodyLayout}
+                      moduleLayout={moduleLayout}
+                      onChange={(v) => { setBodyLayout(v); setHtmlOverrides({}); }}
+                      onModuleLayoutChange={(next) => { setModuleLayout(next); setBodyLayout("custom"); setHtmlOverrides({}); }}
+                    />
                     <div className="flex items-center gap-2 mb-2">
                       <button
                         onClick={() => setEditingHtml((v) => !v)}
-                        className={`px-3 py-1 rounded text-sm border ${editingHtml ? "bg-[var(--accent)] text-white border-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+                        className={`choice-pill ${editingHtml ? "choice-pill-active" : ""}`}
                       >
-                        {editingHtml ? "✓ Done editing" : "✎ Edit HTML"}
+                        {editingHtml ? "Done editing" : "Edit HTML"}
                       </button>
                       {activeHtmlEdited && (
                         <>
@@ -1134,7 +1178,7 @@ export default function Studio() {
                     )}
                     <Preview html={htmlFor(activeOption, activeSegment)} />
                   </div>
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-4 lg:sticky lg:top-4 self-start">
                     <ImageEditor brand={brand} products={selectedProducts} images={images} onChange={setImages} includeLogo={includeLogo} onToggleLogo={setIncludeLogo} />
                     <PreflightPanel flags={activeBrief._flags} score={activeBrief._score} />
                   </div>
@@ -1144,7 +1188,7 @@ export default function Studio() {
               {activeBrief && outputTab === "brief" && (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2">
-                    <button onClick={exportExcel} className="btn-primary">📊 Export to Excel (.xls · A + B)</button>
+                    <button onClick={exportExcel} className="btn-primary">Export to Excel (.xls · A + B)</button>
                     <span className="text-xs text-[var(--muted)]">One sheet per option, matching the email-brief format.</span>
                   </div>
                   <BriefView brief={activeBrief} onDownload={downloadBrief} onChange={updateActiveBrief} />
@@ -1152,13 +1196,13 @@ export default function Studio() {
               )}
 
               {/* export */}
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 flex flex-col gap-3">
+              <div className="section-panel flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <h3 className="text-sm font-semibold">Export</h3>
-                  <button onClick={downloadAll} className="btn-primary">⬇️ Download all (.zip)</button>
+                  <button onClick={downloadAll} className="btn-primary">Download all (.zip)</button>
                   {authState === "in" && (
                     <button onClick={saveCurrent} disabled={saveState === "saving"} className="btn-ghost">
-                      {saveState === "saving" ? "Saving…" : saveState === "saved" ? "✅ Saved to history" : "💾 Save version"}
+                      {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved to history" : "Save version"}
                     </button>
                   )}
                   {saveState === "error" && <span className="text-xs text-[var(--bad)]">{saveError}</span>}
@@ -1177,23 +1221,23 @@ export default function Studio() {
                             <div className="flex gap-2">
                               <button onClick={() => navigator.clipboard.writeText(html)} className="btn-ghost">Copy</button>
                               <button onClick={() => download(`${templateName(opt, seg)}.html`, html)} className="btn-ghost">.html</button>
-                              <button disabled={syncingKey === key} onClick={() => syncDesign(opt, seg)} className="btn-ghost">{syncingKey === key ? "…" : "↗ Design"}</button>
-                              <button disabled={tplKey === key} onClick={() => syncTemplate(opt, seg)} className="btn-ghost">{tplKey === key ? "Cleaning…" : "↗ Template"}</button>
+                              <button disabled={syncingKey === key} onClick={() => syncDesign(opt, seg)} className="btn-ghost">{syncingKey === key ? "…" : "Design"}</button>
+                              <button disabled={tplKey === key} onClick={() => syncTemplate(opt, seg)} className="btn-ghost">{tplKey === key ? "Cleaning…" : "Template"}</button>
                             </div>
                           </div>
-                          {sync?.id && <div className="text-xs text-[var(--ok)]">✅ Design {sync.id} — <a href={sync.editorUrl} target="_blank" rel="noreferrer" className="underline">open</a></div>}
-                          {sync?.error && <div className="text-xs text-[var(--bad)]">❌ {sync.error}</div>}
+                          {sync?.id && <div className="text-xs text-[var(--ok)]">Design {sync.id} — <a href={sync.editorUrl} target="_blank" rel="noreferrer" className="underline">open</a></div>}
+                          {sync?.error && <div className="text-xs text-[var(--bad)]">Error: {sync.error}</div>}
                           {tpl?.templateId && (
                             <div className="text-xs text-[var(--ok)] flex flex-wrap items-center gap-2">
-                              <span>✅ Template</span>
+                              <span>Template</span>
                               <code className="bg-[var(--surface-2)] border border-[var(--border)] rounded px-1.5 py-0.5">{tpl.templateId}</code>
                               <button onClick={() => navigator.clipboard.writeText(tpl.templateId!)} className="underline text-[var(--muted)]">copy id</button>
                               <a href={tpl.editorUrl} target="_blank" rel="noreferrer" className="underline">open</a>
                             </div>
                           )}
-                          {tpl?.error && <div className="text-xs text-[var(--bad)]">❌ {tpl.error}</div>}
-                          {tpl?.blocking?.map((b, i) => <div key={`b${i}`} className="text-xs text-[var(--bad)]">⛔ {b}</div>)}
-                          {tpl?.warnings?.map((w, i) => <div key={`w${i}`} className="text-xs text-[var(--warn)]">⚠️ {w}</div>)}
+                          {tpl?.error && <div className="text-xs text-[var(--bad)]">Error: {tpl.error}</div>}
+                          {tpl?.blocking?.map((b, i) => <div key={`b${i}`} className="text-xs text-[var(--bad)]">Blocking: {b}</div>)}
+                          {tpl?.warnings?.map((w, i) => <div key={`w${i}`} className="text-xs text-[var(--warn)]">Warning: {w}</div>)}
                         </div>
                       );
                     }) : []
@@ -1226,7 +1270,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Summary({ k, v }: { k: string; v: string }) {
   return (
-    <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+    <div className="summary-tile">
       <div className="text-[10px] uppercase text-[var(--muted)]">{k}</div>
       <div className="mt-0.5 truncate" title={v}>{v}</div>
     </div>
@@ -1249,7 +1293,7 @@ function WorkflowSnapshot({
   score?: number;
 }) {
   return (
-    <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-2">
+    <div className="mb-5 grid grid-cols-2 md:grid-cols-5 gap-2">
       <SnapshotChip label="Brand" value={`${brandName} · ${send}`} />
       <SnapshotChip label="Offer stack" value={offer} />
       <SnapshotChip label="Products" value={`${products} selected`} tone={products > 6 ? "bad" : products ? "ok" : "warn"} />
@@ -1262,7 +1306,7 @@ function WorkflowSnapshot({
 function SnapshotChip({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" | "bad" }) {
   const color = tone ? `var(--${tone})` : "var(--muted)";
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 min-w-0">
+    <div className="snapshot-chip">
       <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
       <div className="mt-0.5 text-sm font-semibold truncate" title={value} style={{ color }}>{value}</div>
     </div>
@@ -1277,14 +1321,14 @@ function WinTemplateRhythm() {
     ["Emphasis", "2-4 accent cues"],
   ];
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+    <div className="section-panel">
       <div className="flex items-center justify-between gap-3 mb-2">
         <h3 className="text-sm font-semibold">Win-template rhythm</h3>
         <span className="text-xs text-[var(--muted)]">WinEmailTemps reference set</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {items.map(([label, value]) => (
-          <div key={label} className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+          <div key={label} className="summary-tile">
             <div className="text-[10px] uppercase text-[var(--muted)]">{label}</div>
             <div className="text-sm font-semibold mt-0.5">{value}</div>
           </div>
@@ -1305,7 +1349,7 @@ function FormatCoverage({ brief }: { brief: GenBrief }) {
     { label: "Hyperlinks", value: `${links}`, ok: links >= 1 },
   ];
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+    <div className="section-panel p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold mr-1">Formatting coverage</span>
         {chips.map((chip) => (
@@ -1332,16 +1376,16 @@ function StepCard({
   n: number; title: string; done: boolean; open: boolean; summary: string; onOpen: () => void; children: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-lg border ${open ? "border-[var(--accent)]" : "border-[var(--border)]"} bg-[var(--surface)] overflow-hidden`}>
-      <button onClick={onOpen} className="w-full flex items-center gap-3 px-4 py-3 text-left">
-        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${open ? "bg-[var(--accent)] text-white" : done ? "bg-[var(--ok)] text-white" : "bg-[var(--surface-2)] text-[var(--muted)] border border-[var(--border)]"}`}>
+    <div className={`step-card ${open ? "step-card-open" : ""}`}>
+      <button onClick={onOpen} className="step-button" aria-expanded={open}>
+        <span className={`step-index ${open ? "step-index-open" : done ? "step-index-done" : "step-index-idle"}`}>
           {done && !open ? "✓" : n}
         </span>
         <span className="flex-1">
           <span className="text-sm font-semibold">{title}</span>
           {!open && <span className="block text-xs text-[var(--muted)] mt-0.5 truncate">{summary}</span>}
         </span>
-        <span className="text-xs text-[var(--muted)]">{open ? "▲" : done ? "Edit" : "▼"}</span>
+        <span className="step-action">{open ? "Collapse" : done ? "Edit" : "Open"}</span>
       </button>
       {open && <div className="px-4 pb-4 pt-1 border-t border-[var(--border)]">{children}</div>}
     </div>
@@ -1360,24 +1404,24 @@ function PerfPanel({ brandId, hero, productCount }: { brandId: string; hero?: st
       ? { c: "var(--warn)", t: "No products selected yet" }
       : { c: "var(--ok)", t: `${productCount} products — healthy range` };
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+    <div className="section-panel">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold">Performance intelligence</h3>
         <span className="text-xs text-[var(--muted)]">{PROGRAM_INTELLIGENCE.period}</span>
       </div>
       <p className="text-xs text-[var(--muted)] mb-2">{intel.headline}</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-        <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-2">
+        <div className="summary-tile bg-[var(--surface)]">
           <div className="text-[10px] uppercase text-[var(--muted)]">Benchmark</div>
           <div className="mt-0.5">{intel.benchmark.split(";")[0]}</div>
         </div>
-        <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-2">
+        <div className="summary-tile bg-[var(--surface)]">
           <div className="text-[10px] uppercase text-[var(--muted)]">Hero</div>
           <div className="mt-0.5" style={{ color: heroAligned ? "var(--ok)" : "var(--warn)" }}>
             {hero || "none"} — {heroAligned ? "in proven pool ✓" : "needs a strong reason"}
           </div>
         </div>
-        <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-2">
+        <div className="summary-tile bg-[var(--surface)]">
           <div className="text-[10px] uppercase text-[var(--muted)]">Product count</div>
           <div className="mt-0.5" style={{ color: countNote.c }}>{countNote.t}</div>
         </div>
@@ -1392,7 +1436,7 @@ function PerfPanel({ brandId, hero, productCount }: { brandId: string; hero?: st
 function Banner({ level, children }: { level: "warn" | "fail"; children: React.ReactNode }) {
   const color = level === "fail" ? "var(--bad)" : "var(--warn)";
   return (
-    <div className="rounded-lg p-3 text-sm" style={{ border: `1px solid ${color}`, color, background: "var(--surface)" }}>
+    <div className="section-panel text-sm" style={{ borderColor: color, color }}>
       {children}
     </div>
   );
@@ -1408,27 +1452,30 @@ function PromptBlock({
   onChange: (v: string) => void;
   onReset: () => void;
 }) {
+  const [open, setOpen] = useState(title === "Performance context");
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--surface-2)]">
-        <div className="flex-1">
+    <div className="prompt-block">
+      <div className="prompt-header">
+        <button type="button" onClick={() => setOpen((v) => !v)} className="prompt-toggle" aria-expanded={open}>
           <div className="text-sm font-semibold">
             {title}
             {edited && <span className="ml-2 text-xs text-[var(--accent-2)]">· edited</span>}
           </div>
           <div className="text-xs text-[var(--muted)]">{subtitle}</div>
-        </div>
+        </button>
         <span className="text-xs text-[var(--muted)]">{value.length} chars</span>
         <button onClick={() => navigator.clipboard.writeText(value)} className="btn-ghost">Copy</button>
         <button onClick={onReset} disabled={!edited} className="btn-ghost">Reset</button>
       </div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        spellCheck={false}
-        className="w-full bg-transparent text-[var(--text)] mono text-xs leading-relaxed p-4 outline-none resize-y"
-        style={{ height: 220 }}
-      />
+      {open && (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+          className="prompt-body mono text-xs leading-relaxed p-4 outline-none resize-y"
+          style={{ height: 220 }}
+        />
+      )}
     </div>
   );
 }
@@ -1442,7 +1489,7 @@ function VariantTabs({
     <div className="flex flex-wrap gap-1.5">
       {variants.map((v) => (
         <button key={v} onClick={() => onSelect(v)}
-          className={`px-2.5 py-1 rounded text-xs border ${active === v ? "bg-[var(--accent)] text-white border-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
+          className={`choice-pill ${active === v ? "choice-pill-active" : ""}`}>
           {labelFor ? labelFor(v) : v}
         </button>
       ))}
@@ -1461,40 +1508,46 @@ function SubjectOptionsPanel({
 }) {
   const line = brief.subject_lines?.[segJsonKey(segment)];
   const options = line?.options || [];
+  const [open, setOpen] = useState(false);
   if (!line || !options.length) return null;
   return (
-    <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <h3 className="text-sm font-semibold">Subject options</h3>
-        <span className="text-xs text-[var(--muted)]">{options.length} styles</span>
-      </div>
-      <div className="grid grid-cols-1 gap-2">
-        {options.map((o, i) => {
-          const active = o.subject === line.subject && o.preheader === line.preheader;
-          return (
-            <div key={`${o.subject}-${i}`} className={`rounded border p-2 ${active ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)]"}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">
-                    {o.model_hint || "AI"} · {o.style || `Option ${i + 1}`}
+    <div className="subject-drawer">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="subject-drawer-head" aria-expanded={open}>
+        <span>
+          <span className="text-sm font-semibold">Subject options</span>
+          <span className="text-xs text-[var(--muted)] ml-2">{options.length} styles</span>
+        </span>
+        <span className="text-xs text-[var(--muted)]">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && (
+        <div className="grid grid-cols-1 gap-2 p-3">
+          {options.map((o, i) => {
+            const active = o.subject === line.subject && o.preheader === line.preheader;
+            return (
+              <div key={`${o.subject}-${i}`} className={`option-card ${active ? "option-card-active" : ""}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                      {o.model_hint || "AI"} · {o.style || `Option ${i + 1}`}
+                    </div>
+                    <div className="text-sm font-semibold">{o.subject}</div>
+                    <div className="text-xs text-[var(--muted)] mt-0.5">{o.preheader}</div>
+                    {o.shared_thread && <div className="text-[11px] text-[var(--accent-2)] mt-1">Thread: {o.shared_thread}</div>}
                   </div>
-                  <div className="text-sm font-semibold">{o.subject}</div>
-                  <div className="text-xs text-[var(--muted)] mt-0.5">{o.preheader}</div>
-                  {o.shared_thread && <div className="text-[11px] text-[var(--accent-2)] mt-1">Thread: {o.shared_thread}</div>}
+                  <button
+                    type="button"
+                    onClick={() => onUse(o.subject, o.preheader, o.style, o.model_hint, o.shared_thread)}
+                    disabled={active}
+                    className="btn-ghost shrink-0"
+                  >
+                    {active ? "Using" : "Use"}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onUse(o.subject, o.preheader, o.style, o.model_hint, o.shared_thread)}
-                  disabled={active}
-                  className="btn-ghost shrink-0"
-                >
-                  {active ? "Using" : "Use"}
-                </button>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1513,7 +1566,7 @@ function ModelSelector({
   const provider = providers.find((p) => p.id === value.provider) || providers[0];
   const model = provider.models.find((m) => m.id === value.model) || provider.models[0];
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+    <div className="section-panel p-3">
       <div className="text-xs font-semibold text-[var(--muted)] mb-2">{label}</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <select
@@ -1543,25 +1596,110 @@ function ModelSelector({
   );
 }
 
+function MiniProductBlock({ lines }: { lines: { text: string; style: "headline" | "badge" | "usp" | "review" | "price" | "sub" }[] }) {
+  const colorMap: Record<string, string> = {
+    headline: "font-bold text-[11px] uppercase tracking-wide",
+    badge: "text-[9px] font-bold px-1 rounded",
+    usp: "text-[9px] text-[var(--muted)] flex items-center gap-0.5",
+    review: "text-[9px] italic text-[var(--muted)]",
+    price: "text-[11px] font-bold",
+    sub: "text-[9px] text-[var(--muted)]",
+  };
+  const bgMap: Record<string, string> = {
+    badge: "background:#fef9c3; color:#78350f; border:1px solid #fde047;",
+    headline: "",
+    usp: "",
+    review: "border-left:2px solid var(--border); padding-left:4px;",
+    price: "",
+    sub: "",
+  };
+  return (
+    <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2 w-full flex flex-col gap-0.5 text-left">
+      <div className="h-8 rounded mb-1" style={{ background: "var(--border)" }} />
+      {lines.map((l, i) => (
+        <span key={i} className={colorMap[l.style]} style={bgMap[l.style] ? ({ cssText: bgMap[l.style] } as React.CSSProperties) : undefined}>
+          {l.style === "usp" && <span style={{ color: "var(--ok)", fontSize: 9, fontWeight: 800 }}>+</span>}
+          {l.text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ProductStylePicker({ value, onChange }: { value: ProductCopyStyle; onChange: (v: ProductCopyStyle) => void }) {
-  const opts: { id: ProductCopyStyle; label: string; note: string }[] = [
-    { id: "headline_winner", label: "Headline-led winner", note: "Short headline, tiny USPs" },
-    { id: "benefit_pair", label: "Benefit pair", note: "Two pain-to-relief cues" },
-    { id: "proof_badge", label: "Proof badge", note: "Review/trust leads" },
+  const opts: { id: ProductCopyStyle; label: string; when: string; lines: Parameters<typeof MiniProductBlock>[0]["lines"] }[] = [
+    {
+      id: "headline_winner",
+      label: "Headline winner",
+      when: "Default — works for any send",
+      lines: [
+        { text: "BEST SUPPORT EVER", style: "headline" },
+        { text: "Wire-free all day", style: "usp" },
+        { text: "Snap-on in 3 sec", style: "usp" },
+        { text: "From 💲12.99", style: "sub" },
+      ],
+    },
+    {
+      id: "benefit_pair",
+      label: "Benefit pair",
+      when: "Pain-point heavy campaigns",
+      lines: [
+        { text: "NO WIRE PAIN", style: "headline" },
+        { text: "Digs in → instant relief", style: "usp" },
+        { text: "Slides on → all-day fit", style: "usp" },
+        { text: "Comfort you can feel", style: "sub" },
+      ],
+    },
+    {
+      id: "proof_badge",
+      label: "Proof badge",
+      when: "When reviews are strong",
+      lines: [
+        { text: "★4.9 · 2,300+ Reviews", style: "badge" },
+        { text: '"Forgot it\'s there!" — Helen', style: "review" },
+        { text: "Wire-free comfort", style: "usp" },
+        { text: "Front snap closure", style: "usp" },
+      ],
+    },
+    {
+      id: "urgency_badge",
+      label: "Urgency / scarcity",
+      when: "Low-stock or flash-sale sends",
+      lines: [
+        { text: "SELLING OUT", style: "badge" },
+        { text: "CLAIM YOURS", style: "headline" },
+        { text: "Only a few left at 💲12.99", style: "sub" },
+        { text: "Ships in 24 hrs", style: "usp" },
+      ],
+    },
+    {
+      id: "price_prominent",
+      label: "Price prominent",
+      when: "Steep discounts / price-led",
+      lines: [
+        { text: "💲12.99 — Today Only", style: "price" },
+        { text: "SAVE 35%", style: "badge" },
+        { text: "Wire-free lift & support", style: "sub" },
+        { text: "All-day comfort", style: "usp" },
+      ],
+    },
   ];
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-      {opts.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          onClick={() => onChange(o.id)}
-          className={`text-left rounded-lg border px-3 py-2 ${value === o.id ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
-        >
-          <div className="text-sm font-semibold">{o.label}</div>
-          <div className="text-xs mt-0.5">{o.note}</div>
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {opts.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => onChange(o.id)}
+            className={`choice-card flex flex-col gap-1.5 items-stretch text-left p-2 ${value === o.id ? "choice-card-active" : ""}`}
+          >
+            <MiniProductBlock lines={o.lines} />
+            <div className="text-xs font-semibold leading-tight">{o.label}</div>
+            <div className="text-[10px] text-[var(--muted)] leading-tight">{o.when}</div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1576,14 +1714,14 @@ function LayoutPicker({ count, value, onChange }: { count: number; value: Produc
   if (count >= 3) opts.push({ id: "hero_grid", label: "Hero + 2 per row", rows: [1, 2, 2] });
 
   return (
-    <div className="mb-3">
+    <div className="mb-3 soft-panel">
       <div className="text-xs text-[var(--muted)] mb-1">Product layout</div>
       <div className="flex flex-wrap gap-2">
         {opts.map((o) => {
           const active = value === o.id;
           return (
             <button key={o.id} onClick={() => onChange(o.id)}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg border text-xs ${active ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
+              className={`choice-card flex flex-col items-center gap-1 ${active ? "choice-card-active" : ""}`}>
               <span className="flex flex-col gap-0.5 w-9">
                 {o.rows.map((perRow, ri) => (
                   <span key={ri} className="flex gap-0.5">
@@ -1602,13 +1740,37 @@ function LayoutPicker({ count, value, onChange }: { count: number; value: Produc
   );
 }
 
-function BodyLayoutPicker({ value, onChange }: { value: BodyLayout; onChange: (v: BodyLayout) => void }) {
+function BodyLayoutPicker({
+  value,
+  moduleLayout,
+  onChange,
+  onModuleLayoutChange,
+}: {
+  value: BodyLayout;
+  moduleLayout: EmailModuleKey[];
+  onChange: (v: BodyLayout) => void;
+  onModuleLayoutChange: (v: EmailModuleKey[]) => void;
+}) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const opts: { id: BodyLayout; label: string; rows: string[] }[] = [
     { id: "continuous", label: "Continuous body", rows: ["Body", "P.S.", "Products"] },
     { id: "interspersed", label: "Opener + products", rows: ["Opener", "Products", "Bridge/P.S."] },
+    { id: "custom", label: "Custom flow", rows: ["Drag", "Modules", "Below"] },
   ];
+  const presets: { label: string; value: EmailModuleKey[] }[] = [
+    { label: "2 + 2 story", value: ["hero", "body_1", "products_1_2", "body_2", "products_3_4", "body_3", "products_5_6"] },
+    { label: "Proof sandwich", value: ["hero", "body_1", "products_1_2", "products_3_4", "body_2", "products_5_6", "body_3"] },
+    { label: "Hero first grid", value: ["hero", "products_1_2", "body_1", "products_3_4", "body_2", "products_5_6", "body_3"] },
+  ];
+  const move = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...moduleLayout];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onModuleLayoutChange(next);
+  };
   return (
-    <div className="mb-3">
+    <div className="mb-3 soft-panel">
       <div className="text-xs text-[var(--muted)] mb-1">Body placement</div>
       <div className="flex flex-wrap gap-2">
         {opts.map((o) => {
@@ -1617,7 +1779,7 @@ function BodyLayoutPicker({ value, onChange }: { value: BodyLayout; onChange: (v
             <button
               key={o.id}
               onClick={() => onChange(o.id)}
-              className={`px-3 py-2 rounded-lg border text-xs text-left min-w-40 ${active ? "border-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+              className={`choice-card min-w-40 ${active ? "choice-card-active" : ""}`}
             >
               <span className="font-semibold block mb-1">{o.label}</span>
               <span className="flex flex-col gap-0.5">
@@ -1629,16 +1791,61 @@ function BodyLayoutPicker({ value, onChange }: { value: BodyLayout; onChange: (v
           );
         })}
       </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {presets.map((p) => (
+          <button key={p.label} type="button" onClick={() => onModuleLayoutChange(p.value)} className="btn-ghost">
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+        <div className="flex flex-wrap gap-1.5">
+          {moduleLayout.map((key, index) => (
+            <button
+              key={`${key}-${index}`}
+              type="button"
+              draggable
+              onDragStart={() => setDragIndex(index)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (dragIndex != null) move(dragIndex, index);
+                setDragIndex(null);
+              }}
+              onDragEnd={() => setDragIndex(null)}
+              className={`rounded border px-2.5 py-1 text-xs cursor-grab ${value === "custom" ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--surface-2)]" : "border-[var(--border)] text-[var(--muted)]"}`}
+              title="Drag to reorder"
+            >
+              {moduleLabel(key)}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
+function moduleLabel(key: EmailModuleKey): string {
+  return {
+    hero: "Banner",
+    body_1: "Text 1",
+    products_1_2: "Products 1-2",
+    body_2: "Text 2",
+    products_3_4: "Products 3-4",
+    body_3: "Text 3",
+    products_5_6: "Products 5-6",
+  }[key];
+}
+
 function ProductSlotCard({
-  index, slot, catalog, onPick, onUrl, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove,
+  index, slot, catalog, usedSlugs, recentSlugs, onPick, onUrl, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove,
 }: {
   index: number;
   slot: Slot;
   catalog: Product[];
+  /** All slugs currently picked across all slots — used to disable duplicate options. */
+  usedSlugs: string[];
+  /** Slugs used in the last 3 sends — shown with a "recent" badge. */
+  recentSlugs: string[];
   onPick: (slug: string) => void;
   onUrl: (url: string) => void;
   onScrape: (url: string) => Promise<string>;
@@ -1654,6 +1861,7 @@ function ProductSlotCard({
   const pool = Array.from(new Set([...(cat?.usps || []), ...(slot.scrapedUsps || [])]));
   // Custom USPs are selected entries not in the pool (rendered as editable inputs).
   const customUsps = slot.usps.map((u, j) => ({ u, j })).filter(({ u }) => !pool.includes(u));
+  const isRecent = slot.slug ? recentSlugs.includes(slot.slug) : false;
 
   async function runScrape(url: string) {
     if (!url || !/^https?:\/\//i.test(url)) return;
@@ -1661,17 +1869,39 @@ function ProductSlotCard({
     setScrapeStatus(await onScrape(url));
   }
 
+  // Auto-scrape when the parent sets a URL (e.g. on product pick) and we have no scraped USPs yet.
+  useEffect(() => {
+    if (slot.url && (!slot.scrapedUsps || slot.scrapedUsps.length === 0)) {
+      runScrape(slot.url);
+    }
+    // Only react to URL or scrapedUsps changes, not every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slot.url]);
+
   return (
-    <div className={`rounded-lg border p-3 flex flex-col gap-2 ${index === 0 ? "border-[var(--accent)]" : "border-[var(--border)]"}`}>
+    <div className={`product-slot-card ${index === 0 ? "product-slot-hero" : ""}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold">{index === 0 ? "★ Hero" : `Support ${index + 1}`}</span>
-        {index > 0 && <button onClick={onRemove} className="text-xs text-[var(--muted)] hover:text-[var(--bad)]">remove</button>}
+        <span className="text-xs font-semibold">{index === 0 ? "Hero product" : `Support ${index + 1}`}</span>
+        <div className="flex items-center gap-2">
+          {isRecent && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--warn-soft, #fef3c7)", color: "var(--warn-text, #92400e)" }}>
+              recent
+            </span>
+          )}
+          {index > 0 && <button onClick={onRemove} className="text-xs text-[var(--muted)] hover:text-[var(--bad)]">remove</button>}
+        </div>
       </div>
       <select value={slot.slug} onChange={(e) => onPick(e.target.value)} className="input">
         <option value="">— select product —</option>
-        {catalog.map((p) => (
-          <option key={p.slug} value={p.slug}>{p.name} · 💲{p.price}</option>
-        ))}
+        {catalog.map((p) => {
+          const alreadyUsed = usedSlugs.includes(p.slug) && p.slug !== slot.slug;
+          const recentLabel = recentSlugs.includes(p.slug) ? " · recent" : "";
+          return (
+            <option key={p.slug} value={p.slug} disabled={alreadyUsed}>
+              {alreadyUsed ? `✗ ${p.name}` : `${p.name}${recentLabel}`} · 💲{p.price}
+            </option>
+          );
+        })}
       </select>
 
       {slot.slug && (
@@ -1685,23 +1915,30 @@ function ProductSlotCard({
                 placeholder="https://… (blur to auto-extract USPs)"
                 className="input mono text-xs"
               />
-              {scrapeStatus && <span className="text-[11px] text-[var(--muted)]">{scrapeStatus}</span>}
+              {scrapeStatus && (
+                <span className="text-[11px]" style={{ color: scrapeStatus.startsWith("✓") ? "var(--ok)" : "var(--muted)" }}>
+                  {scrapeStatus}
+                </span>
+              )}
             </div>
           ) : (
-            <button onClick={() => setShowUrl(true)} className="text-xs text-[var(--accent)] text-left">+ Customer URL</button>
+            <button onClick={() => setShowUrl(true)} className="btn-subtle text-left self-start">Override customer URL</button>
           )}
 
-          <div className="flex flex-col gap-1">
+          <div className="usp-grid">
             {pool.map((usp) => (
-              <label key={usp} className="flex items-start gap-2 text-xs cursor-pointer">
-                <input type="checkbox" checked={slot.usps.includes(usp)} onChange={() => onToggleUsp(usp)} className="mt-0.5" />
+              <label key={usp} className={`usp-pill ${slot.usps.includes(usp) ? "usp-pill-selected" : ""}`}>
+                <input type="checkbox" checked={slot.usps.includes(usp)} onChange={() => onToggleUsp(usp)} className="sr-only" />
+                <span className="usp-dot" aria-hidden />
                 <span>{usp}</span>
               </label>
             ))}
+          </div>
+          <div className="flex flex-col gap-1">
             {customUsps.map(({ u, j }) => (
               <input key={`c${j}`} value={u} onChange={(e) => onSetCustomUsp(j, e.target.value)} placeholder="Custom USP" className="input text-xs" />
             ))}
-            <button onClick={onAddCustomUsp} className="text-xs text-[var(--accent)] text-left">+ Add custom USP</button>
+            <button onClick={onAddCustomUsp} className="btn-subtle text-left self-start">+ Add custom USP</button>
           </div>
           {cat?.review && <div className="text-[11px] italic text-[var(--muted)]">{cat.review}</div>}
         </>
@@ -1713,14 +1950,62 @@ function ProductSlotCard({
 function Styles() {
   return (
     <style>{`
-      .input { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:14px; }
-      .input:focus { outline:none; border-color:var(--accent); }
-      .btn-primary { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
-      .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
-      .btn-ghost { background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 12px; font-size:13px; cursor:pointer; }
-      .btn-ghost:disabled { opacity:.4; cursor:not-allowed; }
-      .offer-preview { margin-top:8px; padding:7px 11px; background:#edf6f1; border:1px solid #b9d8cc; border-radius:6px; font-size:12px; color:#315c51; }
+      .app-header { background:rgba(255,255,255,.86); border:1px solid var(--border); border-radius:8px; padding:18px; box-shadow:var(--shadow-tiny); backdrop-filter:blur(12px); }
+      .header-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+      .top-nav { display:flex; gap:6px; padding:4px; border:1px solid var(--border); border-radius:8px; background:var(--surface); width:max-content; max-width:100%; overflow-x:auto; box-shadow:var(--shadow-tiny); }
+      .nav-step { border:0; border-radius:6px; padding:8px 12px; color:var(--muted); background:transparent; font-size:13px; font-weight:650; white-space:nowrap; cursor:pointer; }
+      .nav-step-active { background:var(--accent); color:#fff; }
+      .nav-step:disabled { opacity:.45; cursor:not-allowed; }
+      .section-panel { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:16px; box-shadow:var(--shadow-tiny); }
+      .soft-panel { border:1px solid var(--border); background:var(--surface-2); border-radius:8px; padding:12px; }
+      .input { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:9px 11px; color:var(--text); font-size:14px; min-height:38px; box-shadow:inset 0 1px 0 rgba(31,42,40,.02); }
+      .input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); outline:none; }
+      textarea.input { line-height:1.55; }
+      .btn-primary { background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:7px; padding:9px 14px; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 8px 18px rgba(35,102,90,.16); }
+      .btn-primary:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
+      .btn-ghost { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:7px 11px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:var(--shadow-tiny); }
+      .btn-ghost:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+      .btn-ghost:disabled { opacity:.4; cursor:not-allowed; box-shadow:none; }
+      .btn-subtle { background:transparent; color:var(--accent); border:0; padding:4px 0; font-size:12px; font-weight:700; cursor:pointer; }
+      .offer-preview { margin-top:8px; padding:8px 11px; background:var(--accent-soft); border:1px solid #b9d8cc; border-radius:7px; font-size:12px; color:#315c51; }
       .offer-preview strong { font-weight:700; }
+      .step-card { border:1px solid var(--border); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
+      .step-card-open { border-color:var(--accent); box-shadow:var(--shadow-soft); }
+      .step-button { width:100%; display:flex; align-items:center; gap:12px; padding:14px 16px; text-align:left; background:var(--surface); border:0; }
+      .step-index { width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
+      .step-index-open { background:var(--accent); color:#fff; }
+      .step-index-done { background:var(--ok); color:#fff; }
+      .step-index-idle { background:var(--surface-2); color:var(--muted); border:1px solid var(--border); }
+      .step-action { color:var(--muted); font-size:12px; font-weight:700; }
+      .choice-card { text-align:left; border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:var(--surface); color:var(--muted); font-size:13px; cursor:pointer; min-height:44px; }
+      .choice-card-active { border-color:var(--accent); background:var(--accent-soft); color:var(--text); box-shadow:0 0 0 1px rgba(35,102,90,.08); }
+      .choice-pill { border:1px solid var(--border); border-radius:999px; padding:6px 10px; background:var(--surface); color:var(--muted); font-size:12px; font-weight:650; cursor:pointer; }
+      .choice-pill-active { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+      .snapshot-chip { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:10px 12px; min-width:0; box-shadow:var(--shadow-tiny); }
+      .summary-tile { border:1px solid var(--border); background:var(--surface-2); border-radius:7px; padding:9px; min-width:0; }
+      .product-slot-card { border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:12px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-tiny); }
+      .product-slot-hero { border-color:var(--accent); box-shadow:0 0 0 1px rgba(35,102,90,.12), var(--shadow-tiny); }
+      .usp-grid { display:flex; flex-wrap:wrap; gap:6px; }
+      .usp-pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:6px 9px; background:var(--surface); color:var(--muted); font-size:12px; cursor:pointer; max-width:100%; }
+      .usp-pill-selected { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+      .usp-dot { width:7px; height:7px; border-radius:999px; border:1px solid currentColor; flex-shrink:0; }
+      .usp-pill-selected .usp-dot { background:currentColor; }
+      .prompt-block { border:1px solid var(--border); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
+      .prompt-header { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+      .prompt-toggle { flex:1; border:0; background:transparent; padding:0; color:var(--text); text-align:left; cursor:pointer; }
+      .prompt-body { width:100%; background:#fbfcfc; color:var(--text); border:0; border-top:1px solid var(--border); border-radius:0; }
+      .subject-drawer { margin-bottom:12px; border:1px solid var(--border); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
+      .subject-drawer-head { width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; border:0; background:var(--surface-2); padding:10px 12px; text-align:left; }
+      .option-card { border:1px solid var(--border); border-radius:7px; padding:10px; background:var(--surface); }
+      .option-card-active { border-color:var(--accent); background:var(--accent-soft); }
+      .preview-shell { display:flex; justify-content:center; background:#e8ecef; border:1px solid var(--border); border-radius:8px; padding:16px; overflow:auto; }
+      .status-pill { display:inline-flex; align-items:center; border-radius:999px; border:1px solid currentColor; padding:3px 8px; font-size:11px; font-weight:700; }
+      @media (max-width: 720px) {
+        .app-header { padding:14px; }
+        .header-actions { justify-content:flex-start; }
+        .top-nav { width:100%; }
+        .nav-step { flex:1; text-align:center; }
+      }
     `}</style>
   );
 }

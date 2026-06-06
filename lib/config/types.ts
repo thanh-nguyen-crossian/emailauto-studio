@@ -74,8 +74,18 @@ export interface Brand {
 export type OfferType = "sitewide_pct" | "fixed_price" | "free_ship" | "none";
 export type Urgency = "h24" | "h48" | "weekend" | "none";
 export type AIProvider = "claude" | "gemini" | "openai";
-export type BodyLayout = "continuous" | "interspersed";
-export type ProductCopyStyle = "headline_winner" | "benefit_pair" | "proof_badge";
+export type BodyLayout = "continuous" | "interspersed" | "custom";
+export type ProductCopyStyle = "headline_winner" | "benefit_pair" | "proof_badge" | "urgency_badge" | "price_prominent";
+export type EmailModuleKey =
+  | "hero"
+  | "body_1"
+  | "products_1_2"
+  | "body_2"
+  | "products_3_4"
+  | "body_3"
+  | "products_5_6";
+
+export const RECIPIENT_NAME_TOKEN = "{{first_name}}" as const;
 
 export interface AIModelSelection {
   provider: AIProvider;
@@ -115,13 +125,15 @@ export interface Campaign {
   bodyLayout?: BodyLayout;
   /** Product block copy pattern, based on winning template behavior. */
   productCopyStyle?: ProductCopyStyle;
+  /** Optional custom module flow for drag/drop email layout. */
+  moduleLayout?: EmailModuleKey[];
   /**
    * The Hook Contract — the single source of truth for all copy:
    * segment insight + emotion + hero product + price/proof + urgency + avoid rule.
    * If blank, the model constructs one from the offer before writing.
    */
   hookContract: string;
-  /** Recipient name merge token shown in copy (defaults to the dataset token). */
+  /** Recipient name merge token shown in copy; always {{first_name}}. */
   recipientName: string;
   /** Optional last-send context. */
   lastSend?: LastSend;
@@ -129,6 +141,8 @@ export interface Campaign {
   winningContent?: string;
   /** Optional edited performance guidance injected into the system prompt. */
   customPerfContext?: string;
+  /** Slugs of products featured in the last 3 sends for this brand; model tries to avoid repeating them. */
+  recentProductSlugs?: string[];
 }
 
 /**
