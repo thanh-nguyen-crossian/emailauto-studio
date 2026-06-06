@@ -34,6 +34,48 @@ function briefToRows(brief: GenBrief): Row[] {
     ]
       .filter(Boolean)
       .join("\n");
+  const bodyOptionsValue = () =>
+    Object.entries(brief.body_options || {})
+      .map(([key, options]) =>
+        [
+          (key === "base" ? "Base" : "SEG " + segCode(key).toUpperCase()) + " options",
+          ...(options || []).map((o, i) =>
+            [
+              `Option ${o.label || i + 1} (${o.model_hint || "AI"})`,
+              o.body ? `Body: ${o.body}` : "",
+              o.ps ? `P.S.: ${o.ps}` : "",
+              o.placement_note ? `Placement: ${o.placement_note}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n")
+          ),
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .filter(Boolean)
+      .join("\n\n");
+  const bannerOptionsValue = (b: GenBrief["banner"]) =>
+    (b.options || [])
+      .map((o, i) =>
+        [
+          `Option ${o.label || i + 1} (${o.model_hint || "AI"})`,
+          "Main text 1: " + (o.main_text_1 || ""),
+          "Main text 2: " + (o.main_text_2 || ""),
+          "Sub text 1: " + (o.sub_text_1 || ""),
+          "Sub text 2: " + (o.sub_text_2 || ""),
+          "CTA: " + (o.cta || ""),
+          "Main image: " + (o.main_image || ""),
+          "Sub image: " + (o.sub_image || ""),
+          "Trust-booster: " + (o.trust_booster || ""),
+          "Emergency: " + (o.emergency || ""),
+          "Review: " + (o.review_texts || []).join(" | "),
+          "Image guidance: " + (o.image_guidance || ""),
+        ]
+          .filter((line) => !/: $/.test(line))
+          .join("\n")
+      )
+      .join("\n\n");
   for (let i = 0; i < segs.length; i += 2) {
     const [k1, v1] = segs[i];
     const pair = segs[i + 1];
@@ -68,6 +110,7 @@ function briefToRows(brief: GenBrief): Row[] {
       "Image: " + (b.image_guidance || ""),
       "Review: " + ((b.review_texts || []).join("\n") || b.review_quote || ""),
       "CTA: " + (b.cta || ""),
+      bannerOptionsValue(b) ? "A/B options:\n" + bannerOptionsValue(b) : "",
     ]
       .filter(Boolean)
       .join("\n")
@@ -77,9 +120,11 @@ function briefToRows(brief: GenBrief): Row[] {
     .map(([k, v]) => (k === "base" ? "Base" : "SEG " + segCode(k).toUpperCase()) + "\n" + v)
     .join("\n\n");
   addRow("Body", bodyText);
+  const bodyOptions = bodyOptionsValue();
+  if (bodyOptions) addRow("Body A/B options", bodyOptions);
   if (brief.ps) addRow("P.S.", brief.ps);
 
-  addRow("Product images", "Layout as previous template\n- model-wearing product shots\n- relevant supporting images");
+  addRow("Product images", "Rendered as linked image modules only\n- text and CTA live inside generated images\n- no caption/CTA under product images");
   spacer();
 
   // Products in 2-up pairs
@@ -88,11 +133,24 @@ function briefToRows(brief: GenBrief): Row[] {
     p
       ? [
           "Product image: " + p.name,
-          "Main text: " + (p.main_text || ""),
-          "Sub text: " + (p.sub_text || ""),
+          "Image headline: " + (p.main_text || ""),
+          "Image sub text: " + (p.sub_text || ""),
+          "Image CTA: " + (p.cta || ""),
           p.popup_badge ? "Popout: " + p.popup_badge : "",
           ...(p.usps || []).map((u) => "+ " + u),
           p.review ? "Review: " + p.review : "",
+          ...(p.image_options || []).map((o, j) =>
+            [
+              `Image option ${o.label || j + 1} (${o.model_hint || "AI"})`,
+              o.main_image ? "Main image: " + o.main_image : "",
+              o.sub_image ? "Sub image: " + o.sub_image : "",
+              o.overlay_copy ? "Overlay copy: " + o.overlay_copy : "",
+              o.alt_text ? "Alt text: " + o.alt_text : "",
+              o.notes ? "Notes: " + o.notes : "",
+            ]
+              .filter(Boolean)
+              .join("\n")
+          ),
         ]
           .filter(Boolean)
           .join("\n")
@@ -101,7 +159,6 @@ function briefToRows(brief: GenBrief): Row[] {
     const p1 = prods[i];
     const p2 = prods[i + 1];
     addRow("Product " + (i + 1), makeText(p1), p2 ? "Product " + (i + 2) : null, makeText(p2));
-    addRow(null, p1 ? "CTA: " + (p1.cta || "") : "", null, p2 ? "CTA: " + (p2.cta || "") : "");
     spacer();
   }
 

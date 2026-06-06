@@ -1,6 +1,32 @@
 "use client";
 
-import type { GenBrief, GenProductBlock } from "@/lib/briefgen";
+import type { GenBannerOption, GenBrief, GenProductBlock, GenProductImageOption } from "@/lib/briefgen";
+
+const defaultBannerOption = (index: number): GenBannerOption => ({
+  label: index === 0 ? "A" : "B",
+  model_hint: "",
+  main_text_1: "",
+  main_text_2: "",
+  sub_text_1: "",
+  sub_text_2: "",
+  cta: "",
+  review_texts: [],
+  main_image: "",
+  sub_image: "",
+  trust_booster: "",
+  emergency: "",
+  image_guidance: "",
+});
+
+const defaultProductImageOption = (index: number): GenProductImageOption => ({
+  label: index === 0 ? "A" : "B",
+  model_hint: "",
+  main_image: "",
+  sub_image: "",
+  overlay_copy: "",
+  alt_text: "",
+  notes: "",
+});
 
 // Renders the generated designer brief (combined with the copy) and offers a markdown download.
 export function BriefView({
@@ -36,12 +62,37 @@ export function BriefView({
     patchDirection({ hook_contract: { ...hc, ...next } });
   const patchBanner = (next: Partial<typeof banner>) =>
     patch({ banner: { ...banner, ...next } });
+  const patchBannerOption = (index: number, field: keyof GenBannerOption, value: string) => {
+    const options = [...(banner.options || [])];
+    const current = options[index] || defaultBannerOption(index);
+    options[index] = field === "review_texts"
+      ? { ...current, review_texts: value.split(/\n+/).map((line) => line.trim()).filter(Boolean) }
+      : { ...current, [field]: value };
+    patchBanner({ options });
+  };
+  const patchBodyOption = (key: string, index: number, field: "label" | "model_hint" | "body" | "ps" | "placement_note", value: string) => {
+    const all = { ...(brief.body_options || {}) };
+    const options = [...(all[key] || [])];
+    options[index] = { ...(options[index] || { label: index === 0 ? "A" : "B", model_hint: "", body: "", ps: "", placement_note: "" }), [field]: value };
+    all[key] = options;
+    patch({ body_options: all });
+  };
   const patchQa = (field: keyof typeof qc, value: string) =>
     patch({ quality_checks: { ...qc, [field]: value } });
   const patchProduct = (index: number, next: Partial<GenProductBlock>) => {
     const products = [...(brief.products || [])];
     products[index] = { ...products[index], ...next };
     patch({ products });
+  };
+  const patchProductImageOption = (productIndex: number, optionIndex: number, field: "label" | "model_hint" | "main_image" | "sub_image" | "overlay_copy" | "alt_text" | "notes", value: string) => {
+    const product = (brief.products || [])[productIndex];
+    if (!product) return;
+    const image_options = [...(product.image_options || [])];
+    image_options[optionIndex] = {
+      ...(image_options[optionIndex] || defaultProductImageOption(optionIndex)),
+      [field]: value,
+    };
+    patchProduct(productIndex, { image_options });
   };
   const patchProductUsp = (productIndex: number, uspIndex: number, value: string) => {
     const product = (brief.products || [])[productIndex];
@@ -65,10 +116,10 @@ export function BriefView({
         <p className="text-sm text-[var(--muted)]">
           Designer brief generated alongside the copy — editable creative direction, visual guidance, and self-QA.
         </p>
-        <button onClick={onDownload} className="btn-ghost">⬇️ Download brief (.md)</button>
+        <button onClick={onDownload} className="btn-ghost">Download brief (.md)</button>
       </div>
 
-      <Card title="Creative direction">
+      <Card title="Creative direction" defaultOpen={false}>
         {editable ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
             <EditField label="Angle" value={cd.angle} onChange={(v) => patchDirection({ angle: v })} />
@@ -110,7 +161,7 @@ export function BriefView({
         </div>
       </Card>
 
-      <Card title="Subject + preheader options">
+      <Card title="Subject + preheader options" defaultOpen={false}>
         <div className="grid grid-cols-1 gap-3">
           {Object.entries(brief.subject_lines || {}).map(([key, line]) => (
             <div key={key} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
@@ -182,6 +233,32 @@ export function BriefView({
           ) : (
             <div className="text-sm"><span className="text-[var(--muted)]">P.S. </span>{brief.ps || "—"}</div>
           )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {Object.entries(brief.body_options || {}).flatMap(([key, options]) =>
+              (options || []).map((o, i) => (
+                <div key={`${key}-${i}`} className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                  <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-1">{key} · Option {o.label || i + 1}</div>
+                  {editable ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <EditField label="Label" value={o.label} onChange={(v) => patchBodyOption(key, i, "label", v)} />
+                        <EditField label="Model hint" value={o.model_hint} onChange={(v) => patchBodyOption(key, i, "model_hint", v)} />
+                      </div>
+                      <EditArea label="Body option" value={o.body} rows={4} onChange={(v) => patchBodyOption(key, i, "body", v)} />
+                      <EditField label="P.S." value={o.ps} onChange={(v) => patchBodyOption(key, i, "ps", v)} />
+                      <EditField label="Placement note" value={o.placement_note} onChange={(v) => patchBodyOption(key, i, "placement_note", v)} />
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs whitespace-pre-line">{o.body}</p>
+                      {o.ps && <p className="text-xs mt-1"><strong>P.S.</strong> {o.ps}</p>}
+                      {o.placement_note && <p className="text-[11px] text-[var(--muted)] mt-1">{o.placement_note}</p>}
+                    </>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </Card>
 
@@ -229,6 +306,40 @@ export function BriefView({
             {banner.cta && <div className="mt-2 text-sm"><span className="text-[var(--muted)]">CTA: </span><strong style={{ color: "var(--accent)" }}>{banner.cta}</strong></div>}
           </>
         )}
+        {!!banner.options?.length && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+            {banner.options.map((o, i) => (
+              <div key={i} className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-1">Banner option {o.label || i + 1}</div>
+                {editable ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <EditField label="Label" value={o.label} onChange={(v) => patchBannerOption(i, "label", v)} />
+                      <EditField label="Model hint" value={o.model_hint} onChange={(v) => patchBannerOption(i, "model_hint", v)} />
+                      <EditField label="Main 1" value={o.main_text_1} onChange={(v) => patchBannerOption(i, "main_text_1", v)} />
+                      <EditField label="Main 2" value={o.main_text_2} onChange={(v) => patchBannerOption(i, "main_text_2", v)} />
+                      <EditField label="Sub 1" value={o.sub_text_1} onChange={(v) => patchBannerOption(i, "sub_text_1", v)} />
+                      <EditField label="Sub 2" value={o.sub_text_2} onChange={(v) => patchBannerOption(i, "sub_text_2", v)} />
+                      <EditField label="CTA" value={o.cta} onChange={(v) => patchBannerOption(i, "cta", v)} />
+                      <EditField label="Emergency" value={o.emergency} onChange={(v) => patchBannerOption(i, "emergency", v)} />
+                    </div>
+                    <EditField label="Main image" value={o.main_image} onChange={(v) => patchBannerOption(i, "main_image", v)} />
+                    <EditField label="Sub image" value={o.sub_image} onChange={(v) => patchBannerOption(i, "sub_image", v)} />
+                    <EditField label="Trust-booster" value={o.trust_booster} onChange={(v) => patchBannerOption(i, "trust_booster", v)} />
+                    <EditArea label="Review texts" value={(o.review_texts || []).join("\n")} onChange={(v) => patchBannerOption(i, "review_texts", v)} />
+                    <EditArea label="Image guidance" value={o.image_guidance} onChange={(v) => patchBannerOption(i, "image_guidance", v)} />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-xs font-semibold">{[o.main_text_1, o.main_text_2].filter(Boolean).join(" / ")}</div>
+                    <div className="text-xs text-[var(--muted)]">{[o.sub_text_1, o.sub_text_2].filter(Boolean).join(" / ")}</div>
+                    <div className="text-[11px] text-[var(--muted)] mt-1">{o.main_image}</div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         {editable && banner.image_guidance && <BannerBullets value={banner.image_guidance} />}
       </Card>
 
@@ -242,10 +353,10 @@ export function BriefView({
                     <EditField label="Name" value={p.name} onChange={(v) => patchProduct(i, { name: v })} />
                     <EditField label="Template style" value={p.template_style} onChange={(v) => patchProduct(i, { template_style: v })} />
                     <EditField label="Badge" value={p.popup_badge} onChange={(v) => patchProduct(i, { popup_badge: v })} />
-                    <EditField label="Main text" value={p.main_text} onChange={(v) => patchProduct(i, { main_text: v })} />
-                    <EditField label="CTA" value={p.cta} onChange={(v) => patchProduct(i, { cta: v })} />
+                    <EditField label="Image headline" value={p.main_text} onChange={(v) => patchProduct(i, { main_text: v })} />
+                    <EditField label="Image CTA" value={p.cta} onChange={(v) => patchProduct(i, { cta: v })} />
                   </div>
-                  <EditArea label="Sub text" value={p.sub_text} onChange={(v) => patchProduct(i, { sub_text: v })} />
+                  <EditArea label="Image sub text" value={p.sub_text} onChange={(v) => patchProduct(i, { sub_text: v })} />
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">USPs</span>
                     {(p.usps || []).map((u, j) => (
@@ -254,6 +365,25 @@ export function BriefView({
                     <button type="button" onClick={() => addProductUsp(i)} className="btn-ghost self-start">+ USP</button>
                   </div>
                   <EditArea label="Review" value={p.review} onChange={(v) => patchProduct(i, { review: v })} />
+                  <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                    <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-2">Product image A/B options</div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(p.image_options?.length ? p.image_options : [defaultProductImageOption(0), defaultProductImageOption(1)]).map((o, j) => (
+                        <div key={j} className="rounded border border-[var(--border)] bg-[var(--surface)] p-2">
+                          <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-1">Image option {o.label || j + 1}</div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <EditField label="Label" value={o.label} onChange={(v) => patchProductImageOption(i, j, "label", v)} />
+                            <EditField label="Model hint" value={o.model_hint} onChange={(v) => patchProductImageOption(i, j, "model_hint", v)} />
+                            <EditField label="Main image" value={o.main_image} onChange={(v) => patchProductImageOption(i, j, "main_image", v)} />
+                            <EditField label="Sub image" value={o.sub_image} onChange={(v) => patchProductImageOption(i, j, "sub_image", v)} />
+                          </div>
+                          <EditArea label="Overlay copy inside image" value={o.overlay_copy} rows={3} onChange={(v) => patchProductImageOption(i, j, "overlay_copy", v)} />
+                          <EditField label="Alt text" value={o.alt_text} onChange={(v) => patchProductImageOption(i, j, "alt_text", v)} />
+                          <EditArea label="Notes" value={o.notes} rows={2} onChange={(v) => patchProductImageOption(i, j, "notes", v)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -269,6 +399,19 @@ export function BriefView({
                   ))}
                   {p.review && <div className="text-xs italic text-[var(--muted)] mt-1">{p.review}</div>}
                   {p.cta && <div className="text-xs mt-1"><strong style={{ color: "var(--accent)" }}>{p.cta}</strong></div>}
+                  {!!p.image_options?.length && (
+                    <div className="mt-2 grid grid-cols-1 gap-1">
+                      {p.image_options.map((o, j) => (
+                        <div key={j} className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2 text-xs">
+                          <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Image option {o.label || j + 1} · {o.model_hint || "AI"}</div>
+                          <div className="font-semibold mt-0.5">{o.overlay_copy}</div>
+                          {o.main_image && <div className="text-[var(--muted)] mt-0.5">Main: {o.main_image}</div>}
+                          {o.sub_image && <div className="text-[var(--muted)] mt-0.5">Sub: {o.sub_image}</div>}
+                          {o.notes && <div className="text-[var(--muted)] mt-0.5">{o.notes}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -276,7 +419,7 @@ export function BriefView({
         </div>
       </Card>
 
-      <Card title="Self-QA (model)">
+      <Card title="Self-QA (model)" defaultOpen={false}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
           <QC k="Click reason" v={qc.click_reason} />
           <QC k="Hook alignment" v={qc.hook_alignment} />
@@ -382,12 +525,16 @@ function compactBulletLines(value: string): string[] {
     .slice(0, 6);
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-      <h3 className="text-sm font-semibold mb-2">{title}</h3>
-      {children}
-    </div>
+    <details open={defaultOpen} className="section-panel p-0 overflow-hidden">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold border-b border-[var(--border)] bg-[var(--surface-2)]">
+        {title}
+      </summary>
+      <div className="p-4">
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -453,6 +600,21 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
       value || "",
       ``,
     ]),
+    ...(Object.keys(brief.body_options || {}).length
+      ? [
+          `### Body A/B Options`,
+          ...Object.entries(brief.body_options || {}).flatMap(([key, options]) => [
+            `#### ${key === "base" ? "Base" : key.replace("seg_", "SEG ").replace("_", "-")}`,
+            ...(options || []).flatMap((o, i) => [
+              `- Option ${o.label || i + 1} (${o.model_hint || ""})`,
+              `  Body: ${o.body || ""}`,
+              `  P.S.: ${o.ps || ""}`,
+              `  Placement: ${o.placement_note || ""}`,
+            ]),
+          ]),
+          ``,
+        ]
+      : []),
     `- P.S.: ${brief.ps || ""}`,
     ``,
     `## Banner`,
@@ -468,17 +630,45 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
     `- Image: ${b.image_guidance || ""}`,
     `- Review: ${(b.review_texts || []).join(" | ") || b.review_quote || ""}`,
     `- CTA: ${b.cta || ""}`,
+    ...(b.options?.length
+      ? [
+          ``,
+          `### Banner A/B Options`,
+          ...(b.options || []).flatMap((o, i) => [
+            `- Option ${o.label || i + 1} (${o.model_hint || ""})`,
+            `  Main text 1: ${o.main_text_1 || ""}`,
+            `  Main text 2: ${o.main_text_2 || ""}`,
+            `  Sub text 1: ${o.sub_text_1 || ""}`,
+            `  Sub text 2: ${o.sub_text_2 || ""}`,
+            `  CTA: ${o.cta || ""}`,
+            `  Main image: ${o.main_image || ""}`,
+            `  Sub image: ${o.sub_image || ""}`,
+            `  Trust-booster: ${o.trust_booster || ""}`,
+            `  Emergency: ${o.emergency || ""}`,
+            `  Review texts: ${(o.review_texts || []).join(" | ")}`,
+            `  Image guidance: ${o.image_guidance || ""}`,
+          ]),
+        ]
+      : []),
     ``,
     `## Product blocks`,
     ...(brief.products || []).flatMap((p) => [
       `### ${p.name}`,
       `- Template style: ${p.template_style || ""}`,
       `- Badge: ${p.popup_badge || ""}`,
-      `- Main: ${p.main_text || ""}`,
-      `- Sub: ${p.sub_text || ""}`,
+      `- Image headline: ${p.main_text || ""}`,
+      `- Image sub text: ${p.sub_text || ""}`,
       ...(p.usps || []).map((u) => `- USP: ${u}`),
       `- Review: ${p.review || ""}`,
-      `- CTA: ${p.cta || ""}`,
+      `- Image CTA: ${p.cta || ""}`,
+      ...(p.image_options || []).flatMap((o, i) => [
+        `- Image option ${o.label || i + 1} (${o.model_hint || ""})`,
+        `  Main image: ${o.main_image || ""}`,
+        `  Sub image: ${o.sub_image || ""}`,
+        `  Overlay copy: ${o.overlay_copy || ""}`,
+        `  Alt text: ${o.alt_text || ""}`,
+        `  Notes: ${o.notes || ""}`,
+      ]),
       ``,
     ]),
     `## Self-QA`,

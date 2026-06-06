@@ -68,12 +68,11 @@ export function ImageEditor({
     onChange({ ...images, products: { ...(images.products || {}), [slug]: url } });
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4 flex flex-col gap-3">
+    <div className="section-panel flex flex-col gap-3">
       <div>
         <h3 className="text-sm font-semibold">Images</h3>
         <p className="text-xs text-[var(--muted)] mt-1">
-          Upload each image in SendGrid (<em>Design Library → Your Images</em>), copy the URL, and
-          paste it below. Shown in the preview and the exported HTML.
+          Paste SendGrid image URLs for preview and export.
         </p>
       </div>
       <label className="flex items-center gap-2 text-xs">

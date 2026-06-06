@@ -1,7 +1,7 @@
-import type { BodyLayout, Brand, Campaign, ImageOverrides, Product } from "../config/types";
+import type { BodyLayout, Brand, Campaign, EmailModuleKey, ImageOverrides, Product } from "../config/types";
 import type { GenBrief, GenProductBlock } from "../briefgen";
 import { segJsonKey } from "../briefgen";
-import { buildUrl, paragraphsToHtml, parseInlineMarkdown } from "./markdown";
+import { buildUrl, paragraphsToHtml } from "./markdown";
 
 // Renders a real SendGrid **Design** (module format) so the exported HTML round-trips into
 // SendGrid's editor and renders identically to the team's existing templates. Structure mirrors
@@ -33,7 +33,11 @@ export interface RenderOptions {
   productLayout?: ProductLayout;
   /** Body placement relative to product blocks (default campaign/body continuous). */
   bodyLayout?: BodyLayout;
+  /** Drag/drop module flow when bodyLayout is custom. */
+  moduleLayout?: EmailModuleKey[];
 }
+
+const DEFAULT_MODULE_LAYOUT: EmailModuleKey[] = ["hero", "body_1", "products_1_2", "products_3_4", "products_5_6", "body_2", "body_3"];
 
 // ---- module-id generator (data-muid); counter-based, deterministic per render ----
 function muidFactory() {
@@ -244,44 +248,19 @@ function bannerCaptionBlock(brand: Brand, accent: string, banner: GenBrief["bann
   return textBlock(parts.join("\n\n"), brand, accent, muid, "center");
 }
 
-// ---- product caption (design-brief copy rendered beneath the product image) ----
-// `compact` shrinks type for narrow 2-/3-up columns.
-function productCaptionInner(brand: Brand, accent: string, slug: string | null, pb: GenProductBlock, compact = false): string {
-  const f = compact
-    ? { main: 15, sub: 12, usp: 12, rev: 12, badge: 10, ctaFont: 13, ctaPad: "7px 16px" }
-    : { main: 18, sub: 14, usp: 13, rev: 13, badge: 11, ctaFont: 14, ctaPad: "9px 22px" };
-  const lines: string[] = [];
-  if (pb.popup_badge) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.badge}px; letter-spacing:1px; color:${accent}; text-align:center;"><strong>${parseInlineMarkdown(pb.popup_badge, brand, accent)}</strong></div>`);
-  if (pb.main_text) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.main}px; color:#000000; text-align:center; padding-top:4px;"><strong>${parseInlineMarkdown(pb.main_text, brand, accent)}</strong></div>`);
-  if (pb.sub_text) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.sub}px; color:#000000; text-align:center; padding-top:2px;">${parseInlineMarkdown(pb.sub_text, brand, accent)}</div>`);
-  (pb.usps || []).forEach((u) => u && lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.usp}px; color:#000000; text-align:center; padding-top:2px;">${parseInlineMarkdown(u, brand, accent)}</div>`));
-  if (pb.review) lines.push(`<div style="font-family: arial,helvetica,sans-serif; font-size:${f.rev}px; color:#606060; text-align:center; padding-top:4px;"><em>${parseInlineMarkdown(pb.review, brand, accent)}</em></div>`);
-  if (pb.cta) {
-    const href = buildUrl(brand, slug);
-    const label = pb.cta || pb.name || "Shop product";
-    lines.push(`<div style="text-align:center; padding-top:8px;"><a clicktracking="off" href="${attr(href)}" aria-label="${attr(label)}" style="display:inline-block; background-color:${accent}; color:#ffffff; font-family:arial,helvetica,sans-serif; font-size:${f.ctaFont}px; font-weight:bold; text-decoration:none; padding:${f.ctaPad}; border-radius:4px;">${parseInlineMarkdown(pb.cta, brand, accent)}</a></div>`);
-  }
-  return `<div>${lines.join("\n")}<div></div></div>`;
-}
-
-/** A full-width product block: image + caption (used for stack layout + hero_grid's hero). */
-function productBlock(brand: Brand, accent: string, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string): string {
+/** A full-width product image block. Text/CTA are expected inside the generated image asset. */
+function productBlock(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(564, 280, pb.name || product?.name || "Product"));
   const img = imageModule(muid(), buildUrl(brand, slug), src, pb.name || product?.name || "Product", 564, 0, true);
-  return (
-    columnsSingle(img, "0px 9px 6px 9px", 564, "0px 9px 0px 9px") +
-    "\n" +
-    columnsSingle(textModule(muid(), productCaptionInner(brand, accent, slug, pb)), "0px 18px 18px 18px", 528, "0px 18px 0px 18px")
-  );
+  return columnsSingle(img, "0px 9px 18px 9px", 564, "0px 9px 0px 9px");
 }
 
-/** A product cell (image + caption stacked) for one column of a multi-up row. */
-function productCellInner(brand: Brand, accent: string, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string, imgW: number): string {
+/** A product image cell for one column of a multi-up row. */
+function productCellInner(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string, imgW: number): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(imgW, Math.round(imgW * 0.9), pb.name || product?.name || "Product"));
-  const img = imageModule(muid(), buildUrl(brand, slug), src, pb.name || product?.name || "Product", imgW, 6, true);
-  return img + "\n" + textModule(muid(), productCaptionInner(brand, accent, slug, pb, true), 20, "0px 4px 0px 4px");
+  return imageModule(muid(), buildUrl(brand, slug), src, pb.name || product?.name || "Product", imgW, 0, true);
 }
 
 /**
@@ -316,41 +295,76 @@ export function renderEmailHTML(
   const mods: string[] = [];
   mods.push(preheaderBlock(preheader));
   if (options.includeLogo) mods.push(logoBlock(brand, images, muid));
-  mods.push(heroBlock(brand, images, muid));
-  if (brief.banner) {
-    const cap = bannerCaptionBlock(brand, accent, brief.banner, muid);
-    if (cap) mods.push(cap);
-  }
 
   const bodyParts = bodyText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  const beforeProducts = bodyLayout === "interspersed" ? bodyParts.slice(0, 1).join("\n\n") : bodyText;
-  const afterProducts = bodyLayout === "interspersed" ? bodyParts.slice(1).join("\n\n") : "";
-  if (beforeProducts) mods.push(textBlock(beforeProducts, brand, accent, muid));
+  const bodyChunks = [
+    bodyParts.slice(0, 1).join("\n\n"),
+    bodyParts.slice(1, 2).join("\n\n"),
+    [bodyParts.slice(2).join("\n\n"), brief.ps ? `P.S. ${brief.ps}` : ""].filter(Boolean).join("\n\n"),
+  ];
+  const pushHero = () => {
+    mods.push(heroBlock(brand, images, muid));
+    if (brief.banner) {
+      const cap = bannerCaptionBlock(brand, accent, brief.banner, muid);
+      if (cap) mods.push(cap);
+    }
+  };
+  const pushBody = (index: number) => {
+    const text = bodyChunks[index];
+    if (text) mods.push(textBlock(text, brand, accent, muid));
+  };
 
   // Product grid — arrangement chosen by the user.
   const layout = options.productLayout || "stack";
   const cell = (idx: number, imgW: number) =>
-    idx < blocks.length ? productCellInner(brand, accent, ordered[idx], blocks[idx], images, muid, imgW) : "";
+    idx < blocks.length ? productCellInner(brand, ordered[idx], blocks[idx], images, muid, imgW) : "";
   const pushGridRows = (start: number, perRow: number, colW: number, imgW: number, gutter: number) => {
     for (let i = start; i < blocks.length; i += perRow) {
       const cells = Array.from({ length: perRow }, (_, j) => cell(i + j, imgW));
       mods.push(columnsRow(cells, colW, gutter, "0px 9px 18px 9px"));
     }
   };
-  if (layout === "two") {
-    pushGridRows(0, 2, 282, 282, 18);
-  } else if (layout === "three") {
-    pushGridRows(0, 3, 176, 176, 12);
-  } else if (layout === "hero_grid") {
-    if (blocks[0]) mods.push(productBlock(brand, accent, ordered[0], blocks[0], images, muid));
-    pushGridRows(1, 2, 282, 282, 18);
-  } else {
-    blocks.forEach((pb, i) => mods.push(productBlock(brand, accent, ordered[i], pb, images, muid)));
-  }
+  const pushProductRange = (start: number, end: number) => {
+    const available = blocks.slice(start, Math.min(end, blocks.length));
+    if (!available.length) return;
+    if (available.length === 1) {
+      mods.push(productBlock(brand, ordered[start], available[0], images, muid));
+      return;
+    }
+    const cells = available.map((_pb, j) => cell(start + j, 282));
+    mods.push(columnsRow(cells, 282, 18, "0px 9px 18px 9px"));
+  };
 
-  const psText = brief.ps ? `P.S. ${brief.ps}` : "";
-  const closingText = [afterProducts, psText].filter(Boolean).join("\n\n");
-  if (closingText) mods.push(textBlock(closingText, brand, accent, muid));
+  if (bodyLayout === "custom") {
+    const sequence = options.moduleLayout?.length ? options.moduleLayout : campaign.moduleLayout?.length ? campaign.moduleLayout : DEFAULT_MODULE_LAYOUT;
+    sequence.forEach((key) => {
+      if (key === "hero") pushHero();
+      else if (key === "body_1") pushBody(0);
+      else if (key === "body_2") pushBody(1);
+      else if (key === "body_3") pushBody(2);
+      else if (key === "products_1_2") pushProductRange(0, 2);
+      else if (key === "products_3_4") pushProductRange(2, 4);
+      else if (key === "products_5_6") pushProductRange(4, 6);
+    });
+  } else {
+    pushHero();
+    const beforeProducts = bodyLayout === "interspersed" ? bodyParts.slice(0, 1).join("\n\n") : bodyText;
+    const afterProducts = bodyLayout === "interspersed" ? bodyParts.slice(1).join("\n\n") : "";
+    if (beforeProducts) mods.push(textBlock(beforeProducts, brand, accent, muid));
+    if (layout === "two") {
+      pushGridRows(0, 2, 282, 282, 18);
+    } else if (layout === "three") {
+      pushGridRows(0, 3, 176, 176, 12);
+    } else if (layout === "hero_grid") {
+      if (blocks[0]) mods.push(productBlock(brand, ordered[0], blocks[0], images, muid));
+      pushGridRows(1, 2, 282, 282, 18);
+    } else {
+      blocks.forEach((pb, i) => mods.push(productBlock(brand, ordered[i], pb, images, muid)));
+    }
+    const psText = brief.ps ? `P.S. ${brief.ps}` : "";
+    const closingText = [afterProducts, psText].filter(Boolean).join("\n\n");
+    if (closingText) mods.push(textBlock(closingText, brand, accent, muid));
+  }
 
   mods.push(footerBlock(brand, campaign, muid));
 

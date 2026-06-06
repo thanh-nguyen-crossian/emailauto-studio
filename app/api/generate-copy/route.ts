@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateOptions } from "@/lib/anthropic";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
-import type { Campaign, Product } from "@/lib/config/types";
+import { RECIPIENT_NAME_TOKEN, type Campaign, type Product } from "@/lib/config/types";
 import type { GenBrief } from "@/lib/briefgen";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
@@ -34,9 +34,10 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
     urgency: c.urgency || "none",
     offer: c.offer || "",
     bodyLayout: c.bodyLayout || "continuous",
+    moduleLayout: Array.isArray(c.moduleLayout) ? c.moduleLayout : undefined,
     productCopyStyle: c.productCopyStyle || "headline_winner",
     hookContract: c.hookContract || "",
-    recipientName: c.recipientName || "son.nln",
+    recipientName: RECIPIENT_NAME_TOKEN,
     lastSend: c.lastSend,
     winningContent: c.winningContent,
     customPerfContext: c.customPerfContext,

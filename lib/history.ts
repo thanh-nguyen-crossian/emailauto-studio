@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "./supabase";
-import type { AIModelPair, BodyLayout, ImageOverrides, LastSend, OfferType, ProductCopyStyle, Urgency } from "./config/types";
+import type { AIModelPair, BodyLayout, EmailModuleKey, ImageOverrides, LastSend, OfferType, ProductCopyStyle, Urgency } from "./config/types";
 import type { GenBrief } from "./briefgen";
 import type { ProductLayout } from "./render/email";
 
@@ -26,6 +26,8 @@ export interface VersionPayload {
   productLayout?: ProductLayout;
   /** Body placement chosen in output. */
   bodyLayout?: BodyLayout;
+  /** Custom drag/drop module flow. */
+  moduleLayout?: EmailModuleKey[];
   /** Product block copy template chosen in build. */
   productCopyStyle?: ProductCopyStyle;
   /** Manual HTML edits to the rendered email, keyed `${opt}:${segment}`. */

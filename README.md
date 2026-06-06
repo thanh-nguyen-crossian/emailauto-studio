@@ -55,9 +55,13 @@ Build brief (6-step wizard)  →  Review & generate  →  A/B output
    editable** system/user prompts. One combined prompt → per-segment copy **and** design brief,
    run twice for two contrasting options (**A/B**, forced to different angle + framework).
 3. **A/B output** — switch Option A/B and segment; choose subject/preheader options, body
-   placement, and product layout; live email **preview** with editable HTML, the editable
+   placement (including drag/drop module flow), and product layout; live email **preview** with editable HTML, the editable
    **design brief**, and a **quality score + flags**. Export each as HTML / `.zip`, export the
    brief to Excel, save to history, or sync to SendGrid.
+
+Current production rules: the recipient token is always `{{first_name}}`; banner/body/product
+image briefs include editable A/B options; product modules render as linked images only, with any
+headline, text, and CTA planned inside the generated image asset.
 
 A human is in the loop at every step — nothing is sent or scheduled automatically; the SendGrid
 sync only creates a Design / Dynamic Template draft.

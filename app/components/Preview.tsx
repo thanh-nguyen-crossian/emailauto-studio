@@ -10,30 +10,22 @@ export function Preview({ html }: { html: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 soft-panel">
         <span className="text-sm text-[var(--muted)]">Width:</span>
         <button
           onClick={() => setWidth("mobile")}
-          className={`px-3 py-1 rounded text-sm border ${
-            width === "mobile"
-              ? "bg-[var(--accent)] text-white border-[var(--accent)]"
-              : "border-[var(--border)] text-[var(--muted)]"
-          }`}
+          className={`choice-pill ${width === "mobile" ? "choice-pill-active" : ""}`}
         >
-          📱 Mobile
+          Mobile
         </button>
         <button
           onClick={() => setWidth("desktop")}
-          className={`px-3 py-1 rounded text-sm border ${
-            width === "desktop"
-              ? "bg-[var(--accent)] text-white border-[var(--accent)]"
-              : "border-[var(--border)] text-[var(--muted)]"
-          }`}
+          className={`choice-pill ${width === "desktop" ? "choice-pill-active" : ""}`}
         >
-          🖥️ Desktop
+          Desktop
         </button>
       </div>
-      <div className="flex justify-center bg-[#e9eaee] rounded-lg p-4 overflow-auto">
+      <div className="preview-shell">
         <iframe
           title="Email preview"
           srcDoc={html}

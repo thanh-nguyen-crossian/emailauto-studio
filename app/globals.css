@@ -11,6 +11,10 @@
   --muted: #5f6b69;
   --accent: #23665a;
   --accent-2: #d66f3f;
+  --accent-soft: #e7f1ed;
+  --ring: rgba(35, 102, 90, 0.28);
+  --shadow-soft: 0 14px 34px rgba(31, 42, 40, 0.08);
+  --shadow-tiny: 0 1px 2px rgba(31, 42, 40, 0.07);
   /* semantic states (tuned for contrast on white) */
   --ok: #1a7f5a;
   --warn: #b06a00;
@@ -22,6 +26,7 @@ body {
   background: var(--background);
   color: var(--text);
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  min-height: 100vh;
 }
 
 code,
@@ -32,4 +37,43 @@ kbd,
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+button {
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  button:not(:disabled):hover {
+    transform: none;
+  }
 }

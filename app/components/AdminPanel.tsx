@@ -98,7 +98,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
             <h1 className="text-2xl font-bold">Admin · Users</h1>
             <p className="text-sm text-[var(--muted)] mt-1">Approve signups, set active/inactive, reset passwords.</p>
           </div>
-          <button onClick={onClose} className="btn-ghost">← Back to studio</button>
+          <button onClick={onClose} className="btn-ghost">Back to studio</button>
         </div>
 
         {error && <div className="text-sm text-[#ff6b6b] mb-4">{error}</div>}
