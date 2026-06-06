@@ -108,3 +108,58 @@ app/components/HtmlFormatEditor.tsx  NEW — markdown toolbar component
 docs/workflow-performance-insights-2026-06-04.md  NEW — analysis doc
 docs/superpowers/            NEW — planning specs for email-brief-generator integration
 ```
+
+---
+
+# Updates — 2026-06-06
+
+## Feature: Step 3 Product UX improvements
+
+### Visual template illustrations
+The product picker (Step 3) now shows five named copy templates with ASCII-style layout previews — `headline_winner`, `benefit_pair`, `proof_badge`, `urgency_badge`, `price_prominent` — so marketers can see the block structure before selecting.
+
+### Duplicate prevention
+Selecting a product that is already assigned to another slot is blocked at the UI level. The picker displays an "Already added" badge on occupied products and ignores duplicate selections.
+
+### Auto-scrape USPs on product pick
+When a product is selected from the catalog, any `usps[]` stored in `lib/config/brands.ts` are pre-filled immediately. If the product has a URL, a background scrape (`/api/scrape-usps`) fires automatically and replaces the pre-fill with freshly extracted selling points.
+
+### Recent product avoidance
+`Campaign.recentProductSlugs?: string[]` (added in `lib/config/types.ts`) carries the slugs of products featured in the last 3 sends. The model is instructed to avoid repeating them unless they are the hero product. Step 3 surfaces a "recently sent" indicator next to flagged products.
+
+### Playbook copy rules in prompt
+`PRODUCT_BLOCK_TEMPLATE_RULES` extended with per-template dos/don'ts grounded in the playbook win patterns, replacing the previous free-form template hint.
+
+---
+
+## Fix: JSON truncation and generation timeout
+
+### Root cause
+The `ELEMENT_AB_RULES` prompt block (added in the 2026-06-04 release) required a nested A/B option set for banner copy, every segment body, and every product image brief inside the **same single generation call**. With 5 segments and 6 products this doubled the required output to ~12 000–15 000 tokens — above the previous `max_tokens: 8192` limit — causing mid-JSON truncation and a parse error.
+
+The truncated output also made each call significantly slower, pushing the sequential A→B generation past the 300s Vercel `maxDuration` on high-segment sends.
+
+### Fix: increased output token limit
+`max_tokens` raised from **8 192 → 16 000** for all three providers:
+- Claude: `max_tokens: 16000`
+- Gemini: `maxOutputTokens: 16000`
+- OpenAI: `max_completion_tokens: 16000`
+
+### Fix: removed element A/B rules from prompt and schema
+`ELEMENT_AB_RULES` removed entirely from `buildSystemPrompt`. The following fields are **no longer generated** (they remain valid in saved history and are guard-rendered in BriefView when present):
+
+| Removed field | Was |
+|---|---|
+| `banner.options[]` | A/B banner copy variants |
+| `body_options{}` | A/B body variants per segment |
+| `products[].image_options[]` | A/B image briefs per product |
+
+All email rendering depends only on the core fields (`banner.*`, `body.*`, `products[].main_text` etc.) — removing these optional creative-brief extras has no effect on the generated HTML.
+
+Corresponding `validateBrief` checks for the three removed fields were also deleted to eliminate false-positive warnings.
+
+### Files changed
+```
+lib/anthropic.ts   max_tokens raised to 16 000 for Claude, Gemini, OpenAI
+lib/briefgen.ts    ELEMENT_AB_RULES removed; schema templates updated; validateBrief cleaned up
+```
