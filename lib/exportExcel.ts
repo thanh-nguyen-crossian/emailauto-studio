@@ -62,8 +62,10 @@ function briefToRows(brief: GenBrief): Row[] {
           `Option ${o.label || i + 1} (${o.model_hint || "AI"})`,
           "Main text 1: " + (o.main_text_1 || ""),
           "Main text 2: " + (o.main_text_2 || ""),
+          "Main text 3: " + (o.main_text_3 || ""),
           "Sub text 1: " + (o.sub_text_1 || ""),
           "Sub text 2: " + (o.sub_text_2 || ""),
+          "Sub text 3: " + (o.sub_text_3 || ""),
           "CTA: " + (o.cta || ""),
           "Main image: " + (o.main_image || ""),
           "Sub image: " + (o.sub_image || ""),
@@ -136,21 +138,13 @@ function briefToRows(brief: GenBrief): Row[] {
           "Image headline: " + (p.main_text || ""),
           "Image sub text: " + (p.sub_text || ""),
           "Image CTA: " + (p.cta || ""),
+          "Main image: " + (p.main_image || p.image_options?.[0]?.main_image || ""),
+          "Sub image: " + (p.sub_image || p.image_options?.[0]?.sub_image || ""),
+          "Alt text: " + (p.alt_text || p.image_options?.[0]?.alt_text || ""),
+          "Image notes: " + (p.image_notes || p.image_options?.[0]?.notes || ""),
           p.popup_badge ? "Popout: " + p.popup_badge : "",
           ...(p.usps || []).map((u) => "+ " + u),
           p.review ? "Review: " + p.review : "",
-          ...(p.image_options || []).map((o, j) =>
-            [
-              `Image option ${o.label || j + 1} (${o.model_hint || "AI"})`,
-              o.main_image ? "Main image: " + o.main_image : "",
-              o.sub_image ? "Sub image: " + o.sub_image : "",
-              o.overlay_copy ? "Overlay copy: " + o.overlay_copy : "",
-              o.alt_text ? "Alt text: " + o.alt_text : "",
-              o.notes ? "Notes: " + o.notes : "",
-            ]
-              .filter(Boolean)
-              .join("\n")
-          ),
         ]
           .filter(Boolean)
           .join("\n")
@@ -176,9 +170,26 @@ function escXml(s: string): string {
     .replace(/\n/g, "&#10;");
 }
 
+function plainText(value: string): string {
+  return String(value)
+    .replace(/\[([^\]]+)\]\((?:slug:[^)]+|home|https?:\/\/[^)]+)\)/gi, "$1")
+    .replace(/==([^=]+)==/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 function cellXml(v: string | null, bold: boolean): string {
   if (v == null || v === "") return "<Cell/>";
-  return `<Cell${bold ? ' ss:StyleID="label"' : ""}><Data ss:Type="String">${escXml(v)}</Data></Cell>`;
+  return `<Cell${bold ? ' ss:StyleID="label"' : ""}><Data ss:Type="String">${escXml(plainText(v))}</Data></Cell>`;
 }
 
 // Column widths in points (≈ source's char widths 3/18/70/18/70 × 7).

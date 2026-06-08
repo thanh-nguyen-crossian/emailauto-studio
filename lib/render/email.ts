@@ -146,13 +146,16 @@ function footerBlock(brand: Brand, campaign: Campaign, muid: () => string): stri
   const returns = `https://${brand.domain}/static/exchanges-returns?{{paramurl}}`;
   const sm = (t: string) =>
     `<span style="font-family: arial, helvetica, sans-serif; font-size: 12px; color:#000000">${t}</span>`;
+  const linkText = (t: string) =>
+    `<span style="font-family: arial, helvetica, sans-serif; font-size: 12px; color:#606060"><u>${t}</u></span>`;
   const content = `<div>
 <div style="font-family: inherit; text-align: center">${sm(`Thanks for shopping at ${brand.name}`)}</div>
 <div style="font-family: inherit; text-align: center">${sm("You're part of the family! We hope you love your {{product_label}} from {{purchase_date}} (#{{code}}).")}</div>
-<div style="font-family: inherit; text-align: center">${sm("Want exclusive deals &amp; comfort tips? We'd love to keep in touch — but if you'd rather not, you can ")}<a clicktracking="off" href="{{unsubscribe}}">${sm("opt out here")}</a>${sm(".")}</div>
-<div style="font-family: inherit; text-align: center">${sm(`Reply with questions — ${brand.persona} or our experts are ready to help.`)}</div>
+<div style="font-family: inherit; text-align: center">${sm("Want exclusive deals &amp; comfort tips? We'd love to keep in touch! But if you'd rather not hear from us, you can opt out below.")}</div>
+<div style="font-family: inherit; text-align: center">${sm(`Reply with questions - ${brand.persona} or our experts are ready to help! Add us to your email contacts list to stay in the loop.`)}</div>
 <div style="font-family: inherit; text-align: center"><a clicktracking="off" href="${attr(home)}">${sm(`${brand.name}.com`)}</a></div>
-<div style="font-family: inherit; text-align: center">${sm(`© ${year} ${brand.name} | `)}<a clicktracking="off" href="${attr(privacy)}">${sm("Privacy Policy")}</a>${sm(" | ")}<a clicktracking="off" href="${attr(returns)}">${sm("Exchanges &amp; Returns")}</a></div>
+<div style="font-family: inherit; text-align: center">${sm("1851 Central Park Loop, Morrow, GA 30260")}</div>
+<div style="font-family: inherit; text-align: center">${sm(`© ${year} | `)}<a clicktracking="off" href="${attr(privacy)}">${linkText("Privacy Policy")}</a>${sm(" | ")}<a clicktracking="off" href="${attr(returns)}">${linkText("Exchanges &amp; Returns")}</a></div>
 <div></div></div>`;
   return columnsSingle(
     textModule(muid(), content, 20, "0px 9px 0px 9px"),
@@ -252,7 +255,7 @@ function bannerCaptionBlock(brand: Brand, accent: string, banner: GenBrief["bann
 function productBlock(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(564, 280, pb.name || product?.name || "Product"));
-  const img = imageModule(muid(), buildUrl(brand, slug), src, pb.name || product?.name || "Product", 564, 0, true);
+  const img = imageModule(muid(), buildUrl(brand, slug), src, pb.alt_text || pb.name || product?.name || "Product", 564, 0, true);
   return columnsSingle(img, "0px 9px 18px 9px", 564, "0px 9px 0px 9px");
 }
 
@@ -260,7 +263,7 @@ function productBlock(brand: Brand, product: Product | undefined, pb: GenProduct
 function productCellInner(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string, imgW: number): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(imgW, Math.round(imgW * 0.9), pb.name || product?.name || "Product"));
-  return imageModule(muid(), buildUrl(brand, slug), src, pb.name || product?.name || "Product", imgW, 0, true);
+  return imageModule(muid(), buildUrl(brand, slug), src, pb.alt_text || pb.name || product?.name || "Product", imgW, 0, true);
 }
 
 /**

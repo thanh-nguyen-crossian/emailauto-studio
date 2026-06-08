@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export function HtmlFormatEditor({
   value,
@@ -12,6 +12,39 @@ export function HtmlFormatEditor({
   onChange: (value: string) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
+  const history = useRef<{ undo: string[]; redo: string[] }>({ undo: [], redo: [] });
+  const [historyTick, setHistoryTick] = useState(0);
+
+  const refreshHistory = () => setHistoryTick((v) => v + 1);
+  const canUndo = historyTick >= 0 && history.current.undo.length > 0;
+  const canRedo = historyTick >= 0 && history.current.redo.length > 0;
+
+  function commitValue(next: string) {
+    if (next === value) return;
+    history.current.undo.push(value);
+    if (history.current.undo.length > 80) history.current.undo.shift();
+    history.current.redo = [];
+    onChange(next);
+    refreshHistory();
+  }
+
+  function undo() {
+    const previous = history.current.undo.pop();
+    if (previous == null) return;
+    history.current.redo.push(value);
+    onChange(previous);
+    refreshHistory();
+    requestAnimationFrame(() => ref.current?.focus());
+  }
+
+  function redo() {
+    const next = history.current.redo.pop();
+    if (next == null) return;
+    history.current.undo.push(value);
+    onChange(next);
+    refreshHistory();
+    requestAnimationFrame(() => ref.current?.focus());
+  }
 
   function replaceSelection(format: (selection: string) => string) {
     const el = ref.current;
@@ -21,7 +54,7 @@ export function HtmlFormatEditor({
     const selected = value.slice(start, end);
     const formatted = format(selected);
     const next = value.slice(0, start) + formatted + value.slice(end);
-    onChange(next);
+    commitValue(next);
     requestAnimationFrame(() => {
       el.focus();
       el.selectionStart = start;
@@ -48,6 +81,8 @@ export function HtmlFormatEditor({
   return (
     <div className="mb-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
       <div className="flex flex-wrap gap-1.5 border-b border-[var(--border)] bg-[var(--surface-2)] p-2">
+        <Tool label="Undo" title="Undo" onClick={undo} disabled={!canUndo} />
+        <Tool label="Redo" title="Redo" onClick={redo} disabled={!canRedo} />
         <Tool label="B" title="Bold" onClick={() => replaceSelection((s) => `<strong>${s || "bold text"}</strong>`)} />
         <Tool label="I" title="Italic" onClick={() => replaceSelection((s) => `<em>${s || "italic text"}</em>`)} />
         <Tool label="U" title="Underline" onClick={() => replaceSelection((s) => `<u>${s || "underlined text"}</u>`)} />
@@ -69,7 +104,18 @@ export function HtmlFormatEditor({
       <textarea
         ref={ref}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => commitValue(e.target.value)}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+            e.preventDefault();
+            if (e.shiftKey) redo();
+            else undo();
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
+            e.preventDefault();
+            redo();
+          }
+        }}
         spellCheck={false}
         className="w-full mono text-xs leading-relaxed p-3 bg-transparent text-[var(--text)] outline-none resize-y"
         style={{ height: 260 }}
@@ -78,9 +124,9 @@ export function HtmlFormatEditor({
   );
 }
 
-function Tool({ label, title, onClick }: { label: string; title: string; onClick: () => void }) {
+function Tool({ label, title, onClick, disabled }: { label: string; title: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" title={title} onClick={onClick} className="btn-ghost">
+    <button type="button" title={title} onClick={onClick} disabled={disabled} className="btn-ghost">
       {label}
     </button>
   );

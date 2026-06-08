@@ -798,22 +798,34 @@ const BRAND_INTELLIGENCE = {
 };
 
 const MODEL_OPTIONS = {
-  claude: ['claude-opus-4-8','claude-sonnet-4-6','claude-haiku-4-5'],
-  gemini: ['gemini-2.5-pro','gemini-2.5-flash','gemini-2.0-flash'],
-  openai: ['gpt-4.1','gpt-4o','gpt-4.1-mini','o4-mini']
+  claude: ['claude-opus-4-8','claude-sonnet-4-6','claude-haiku-4-5-20251001','claude-haiku-4-5'],
+  gemini: ['gemini-3.5-flash','gemini-3.1-pro-preview','gemini-3-flash-preview','gemini-3.1-flash-lite','gemini-2.5-pro','gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-latest'],
+  openai: ['gpt-5.5','gpt-5.5-pro','gpt-5.4','gpt-5.4-pro','gpt-5.4-mini','gpt-5.4-nano','gpt-5-mini','gpt-5-nano','gpt-4.1','chat-latest']
 };
 
 const MODEL_DESCRIPTIONS = {
   'claude-opus-4-8': 'Opus 4.8 — Most capable',
   'claude-sonnet-4-6': 'Sonnet 4.6 — Balanced',
-  'claude-haiku-4-5': 'Haiku 4.5 — Fast',
-  'gemini-2.5-pro': 'Gemini 2.5 Pro — Best quality',
-  'gemini-2.5-flash': 'Gemini 2.5 Flash — Fast',
-  'gemini-2.0-flash': 'Gemini 2.0 Flash — Efficient',
-  'gpt-4.1': 'GPT-4.1 — Latest flagship',
-  'gpt-4o': 'GPT-4o — Capable',
-  'gpt-4.1-mini': 'GPT-4.1 Mini — Fast',
-  'o4-mini': 'o4-mini — Reasoning'
+  'claude-haiku-4-5-20251001': 'Haiku 4.5 — Fast snapshot',
+  'claude-haiku-4-5': 'Haiku 4.5 — Alias',
+  'gemini-3.5-flash': 'Gemini 3.5 Flash — Stable frontier',
+  'gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview — Highest reasoning',
+  'gemini-3-flash-preview': 'Gemini 3 Flash Preview — Frontier flash',
+  'gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite — Fastest',
+  'gemini-2.5-pro': 'Gemini 2.5 Pro — Stable quality',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash — Price-performance',
+  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite — Budget',
+  'gemini-flash-latest': 'Gemini Flash Latest — Hot-swapped alias',
+  'gpt-5.5': 'GPT-5.5 — Recommended production',
+  'gpt-5.5-pro': 'GPT-5.5 Pro — Highest quality',
+  'gpt-5.4': 'GPT-5.4 — Lower cost frontier',
+  'gpt-5.4-pro': 'GPT-5.4 Pro — Premium previous frontier',
+  'gpt-5.4-mini': 'GPT-5.4 Mini — Fast',
+  'gpt-5.4-nano': 'GPT-5.4 Nano — Lowest cost',
+  'gpt-5-mini': 'GPT-5 Mini — Low latency',
+  'gpt-5-nano': 'GPT-5 Nano — Fastest',
+  'gpt-4.1': 'GPT-4.1 — Non-reasoning fallback',
+  'chat-latest': 'ChatGPT Latest — Instant alias'
 };
 
 const PROVIDER_LABELS = {

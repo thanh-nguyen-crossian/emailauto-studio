@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from "react";
-import type { GenBannerOption, GenBrief, GenProductBlock, GenProductImageOption } from "@/lib/briefgen";
+import { useRef, useState } from "react";
+import type { GenBannerOption, GenBrief, GenProductBlock } from "@/lib/briefgen";
 import type { BodyVarietyProfile } from "@/lib/config/types";
 
 const defaultBannerOption = (index: number): GenBannerOption => ({
@@ -22,16 +22,6 @@ const defaultBannerOption = (index: number): GenBannerOption => ({
   image_guidance: "",
 });
 
-const defaultProductImageOption = (index: number): GenProductImageOption => ({
-  label: index === 0 ? "A" : "B",
-  model_hint: "",
-  main_image: "",
-  sub_image: "",
-  overlay_copy: "",
-  alt_text: "",
-  notes: "",
-});
-
 // Renders the generated designer brief (combined with the copy) and offers a markdown download.
 export function BriefView({
   brief,
@@ -47,8 +37,38 @@ export function BriefView({
   const banner = brief.banner || ({} as GenBrief["banner"]);
   const qc = brief.quality_checks || ({} as GenBrief["quality_checks"]);
   const editable = !!onChange;
+  const undoStack = useRef<GenBrief[]>([]);
+  const redoStack = useRef<GenBrief[]>([]);
+  const [historyTick, setHistoryTick] = useState(0);
 
-  const patch = (next: Partial<GenBrief>) => onChange?.({ ...brief, ...next });
+  const syncHistory = () => setHistoryTick((v) => v + 1);
+  const pushUndo = () => {
+    undoStack.current.push(cloneBrief(brief));
+    if (undoStack.current.length > 50) undoStack.current.shift();
+    redoStack.current = [];
+    syncHistory();
+  };
+  const patch = (next: Partial<GenBrief>) => {
+    if (!onChange) return;
+    pushUndo();
+    onChange({ ...brief, ...next });
+  };
+  const undoBrief = () => {
+    const previous = undoStack.current.pop();
+    if (!previous || !onChange) return;
+    redoStack.current.push(cloneBrief(brief));
+    onChange(previous);
+    syncHistory();
+  };
+  const redoBrief = () => {
+    const next = redoStack.current.pop();
+    if (!next || !onChange) return;
+    undoStack.current.push(cloneBrief(brief));
+    onChange(next);
+    syncHistory();
+  };
+  const canUndo = historyTick >= 0 && undoStack.current.length > 0;
+  const canRedo = historyTick >= 0 && redoStack.current.length > 0;
   const patchSubject = (key: string, next: Partial<NonNullable<GenBrief["subject_lines"]>[string]>) =>
     patch({ subject_lines: { ...(brief.subject_lines || {}), [key]: { ...(brief.subject_lines?.[key] || { subject: "", preheader: "" }), ...next } } });
   const patchSubjectOption = (key: string, index: number, field: "style" | "model_hint" | "subject" | "preheader" | "shared_thread", value: string) => {
@@ -88,16 +108,6 @@ export function BriefView({
     products[index] = { ...products[index], ...next };
     patch({ products });
   };
-  const patchProductImageOption = (productIndex: number, optionIndex: number, field: "label" | "model_hint" | "main_image" | "sub_image" | "overlay_copy" | "alt_text" | "notes", value: string) => {
-    const product = (brief.products || [])[productIndex];
-    if (!product) return;
-    const image_options = [...(product.image_options || [])];
-    image_options[optionIndex] = {
-      ...(image_options[optionIndex] || defaultProductImageOption(optionIndex)),
-      [field]: value,
-    };
-    patchProduct(productIndex, { image_options });
-  };
   const patchProductUsp = (productIndex: number, uspIndex: number, value: string) => {
     const product = (brief.products || [])[productIndex];
     if (!product) return;
@@ -120,7 +130,15 @@ export function BriefView({
         <p className="text-sm text-[var(--muted)]">
           Designer brief generated alongside the copy — editable creative direction, visual guidance, and self-QA.
         </p>
-        <button onClick={onDownload} className="btn-ghost">Download brief (.md)</button>
+        <div className="flex items-center gap-2">
+          {editable && (
+            <>
+              <button type="button" onClick={undoBrief} disabled={!canUndo} className="btn-ghost">Undo</button>
+              <button type="button" onClick={redoBrief} disabled={!canRedo} className="btn-ghost">Redo</button>
+            </>
+          )}
+          <button onClick={onDownload} className="btn-ghost">Download brief (.md)</button>
+        </div>
       </div>
 
       <Card title="Creative direction" defaultOpen={false}>
@@ -396,6 +414,15 @@ export function BriefView({
                     <EditField label="Image CTA" value={p.cta} onChange={(v) => patchProduct(i, { cta: v })} />
                   </div>
                   <EditArea label="Image sub text" value={p.sub_text} onChange={(v) => patchProduct(i, { sub_text: v })} />
+                  <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                    <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-2">Product image brief</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <EditField label="Main image" value={p.main_image || p.image_options?.[0]?.main_image} onChange={(v) => patchProduct(i, { main_image: v })} />
+                      <EditField label="Sub image" value={p.sub_image || p.image_options?.[0]?.sub_image} onChange={(v) => patchProduct(i, { sub_image: v })} />
+                    </div>
+                    <EditField label="Alt text" value={p.alt_text || p.image_options?.[0]?.alt_text} onChange={(v) => patchProduct(i, { alt_text: v })} />
+                    <EditArea label="Image notes" value={p.image_notes || p.image_options?.[0]?.notes} rows={2} onChange={(v) => patchProduct(i, { image_notes: v })} />
+                  </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">USPs</span>
                     {(p.usps || []).map((u, j) => (
@@ -404,25 +431,6 @@ export function BriefView({
                     <button type="button" onClick={() => addProductUsp(i)} className="btn-ghost self-start">+ USP</button>
                   </div>
                   <EditArea label="Review" value={p.review} onChange={(v) => patchProduct(i, { review: v })} />
-                  <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
-                    <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-2">Product image A/B options</div>
-                    <div className="grid grid-cols-1 gap-2">
-                      {(p.image_options?.length ? p.image_options : [defaultProductImageOption(0), defaultProductImageOption(1)]).map((o, j) => (
-                        <div key={j} className="rounded border border-[var(--border)] bg-[var(--surface)] p-2">
-                          <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-1">Image option {o.label || j + 1}</div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <EditField label="Label" value={o.label} onChange={(v) => patchProductImageOption(i, j, "label", v)} />
-                            <EditField label="Model hint" value={o.model_hint} onChange={(v) => patchProductImageOption(i, j, "model_hint", v)} />
-                            <EditField label="Main image" value={o.main_image} onChange={(v) => patchProductImageOption(i, j, "main_image", v)} />
-                            <EditField label="Sub image" value={o.sub_image} onChange={(v) => patchProductImageOption(i, j, "sub_image", v)} />
-                          </div>
-                          <EditArea label="Overlay copy inside image" value={o.overlay_copy} rows={3} onChange={(v) => patchProductImageOption(i, j, "overlay_copy", v)} />
-                          <EditField label="Alt text" value={o.alt_text} onChange={(v) => patchProductImageOption(i, j, "alt_text", v)} />
-                          <EditArea label="Notes" value={o.notes} rows={2} onChange={(v) => patchProductImageOption(i, j, "notes", v)} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <>
@@ -438,17 +446,13 @@ export function BriefView({
                   ))}
                   {p.review && <div className="text-xs italic text-[var(--muted)] mt-1">{p.review}</div>}
                   {p.cta && <div className="text-xs mt-1"><strong style={{ color: "var(--accent)" }}>{p.cta}</strong></div>}
-                  {!!p.image_options?.length && (
-                    <div className="mt-2 grid grid-cols-1 gap-1">
-                      {p.image_options.map((o, j) => (
-                        <div key={j} className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2 text-xs">
-                          <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Image option {o.label || j + 1} · {o.model_hint || "AI"}</div>
-                          <div className="font-semibold mt-0.5">{o.overlay_copy}</div>
-                          {o.main_image && <div className="text-[var(--muted)] mt-0.5">Main: {o.main_image}</div>}
-                          {o.sub_image && <div className="text-[var(--muted)] mt-0.5">Sub: {o.sub_image}</div>}
-                          {o.notes && <div className="text-[var(--muted)] mt-0.5">{o.notes}</div>}
-                        </div>
-                      ))}
+                  {(p.main_image || p.sub_image || p.alt_text || p.image_notes || p.image_options?.[0]) && (
+                    <div className="mt-2 rounded border border-[var(--border)] bg-[var(--surface-2)] p-2 text-xs">
+                      <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Product image brief</div>
+                      {(p.main_image || p.image_options?.[0]?.main_image) && <div className="text-[var(--muted)] mt-0.5">Main: {p.main_image || p.image_options?.[0]?.main_image}</div>}
+                      {(p.sub_image || p.image_options?.[0]?.sub_image) && <div className="text-[var(--muted)] mt-0.5">Sub: {p.sub_image || p.image_options?.[0]?.sub_image}</div>}
+                      {(p.alt_text || p.image_options?.[0]?.alt_text) && <div className="text-[var(--muted)] mt-0.5">Alt: {p.alt_text || p.image_options?.[0]?.alt_text}</div>}
+                      {(p.image_notes || p.image_options?.[0]?.notes) && <div className="text-[var(--muted)] mt-0.5">{p.image_notes || p.image_options?.[0]?.notes}</div>}
                     </div>
                   )}
                 </>
@@ -518,6 +522,10 @@ const PLAYBOOK_QA_FIELDS: [keyof GenBrief["quality_checks"], string][] = [
   ["brand_rule_alignment", "Brand rules"],
   ["accessibility_layout", "Accessibility/layout"],
 ];
+
+function cloneBrief(brief: GenBrief): GenBrief {
+  return JSON.parse(JSON.stringify(brief)) as GenBrief;
+}
 
 function Row({ k, v }: { k: string; v?: string }) {
   return (
@@ -745,14 +753,10 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
       ...(p.usps || []).map((u) => `- USP: ${u}`),
       `- Review: ${p.review || ""}`,
       `- Image CTA: ${p.cta || ""}`,
-      ...(p.image_options || []).flatMap((o, i) => [
-        `- Image option ${o.label || i + 1} (${o.model_hint || ""})`,
-        `  Main image: ${o.main_image || ""}`,
-        `  Sub image: ${o.sub_image || ""}`,
-        `  Overlay copy: ${o.overlay_copy || ""}`,
-        `  Alt text: ${o.alt_text || ""}`,
-        `  Notes: ${o.notes || ""}`,
-      ]),
+      `- Main image: ${p.main_image || p.image_options?.[0]?.main_image || ""}`,
+      `- Sub image: ${p.sub_image || p.image_options?.[0]?.sub_image || ""}`,
+      `- Alt text: ${p.alt_text || p.image_options?.[0]?.alt_text || ""}`,
+      `- Image notes: ${p.image_notes || p.image_options?.[0]?.notes || ""}`,
       ``,
     ]),
     `## Self-QA`,

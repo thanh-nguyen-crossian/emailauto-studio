@@ -1211,6 +1211,7 @@ export default function Studio() {
                     </div>
                     {editingHtml && (
                       <HtmlFormatEditor
+                        key={activeHtmlKey}
                         value={htmlFor(activeOption, activeSegment)}
                         accent={brand.accent}
                         onChange={(value) => setHtmlOverrides((o) => ({ ...o, [activeHtmlKey]: value }))}
@@ -1231,7 +1232,7 @@ export default function Studio() {
                     <button onClick={exportExcel} className="btn-primary">Export to Excel (.xls · A + B)</button>
                     <span className="text-xs text-[var(--muted)]">One sheet per option, matching the email-brief format.</span>
                   </div>
-                  <BriefView brief={activeBrief} onDownload={downloadBrief} onChange={updateActiveBrief} />
+                  <BriefView key={activeOption} brief={activeBrief} onDownload={downloadBrief} onChange={updateActiveBrief} />
                 </div>
               )}
 
@@ -1707,7 +1708,9 @@ function ModelSelector({
           ))}
         </select>
       </div>
-      {model.note && <div className="text-[11px] text-[var(--muted)] mt-1">{model.note}</div>}
+      <div className="text-[11px] text-[var(--muted)] mt-1">
+        {model.note ? `${model.note} · ` : ""}<code>{model.id}</code>
+      </div>
     </div>
   );
 }

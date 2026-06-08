@@ -77,6 +77,11 @@ export interface GenProductBlock {
   slot: number;
   name: string;
   template_style?: string;
+  main_image?: string;
+  sub_image?: string;
+  alt_text?: string;
+  image_notes?: string;
+  /** Legacy field kept so older saved generations still load, but new prompts no longer request it. */
   image_options?: GenProductImageOption[];
   main_text: string;
   sub_text: string;
@@ -278,15 +283,14 @@ const PRODUCT_BLOCK_TEMPLATE_RULES = `PRODUCT BLOCK TEMPLATE RULES (apply the se
 - If a template style mentions ratings, review counts, bestseller status, stock scarcity, guarantees, or savings badges, use those only when supplied in the input; otherwise write a qualitative benefit badge.`;
 
 
-const PRODUCT_IMAGE_BRIEF_RULES = `PRODUCT IMAGE BRIEF RULES (image_options per product block):
-- Every product block MUST include image_options with exactly 2 items (label "A" and label "B").
-- Option A and B must have genuinely different visual directions (e.g. lifestyle vs flat-lay, outdoor vs studio, warm vs cool palette, front view vs 45° angle). Never produce identical or near-identical options.
-- main_image: primary product photo direction — specify angle, framing, background, model/flat-lay, and lighting. Be designer-actionable; not decorative.
-- sub_image: close-up detail, texture highlight, or secondary angle that supports the hero shot.
-- overlay_copy: the complete text baked into this image — headline (= main_text), sub copy (= sub_text), and CTA. Format as "HEADLINE / sub text / CTA".
+const PRODUCT_IMAGE_BRIEF_RULES = `PRODUCT IMAGE BRIEF RULES (one product image direction per generated email option):
+- Each product block needs main_image, sub_image, alt_text, and image_notes.
+- main_image: primary product photo direction — specify angle, framing, background, model/flat-lay, lighting, and visible product area.
+- sub_image: close-up detail, texture highlight, secondary angle, or motion cue that supports the main image.
 - alt_text: screen-reader description — product name + benefit context; no "image of".
-- notes: one designer tip — palette alignment, safe zone margin, or brand rule reference.
-- Do not leave image_options empty, null, or with blank main_image/overlay_copy.`;
+- image_notes: one designer tip — palette alignment, safe zone margin, crop, or brand rule reference.
+- Product block main_text, sub_text, popup_badge, usps, review, and cta are the text to bake inside the image; the HTML renderer will not add captions or CTA under product images.
+- Do not create nested product image A/B options. Option A/B exists at the full-email level.`;
 
 const BANNER_BRIEF_FORMAT = `BANNER BRIEF FORMAT:
 - banner.image_guidance MUST be a compact bullet list, not a paragraph.
@@ -770,8 +774,15 @@ Segment versions keep one hook but adapt motivation: loyal = recognition/first a
 const COMPONENT_PROMPT_LAYER = `Subject/preheader: 3+ paired options per segment, distinct Claude/Gemini/ChatGPT-style lenses, subject hard cap 60, preheader 60-90, preheader adds a new beat.
 Body: 120-150 words per segment, persona-signed, selected opener in 2-3 sentences, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words.
 Banner: main_text_1/2/3 and sub_text_1/2/3 each use distinct angles; image_guidance is 4-6 compact bullets covering first 200px, product, offer, palette, crop, CTA path.
-Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words. HTML product modules use linked images only, so image overlay_copy includes headline/sub/CTA.
-Product image_options: exactly A and B per product; make visual directions genuinely different; include main_image, sub_image, overlay_copy, alt_text, notes.`;
+Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words. HTML product modules use linked images only, so product text/CTA should be written as text to bake into each image.
+${PRODUCT_IMAGE_BRIEF_RULES}`;
+
+const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
+- Structure for renderer: hidden preheader, optional logo, linked hero image, concise caption text, short body modules, linked product-image modules, P.S., footer.
+- Use renderer-safe tokens only in generated copy: ==accent==, **bold**, [Product](slug:slug), [home text](home). Do not output raw HTML in JSON copy fields.
+- Product modules are image-only links in HTML; product block text/CTA is brief copy to bake inside images, not captions under images.
+- Footer is handled by renderer: thanks line, product/purchase placeholders, opt-out-below sentence, reply/contact-list reminder, homepage, 1851 Central Park Loop address, Privacy Policy, Exchanges & Returns. Do not write a second footer in body/P.S.
+- HTML expectations for QA: clicktracking off on links, descriptive alt text, max-width responsive images, role=module/table layout compatibility, light-background SendGrid design.`;
 
 const PERFORMANCE_PROMPT_LAYER = `Pages are generally converting; assume email intent is the leak unless supplied page/product data says otherwise.
 Access/Delivered drop -> improve hero/body/CTA path. PO/View drop -> improve product order, price clarity, fit proof, page-product match. Optout/spam risk -> softer urgency and narrower list.
@@ -816,7 +827,7 @@ export function buildSystemPrompt(
       : "120-150 words; 3-5 short paragraphs; use ==accent==, **bold**, [Product](slug:slug)";
   const productSchema = products
     .map(
-      (_, i) => `{"slot":${i + 1},"name":"","template_style":"${campaign.productCopyStyle || "headline_winner"}","main_text":"","sub_text":"","popup_badge":"","usps":["",""],"review":"","cta":"","image_options":[{"label":"A","model_hint":"","main_image":"","sub_image":"","overlay_copy":"","alt_text":"","notes":""},{"label":"B","model_hint":"","main_image":"","sub_image":"","overlay_copy":"","alt_text":"","notes":""}]}`
+      (_, i) => `{"slot":${i + 1},"name":"","template_style":"${campaign.productCopyStyle || "headline_winner"}","main_text":"","sub_text":"","popup_badge":"","usps":["",""],"review":"","cta":"","main_image":"","sub_image":"","alt_text":"","image_notes":""}`
     )
     .join(",\n    ");
 
@@ -871,6 +882,7 @@ export function buildSystemPrompt(
     { title: "Core Rules", body: CORE_PROMPT_LAYER },
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
+    { title: "SendGrid HTML Fit", body: SENDGRID_HTML_PROMPT_LAYER },
     { title: "Brand Rules", body: BRAND_PLAYBOOK_RULES[campaign.brandId] || "" },
     { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
     { title: "Option Contrast", body: contrast },
@@ -1133,22 +1145,14 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (!matchesSuppliedReview(p.review || "", sourceReview)) {
       addFlag(brief, "warn", `Product ${i + 1} review looks invented; use supplied review or unattributed benefit language`);
     }
-    const imageOptions = Array.isArray(p.image_options) ? p.image_options : [];
-    if (imageOptions.length !== 2) {
-      addFlag(brief, "warn", `Product ${i + 1} needs exactly 2 product image options`);
-    }
-    imageOptions.forEach((opt, j) => {
-      (["main_image", "sub_image", "overlay_copy", "alt_text", "notes"] as const).forEach((field) => {
-        if (!opt[field]) addFlag(brief, "warn", `Product ${i + 1} image option ${j + 1} missing ${field}`);
-      });
+    const legacyImageOption = Array.isArray(p.image_options) ? p.image_options[0] : undefined;
+    p.main_image ||= legacyImageOption?.main_image || "";
+    p.sub_image ||= legacyImageOption?.sub_image || "";
+    p.alt_text ||= legacyImageOption?.alt_text || "";
+    p.image_notes ||= legacyImageOption?.notes || "";
+    (["main_image", "sub_image", "alt_text", "image_notes"] as const).forEach((field) => {
+      if (!p[field]) addFlag(brief, "warn", `Product ${i + 1} image brief missing ${field}`);
     });
-    if (imageOptions.length === 2) {
-      const leftVisual = [imageOptions[0].model_hint, imageOptions[0].main_image, imageOptions[0].sub_image, imageOptions[0].notes].join(" ");
-      const rightVisual = [imageOptions[1].model_hint, imageOptions[1].main_image, imageOptions[1].sub_image, imageOptions[1].notes].join(" ");
-      if (similarity(leftVisual, rightVisual) > 0.72) {
-        addFlag(brief, "warn", `Product ${i + 1} image options A/B are too similar visually`);
-      }
-    }
   });
 
   const qc = brief.quality_checks || ({} as GenQualityChecks);
