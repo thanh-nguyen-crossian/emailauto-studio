@@ -114,7 +114,14 @@ export interface LastSend {
 }
 
 export interface BodyVarietyProfile {
-  openerMechanic: "story" | "re_engagement" | "insider_reveal" | "occasion" | "direct_problem";
+  openerMechanic:
+    | "story"
+    | "fact"
+    | "question"
+    | "re_engagement"
+    | "insider_reveal"
+    | "occasion"
+    | "direct_problem";
   openerMechanicLabel: string;
   namedCharacter: string;
   characterRole: string;
@@ -122,6 +129,10 @@ export interface BodyVarietyProfile {
   sensoryPhrase: string;
   emotionalArc: "pain_relief" | "curiosity_reveal" | "gratitude_surprise" | "social_proof_invitation";
   emotionalArcLabel: string;
+  creativeLens: string;
+  proofRole: string;
+  subjectStyle: string;
+  visualDirection: string;
 }
 
 /** A campaign. The variant axis is the selected segments (per brand; SantaFare = lifecycle tiers). */

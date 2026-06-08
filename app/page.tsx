@@ -248,7 +248,16 @@ export default function Studio() {
   const varietyProfile: BodyVarietyProfile = useMemo(
     () => selectVarietyProfile(campaign),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [campaign.brandId, campaign.sendDate, campaign.lastSend?.openerMechanic, campaign.lastSend?.emotionalArc]
+    [
+      campaign.brandId,
+      campaign.sendDate,
+      campaign.theme,
+      campaign.offerValue,
+      campaign.offerShipping,
+      campaign.segments.join("|"),
+      campaign.lastSend?.openerMechanic,
+      campaign.lastSend?.emotionalArc,
+    ]
   );
 
   // Filled slots → Product list, applying the per-slot URL + selected-USP overrides. Hero first.

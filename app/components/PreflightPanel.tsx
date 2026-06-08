@@ -68,6 +68,10 @@ export function PreflightPanel({ flags, score, variety }: { flags?: Flag[]; scor
             <VarietyRow label="Pain focus" value={variety.painPoint} />
             <VarietyRow label="Sensory" value={`"${variety.sensoryPhrase}"`} />
             <VarietyRow label="Arc" value={variety.emotionalArcLabel} />
+            <VarietyRow label="Lens" value={variety.creativeLens} />
+            <VarietyRow label="Proof" value={variety.proofRole} />
+            <VarietyRow label="Subject" value={variety.subjectStyle} />
+            <VarietyRow label="Visual" value={variety.visualDirection} />
           </div>
         </div>
       )}

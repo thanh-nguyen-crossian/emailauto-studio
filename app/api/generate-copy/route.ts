@@ -83,6 +83,10 @@ export async function POST(req: NextRequest) {
     sensoryPhrase: variety.sensoryPhrase,
     emotionalArc: variety.emotionalArc,
     emotionalArcLabel: variety.emotionalArcLabel,
+    creativeLens: variety.creativeLens,
+    proofRole: variety.proofRole,
+    subjectStyle: variety.subjectStyle,
+    visualDirection: variety.visualDirection,
   };
 
   const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;

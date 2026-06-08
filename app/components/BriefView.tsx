@@ -134,7 +134,7 @@ export function BriefView({
               <div className="col-span-2 rounded border p-2.5 flex flex-col gap-1" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Body variety used</span>
                 <p className="text-xs text-[var(--text)] mt-1">
-                  {brief.body_variety.openerMechanicLabel} · {brief.body_variety.namedCharacter} ({brief.body_variety.characterRole}) · {brief.body_variety.painPoint} · &ldquo;{brief.body_variety.sensoryPhrase}&rdquo; · {brief.body_variety.emotionalArcLabel}
+                  {brief.body_variety.openerMechanicLabel} · {brief.body_variety.creativeLens} · {brief.body_variety.proofRole} · {brief.body_variety.subjectStyle} · {brief.body_variety.visualDirection}
                 </p>
               </div>
             )}
@@ -157,6 +157,10 @@ export function BriefView({
                     ["Pain", brief.body_variety.painPoint],
                     ["Sensory", `"${brief.body_variety.sensoryPhrase}"`],
                     ["Arc", brief.body_variety.emotionalArcLabel],
+                    ["Lens", brief.body_variety.creativeLens],
+                    ["Proof", brief.body_variety.proofRole],
+                    ["Subject", brief.body_variety.subjectStyle],
+                    ["Visual", brief.body_variety.visualDirection],
                   ] as [string, string][]).map(([k, v]) => (
                     <div key={k} className="flex gap-1.5 text-xs col-span-2 sm:col-span-1">
                       <span className="font-semibold text-[var(--muted)] w-16 shrink-0">{k}</span>

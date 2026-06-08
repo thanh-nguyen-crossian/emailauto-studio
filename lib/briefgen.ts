@@ -171,7 +171,7 @@ const PLAYBOOK_ENFORCEMENT = `PLAYBOOK ALIGNMENT (must pass):
 - Declare a Hook Contract: segment insight + emotion + hero product + proof/price + urgency + avoid rule.
 - Subject and preheader are generated last and must not repeat each other. {{first_name}} in subject OR preheader, not both.
 - Banner, body opener, inline link, product grid, CTA, subject, and preheader all prove the same one promise.
-- Body opener: named micro-story or direct problem, 2-3 sentences. No bullet/checkmark opener. Add one natural product link by paragraph 2 (link text = product name).
+- Body opener: selected rotation mechanic (story, fact, question, occasion, re-engagement, insider reveal, or direct problem), 2-3 sentences. No bullet/checkmark opener. Add one natural product link by paragraph 2 (link text = product name).
 - Product grid: 4-6 products (SantaFare defaults to 4). No 7+ crowding. CTA 2-4 words.
 - Proof is supplied only (review/rating/material/shipping/price/inventory/guarantee); else write qualitative benefit.
 - Visual brief names framing, model/product visibility, crop, lighting, brand palette, and the first-200px hook.`;
@@ -187,7 +187,7 @@ const EMAIL_CAMPAIGN_PLAYBOOK_RULES = `EMAIL-CAMPAIGN-PLAYBOOK.HTML HARD RULES:
 - One Hook Contract controls everything: segment insight + emotion/curiosity + hero product + price/proof + urgency + avoid rule.
 - Generate subject/preheader last from the finished hook, banner, body, grid, and CTA; never let the subject invent a new promise.
 - Preheader must add a new beat: deadline, reveal, proof, price, scale, or urgency. Never repeat the subject.
-- Body opener must be a 2-3 sentence named micro-story or direct problem; never bullet/checkmark opener, generic greeting, generic thanks, or feature list.
+- Body opener must use the selected rotation mechanic in 2-3 sentences; never bullet/checkmark opener, generic greeting, generic thanks, or feature list.
 - Add one natural product-name hyperlink by paragraph 2 using [Product Name](slug:productslug). Link text must be the product name, never "click here".
 - Price or exact offer must be visible in subject/body/product blocks when supplied; shipping threshold must appear in body when supplied.
 - Product grid: 4-6 products, even count preferred, no 7+ crowding, no orphan final row. SantaFare defaults to 4 focused products.
@@ -202,6 +202,8 @@ const WIN_EMAIL_FORMATTING_RULES = `WINEMAILTEMPS FORMATTING + SENDGRID RHYTHM:
 - Real reference emails use short SendGrid text beats, linked images, and 2-up product columns. Write copy that supports 3-5 concise text paragraphs, 5-8 linked image/product moments, and 6-10 column modules.
 - OPENER MECHANICS (rotate each send — pick one, state it in opener_mechanic QA field):
   • story: "[Persona] here — I thought of you when I saw [product] for 💲[price]." (personal + price in first sentence)
+  • fact: "The reason [product] keeps winning attention is simple: [supplied mechanism/proof]." (source-backed product truth)
+  • question: "Ever notice how [pain] shows up right when you need [outcome]?" (reader question answered by product)
   • re-engagement: "I know it's been a while, {{first_name}} — but I had to reach out about this." (break silence + reveal)
   • insider reveal: "[Persona] here — I wanted you to see this before anyone else: [product] is [offer]." (exclusive framing)
   • occasion: "With [event/moment] coming up, [product] would be perfect for [recipient/you]." (gifting/timing narrative)
@@ -225,11 +227,31 @@ const CONTENT_CREATION_CHAIN_RULES = `CONTENT CREATION CHAIN:
 const PLAYBOOK_OPERATOR_CHECKLIST = `PLAYBOOK OPERATOR CHECKLIST (self-audit before JSON):
 1. Hook Contract: one segment insight, one emotion/curiosity, one hero product, one proof/price point, one urgency mechanism, one avoid rule.
 2. First 200px: hero product, offer/price signal, CTA path, and brand palette confirm the same promise immediately.
-3. Body: opener is a named micro-story or direct problem in 2-3 sentences; paragraph 2 contains one natural product-name link.
+3. Body: opener uses the selected rotation mechanic in 2-3 sentences; paragraph 2 contains one natural product-name link.
 4. Proof: every review, rating, count, guarantee, stock, shipping, price, and material claim is supplied in the inputs; otherwise write unattributed qualitative benefit language.
 5. Product grid: 4-6 products, even 2-up rows preferred, no orphan final row, price/offer visible in every product block.
 6. Subject/preheader: generated last; subject sets the promise, preheader adds a new beat, and {{first_name}} appears in one slot only.
 7. Output discipline: no fake Re/Fwd, no grammar errors, no bullet opener, no generic thanks, no "don't let X go to waste", no second competing hook.`;
+
+const UPDATED_PLAYBOOK_CONTENT_FLOW = `UPDATED PLAYBOOK CONTENT FLOW (compact):
+- Evidence -> Segment -> Hook -> Flow -> QA. Start from supplied products, prices, reviews, page/product fit, segment state, and last-send fatigue; never average the four brands into generic ecommerce copy.
+- One send fixes one job: Access/Delivered drop = improve hero/body/CTA click path; PO/View drop = improve product order, price clarity, fit proof, and page-product match; optout/spam risk = soften urgency and narrow the segment.
+- Body fatigue is the active risk: rotate opener mechanics every send (story, fact, question, occasion, re-engagement, insider reveal, direct problem) and change the pain/relief story even when the hero product stays the same.
+- Segment versions must preserve the same hook but change motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next best product; lapsed = low-risk reason to return; high-return-risk = fit/material clarity.
+- Treat frameworks as optional control tools. Use the smallest framework that makes the promise believable; do not force every tactic into one email.`;
+
+const CREATIVE_DIVERGENCE_RULES = `CREATIVE DIVERGENCE RULES:
+- Guardrails are constraints, not a script. Create fresh sentence shapes, imagery, and proof paths while preserving the Hook Contract.
+- A and B must diverge by reason-to-believe and reader psychology, not just synonyms. Vary at least 4 of: opener mechanic, emotional arc, proof role, product bridge, visual composition, subject style, CTA wording, urgency texture.
+- Subject options may use Claude/Gemini/ChatGPT lens labels, but the selected provider may write all of them. The labels represent thinking styles: Claude = strategic/precise, Gemini = curiosity/imagery, ChatGPT = direct-response/action.
+- Avoid repeated cross-brand defaults: "reviews + thank you", "meet your new favorite", generic empowerment, generic gratitude, and identical micro-story cadence across campaigns.
+- Keep AI creative room: do not over-explain every line; use specific source-backed inputs, then write naturally in the brand persona.`;
+
+const PERFORMANCE_DECISION_RULES = `PERFORMANCE DECISION RULES FROM UPDATED PLAYBOOK:
+- Pages are converting near/above the 10% Access->Purchase floor; assume email intent is the leak unless the supplied page/product data says otherwise.
+- Use proven hero products first: BG Daisy/Posy/ZipLacy; GL JettJeans/FlexCamo with Icy where relevant; LF StretchActive/Icy; SF Pouchic/TimelessMark.
+- Do not broaden list pressure in the copy: +Yahoo/inactive/off-season sends need softer urgency, clear value, and a suppression/list-health note in QA.
+- Test priority thinking: CTA above fold, educational vs pure sale, single-product focus vs grid, animated vs static, 2-col vs 3-col, long vs square product images. Do not make cosmetic changes while hook/product fit is weak.`;
 
 const SUBJECT_OPTION_RULES = `SUBJECT/PREHEADER OPTION RULES:
 - For EACH segment, produce at least 3 subject/preheader options in subject_lines[segment].options.
@@ -279,19 +301,19 @@ const BANNER_BRIEF_FORMAT = `BANNER BRIEF FORMAT:
 
 const BRAND_PLAYBOOK_RULES: Record<string, string> = {
   bra_goddess: `BRAND RULEBOOK - BraGoddess:
-DO: Sandra voice; emotion-first + offer second; Daisy/Posy/ZipLacy/SonaShape hero pool; comfort, support, lift, and fit relief; deep rose/crimson #a02338-#d63268.
+DO: Sandra voice; emotion-first + offer second; Daisy/Daisy 3 first, then Posy/ZipLacy/SonaShape support; comfort, support, lift, and fit relief; soft social urgency; deep rose/crimson #a02338-#d63268.
 DON'T: generic empowerment, gratitude opener, bubblegum #f33e8a, muddy #953336, repeated name in subject+preheader, "don't let X go to waste".
 SUBJECT: 45-55 chars; name in subject OR preheader; use o.f.f / 💲; preheader adds tension or deadline.`,
   gents_lux: `BRAND RULEBOOK - GentsLux:
-DO: Jordan voice; curiosity + scarcity; JettJeans/FlexCamo first, IcyShorts/StretchMotions where relevant; movement mechanism, waistband, cooling, durability; deep navy #002850-#1d3d56.
+DO: Jordan voice; curiosity + scarcity; JettJeans/FlexCamo first, IcyShorts where relevant; mechanism copy around movement, waistband, cooling, durability; understated confidence; deep navy #002850-#1d3d56.
 DON'T: cute puns, over-luxury language, grammar errors, loud hype, weak navy #26508d/#013faa/#183647, over-specified subject discounts.
 SUBJECT: 48-58 chars; name mid-subject; imply offer in subject, reveal scale in preheader.`,
   lux_fitting: `BRAND RULEBOOK - LuxFitting:
-DO: Adele voice; price-anchored sensory promise; StretchActive/Icy Shorts/SoftyGrace/AiryGrace/LinenGlam hero pool; outfit ease, comfort, practical tip; #e7324a/#fe397b.
+DO: Adele voice; price-anchored sensory promise; StretchActive first, Icy Shorts where relevant, then SoftyGrace/AiryGrace/LinenGlam support; outfit ease, comfort, one practical tip; #e7324a/#fe397b.
 DON'T: mixed hooks, "Be hurry!", unsupported health claims, red #d51c18, dull pink #d5255c, birthday+spring+discount+countdown stacking.
 SUBJECT: 44-56 chars; specific price/% every time; 💲 or spaced O.F.F; preheader escalates.`,
   santa_fare: `BRAND RULEBOOK - SantaFare:
-DO: Mary voice; suspended loop + gifting; Pouchic/TimelessMark/BygoneMark/Snowflake first; named gifting micro-story; 4 products; deep scarlet #890106-#c00f28.
+DO: Mary voice; suspended loop + gifting; Pouchic + TimelessMark first, BygoneMark support; named gifting micro-story; 4 products; reluctant calm urgency; deep scarlet #890106-#c00f28.
 DON'T: bright cheerfulness, pink #d43268, orange-red #d02c16, broad off-season sends, generic accessory grid, countdown-clock energy.
 SUBJECT: 42-56 chars; name often in preheader; use SAVING/O.F.F; reluctant deadline or revelation.`,
 };
@@ -422,6 +444,118 @@ const VARIETY_BANKS: Record<string, {
   },
 };
 
+const CREATIVE_LEVER_BANKS: Record<string, {
+  creativeLenses: string[];
+  proofRoles: string[];
+  subjectStyles: string[];
+  visualDirections: string[];
+}> = {
+  bra_goddess: {
+    creativeLenses: [
+      "fit rescue: one specific discomfort becomes the reason to click",
+      "confidence ritual: the product upgrades a familiar daily routine",
+      "first-look comfort reward for buyers who already trust the brand",
+      "collection completion: bra plus support item feels like the missing piece",
+    ],
+    proofRoles: [
+      "use the supplied review as a quiet reassurance, not the headline",
+      "use price as the proof of why now, then comfort as the reason to stay",
+      "use product mechanism as proof: closure, straps, lift, smoothing, fabric",
+      "use shipping/return facts only as friction removal near the action",
+    ],
+    subjectStyles: [
+      "emotion-first with price second",
+      "soft curiosity with comfort payoff",
+      "specific pain relief with deadline beat",
+      "warm personal note with offer reveal",
+    ],
+    visualDirections: [
+      "mature model, natural smile, hero bra clearly visible, rose-crimson palette",
+      "close crop on fit/support detail with simple price badge",
+      "soft lifestyle dressing moment with product and CTA above fold",
+      "clean product-forward hero with one comfort proof line",
+    ],
+  },
+  gents_lux: {
+    creativeLenses: [
+      "mechanism reveal: show why the pants move better",
+      "understated scarcity: the useful item may not stay at this price",
+      "wardrobe completion: the missing bottom/top makes existing pieces work harder",
+      "premium practicality: sharp enough outside, comfortable enough all day",
+    ],
+    proofRoles: [
+      "use one material/mechanism fact as the trust anchor",
+      "use price reveal as the payoff after curiosity",
+      "use supplied review as plainspoken evidence from another man",
+      "use durability/cooling/stretch as proof only when supplied by product USPs",
+    ],
+    subjectStyles: [
+      "curiosity gap with offer reveal in preheader",
+      "scarcity with restrained language",
+      "mechanism-first promise",
+      "direct practical problem",
+    ],
+    visualDirections: [
+      "deep navy product-forward studio shot, no loud hype",
+      "movement pose showing bend/walk/sit without stiffness",
+      "detail shot of waistband/pockets/fabric with restrained badge",
+      "outdoor practical scene with CTA and price visible above fold",
+    ],
+  },
+  lux_fitting: {
+    creativeLenses: [
+      "sensory price anchor: the feel makes the price surprising",
+      "outfit ease: one piece solves a daily getting-ready problem",
+      "movement confidence: fabric follows the body without fuss",
+      "practical seasonal tip: one styling/use moment justifies the send",
+    ],
+    proofRoles: [
+      "use price as the quick decision proof",
+      "use sensory language as the reason to click, not vague empowerment",
+      "use supplied review as a tactile confirmation",
+      "use fabric/stretch mechanism as proof when the product USP supports it",
+    ],
+    subjectStyles: [
+      "price-anchored sensory comparison",
+      "specific comfort question",
+      "outfit problem with quick reveal",
+      "deadline escalation without panic",
+    ],
+    visualDirections: [
+      "movement silhouette with product shape readable and pink-red palette",
+      "close textile/drape detail with concise price badge",
+      "bright but elegant outfit-ready scene, no crowded collage",
+      "product-forward hero with one practical styling cue",
+    ],
+  },
+  santa_fare: {
+    creativeLenses: [
+      "suspended gifting loop: something thoughtful is nearly unclaimed",
+      "named gift story: one recipient moment makes the product desirable",
+      "reluctant deadline: calm urgency without countdown energy",
+      "personalization value: the small detail makes the gift feel chosen",
+    ],
+    proofRoles: [
+      "use material/personalization facts as proof of thoughtfulness",
+      "use price as the reason to act after the gift story",
+      "use supplied review as a gentle trust cue, not a fake verified claim",
+      "use shipping/deadline only when supplied and relevant to gifting",
+    ],
+    subjectStyles: [
+      "suspended loop with name in preheader",
+      "reluctant deadline reveal",
+      "gift status curiosity",
+      "thoughtful recommendation with price or saving second",
+    ],
+    visualDirections: [
+      "deep scarlet gift scene with product close-up and calm CTA",
+      "hands/personalization detail, premium texture, no cheerful clutter",
+      "recipient moment with Pouchic or TimelessMark visible above fold",
+      "clean product pair with engraving detail and reluctant deadline badge",
+    ],
+  },
+};
+
 const OPENER_MECHANICS: {
   key: BodyVarietyProfile["openerMechanic"];
   label: string;
@@ -432,6 +566,18 @@ const OPENER_MECHANICS: {
     label: "Named Micro-Story",
     directive: (char, role, pain, persona) =>
       `Open with a 2-3 sentence micro-story about ${char} (${role}) — mention them by name. The story ties "${pain}" to discovering the hero product as the solution. Price appears in sentence 1 or 2. Do NOT open with ${persona}'s own opinion — this is ${char}'s story.`,
+  },
+  {
+    key: "fact",
+    label: "Fact / Product Truth",
+    directive: (_char, _role, pain, _persona) =>
+      `Open with one source-backed product truth or supplied fact tied to "${pain}". If no hard fact is supplied, use a concrete qualitative product truth from the product USPs. Do not invent numbers, ratings, stock, or guarantees.`,
+  },
+  {
+    key: "question",
+    label: "Reader Question",
+    directive: (_char, _role, pain, _persona) =>
+      `Open with one natural question about "${pain}" or the campaign occasion, then answer it with the hero product and offer by sentence 2. Keep it conversational, not quiz-like.`,
   },
   {
     key: "re_engagement",
@@ -471,8 +617,16 @@ const EMOTIONAL_ARCS: {
 ];
 
 export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
-  const seed = hashSeed(campaign.brandId + campaign.sendDate);
+  const seed = hashSeed([
+    campaign.brandId,
+    campaign.sendDate,
+    campaign.theme,
+    campaign.offerValue,
+    campaign.offerShipping,
+    campaign.segments.join("|"),
+  ].join("::"));
   const banks = VARIETY_BANKS[campaign.brandId] || VARIETY_BANKS.bra_goddess;
+  const levers = CREATIVE_LEVER_BANKS[campaign.brandId] || CREATIVE_LEVER_BANKS.bra_goddess;
   const persona = BRANDS[campaign.brandId]?.persona || "Sandra";
 
   const lastMechanic = campaign.lastSend?.openerMechanic;
@@ -486,6 +640,10 @@ export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
   const char = banks.characters[(seed >> 3) % banks.characters.length];
   const pain = banks.painPoints[(seed >> 7) % banks.painPoints.length];
   const sensory = banks.sensoryPhrases[(seed >> 11) % banks.sensoryPhrases.length];
+  const creativeLens = levers.creativeLenses[(seed >> 13) % levers.creativeLenses.length];
+  const proofRole = levers.proofRoles[(seed >> 15) % levers.proofRoles.length];
+  const subjectStyle = levers.subjectStyles[(seed >> 17) % levers.subjectStyles.length];
+  const visualDirection = levers.visualDirections[(seed >> 19) % levers.visualDirections.length];
 
   return {
     openerMechanic: mechanic.key,
@@ -496,6 +654,10 @@ export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
     sensoryPhrase: sensory,
     emotionalArc: arc.key,
     emotionalArcLabel: arc.label,
+    creativeLens,
+    proofRole,
+    subjectStyle,
+    visualDirection,
     _openerDirective: mechanic.directive(char.name, char.role, pain, persona),
     _arcDirective: arc.directive,
   } as BodyVarietyProfile & { _openerDirective: string; _arcDirective: string };
@@ -699,7 +861,13 @@ ${PLAYBOOK_ENFORCEMENT}
 
 ${EMAIL_CAMPAIGN_PLAYBOOK_RULES}
 
+${UPDATED_PLAYBOOK_CONTENT_FLOW}
+
 ${CONTENT_CREATION_CHAIN_RULES}
+
+${CREATIVE_DIVERGENCE_RULES}
+
+${PERFORMANCE_DECISION_RULES}
 
 ${PLAYBOOK_OPERATOR_CHECKLIST}
 
@@ -776,7 +944,7 @@ OUTPUT FORMAT — return ONLY a valid JSON object (no prose, no markdown fences)
     "playbook_dos_donts": "<explicitly confirm playbook dos followed and don'ts avoided; call out any deviations>",
     "brand_rule_alignment": "<confirm brand-specific rulebook: persona voice, color range, hero product, promo code>",
     "accessibility_layout": "<mobile readability, image alt text, dark-mode safety, role=presentation tables, CTA aria-label>",
-    "opener_mechanic": "<which opener type: story|re-engagement|insider reveal|occasion|direct problem — one sentence describing the chosen opener>",
+    "opener_mechanic": "<which opener type: story|fact|question|re-engagement|insider reveal|occasion|direct problem — one sentence describing the chosen opener>",
     "hook_coherence": "<confirm subject, preheader, banner headline, and body opener all carry the exact same one promise — no competing hook>",
     "cta_assessment": "<primary CTA text + verb + word count; confirm product-name link in para 2; confirm grid CTAs are 2-4 words each>"
   }
@@ -796,13 +964,17 @@ export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
 
   const variety = campaign.bodyVariety as (BodyVarietyProfile & { _openerDirective?: string; _arcDirective?: string }) | undefined;
   const varietyMandate = variety
-    ? `\nBODY VARIETY MANDATE — mandatory, not optional. The body copy MUST open with exactly this structure:
-• Opener mechanic: ${variety.openerMechanicLabel} — ${variety._openerDirective || ""}
-• Named character: ${variety.namedCharacter} (${variety.characterRole}) — mention by name in the opener
-• Core pain to name: "${variety.painPoint}" — use this exact pain scenario in the first 1-2 sentences
-• Sensory phrase to include: "${variety.sensoryPhrase}" — use this phrase (or a very close variant) in the body
+    ? `\nCREATIVE VARIETY DIRECTION — required constraints, not a script:
+• Opener mechanic to use: ${variety.openerMechanicLabel} — ${variety._openerDirective || ""}
+• Creative lens: ${variety.creativeLens}
+• Proof role: ${variety.proofRole}
+• Subject style to favor: ${variety.subjectStyle}
+• Visual direction to favor: ${variety.visualDirection}
+• Optional story seed: ${variety.namedCharacter} (${variety.characterRole}). Use this named person only if it helps the chosen opener; do not force a character into fact/question/direct-problem openers.
+• Pain territory: "${variety.painPoint}" — use this pain scenario or a fresh close variant in the first 1-2 sentences.
+• Sensory territory: "${variety.sensoryPhrase}" — include this phrase or a fresh equivalent.
 • Emotional arc: ${variety.emotionalArcLabel} — ${variety._arcDirective || ""}
-Record the opener mechanic label in quality_checks.opener_mechanic.`
+Write naturally in the brand persona, avoid repeating sentence skeletons from prior campaigns, and record the opener mechanic label in quality_checks.opener_mechanic.`
     : "";
 
   return `Generate a complete email brief for this send:
@@ -858,6 +1030,20 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
         addFlag(brief, "warn", `${seg} option ${i + 1} preheader length ${o.preheader.length} (target 60-90)`);
       }
     });
+    const optionStyles = opts.map((o) => norm(o.style || o.model_hint || "")).filter(Boolean);
+    if (optionStyles.length >= 3 && new Set(optionStyles).size < 3) {
+      addFlag(brief, "warn", `${seg} subject options need distinct style/model lenses`);
+    }
+    for (let i = 0; i < opts.length; i++) {
+      for (let j = i + 1; j < opts.length; j++) {
+        if (similarity(opts[i].subject || "", opts[j].subject || "") > 0.78) {
+          addFlag(brief, "warn", `${seg} subject options ${i + 1}/${j + 1} are too similar`);
+        }
+        if (similarity(opts[i].preheader || "", opts[j].preheader || "") > 0.78) {
+          addFlag(brief, "warn", `${seg} preheader options ${i + 1}/${j + 1} are too similar`);
+        }
+      }
+    }
     const hits = HOOK_STACK.filter((w) => (s + " " + p).toLowerCase().includes(w));
     if (hits.length >= 4) addFlag(brief, "warn", `${seg} stacking hooks: ${hits.join(", ")}`);
   });
@@ -898,6 +1084,22 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   (["main_text_1", "main_text_2", "main_text_3", "sub_text_1", "sub_text_2", "sub_text_3", "main_image", "sub_image", "trust_booster", "emergency"] as const).forEach((f) => {
     if (!banner[f]) addFlag(brief, "warn", `Structured hero banner missing: ${f}`);
   });
+  const bannerHeadlineLines = [banner.main_text_1, banner.main_text_2, banner.main_text_3].filter(Boolean) as string[];
+  for (let i = 0; i < bannerHeadlineLines.length; i++) {
+    for (let j = i + 1; j < bannerHeadlineLines.length; j++) {
+      if (similarity(bannerHeadlineLines[i], bannerHeadlineLines[j]) > 0.62) {
+        addFlag(brief, "warn", `Banner headline lines ${i + 1}/${j + 1} repeat the same angle`);
+      }
+    }
+  }
+  const bannerSupportLines = [banner.sub_text_1, banner.sub_text_2, banner.sub_text_3].filter(Boolean) as string[];
+  for (let i = 0; i < bannerSupportLines.length; i++) {
+    for (let j = i + 1; j < bannerSupportLines.length; j++) {
+      if (similarity(bannerSupportLines[i], bannerSupportLines[j]) > 0.68) {
+        addFlag(brief, "warn", `Banner support lines ${i + 1}/${j + 1} are too similar`);
+      }
+    }
+  }
   if (banner.cta && WEAK_CTA.includes(banner.cta.toLowerCase())) addFlag(brief, "warn", `Weak banner CTA: "${banner.cta}"`);
   const bannerBullets = String(banner.image_guidance || "").split(/\n+/).filter((line) => /^\s*[-•]/.test(line));
   if (banner.image_guidance && (bannerBullets.length < 4 || bannerBullets.length > 6)) {
@@ -911,7 +1113,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const opener = (body.base || Object.values(body)[0] || "").slice(0, 250);
   if (BULLET_OPENER.test(opener)) addFlag(brief, "warn", "Body opens with a bullet/checkmark list");
   if (/^(meet |this is |introducing )/i.test(opener.trim())) {
-    addFlag(brief, "warn", "Body opener looks like a product introduction ('Meet X / Introducing X') — use a named micro-story or personal opener instead");
+    addFlag(brief, "warn", "Body opener looks like a product introduction ('Meet X / Introducing X') — use the selected opener mechanic instead");
   }
   const personaName = BRAND_PERSONA_NAMES[campaign.brandId];
   if (personaName && !full.includes(personaName.toLowerCase())) {
@@ -950,6 +1152,16 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       addFlag(brief, "warn", `${seg} subject, hero, and body need a clearer shared thread`);
     }
   });
+  const segmentBodies = Object.entries(body).filter(([key, text]) => key !== "base" && wordCount(String(text || "")) >= 80);
+  for (let i = 0; i < segmentBodies.length; i++) {
+    for (let j = i + 1; j < segmentBodies.length; j++) {
+      const [leftKey, leftText] = segmentBodies[i];
+      const [rightKey, rightText] = segmentBodies[j];
+      if (similarity(String(leftText), String(rightText)) > 0.86) {
+        addFlag(brief, "warn", `${leftKey} and ${rightKey} body variants are too similar; adapt motivation/risk reducer by segment`);
+      }
+    }
+  }
 
   const psWords = wordCount(brief.ps || "");
   if (!brief.ps) addFlag(brief, "warn", "Missing P.S. line");
@@ -993,6 +1205,13 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
         if (!opt[field]) addFlag(brief, "warn", `Product ${i + 1} image option ${j + 1} missing ${field}`);
       });
     });
+    if (imageOptions.length === 2) {
+      const leftVisual = [imageOptions[0].model_hint, imageOptions[0].main_image, imageOptions[0].sub_image, imageOptions[0].notes].join(" ");
+      const rightVisual = [imageOptions[1].model_hint, imageOptions[1].main_image, imageOptions[1].sub_image, imageOptions[1].notes].join(" ");
+      if (similarity(leftVisual, rightVisual) > 0.72) {
+        addFlag(brief, "warn", `Product ${i + 1} image options A/B are too similar visually`);
+      }
+    }
   });
 
   const qc = brief.quality_checks || ({} as GenQualityChecks);
