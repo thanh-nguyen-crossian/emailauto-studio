@@ -744,6 +744,38 @@ function matchesSuppliedReview(text: string, source?: string): boolean {
   if (!hasAttributedReview(text)) return true;
   return !!source && norm(text) === norm(source);
 }
+function truncateForPrompt(text: string, max = 1200): string {
+  const clean = String(text || "").trim();
+  return clean.length > max ? clean.slice(0, max).trimEnd() + "\n[truncated]" : clean;
+}
+function renderPromptLayers(layers: { title: string; body?: string }[]): string {
+  return layers
+    .map((layer) => ({ ...layer, body: layer.body?.trim() }))
+    .filter((layer) => layer.body)
+    .map((layer) => `## ${layer.title}\n${layer.body}`)
+    .join("\n\n");
+}
+
+const CORE_PROMPT_LAYER = `Return JSON only. Build in this order: evidence -> segment -> hook contract -> banner/body/products -> subject/preheader -> QA.
+One send = one promise. Subject, preheader, hero, body, product grid, CTA, and P.S. must share the same product/offer/proof/emotion thread.
+Use supplied facts only for reviews, ratings, counts, guarantees, stock, shipping, prices, and urgency. If proof is missing, write qualitative benefit language.
+Never use fake Re/Fwd, "click here", "learn more", "I hope this email finds you well", "meet your new favorite", "don't let X go to waste", generic gratitude, grammar errors, unsupported medical/age claims, or body/age shaming.
+Use {{first_name}} in subject OR preheader, never both. Replace $ with 💲 in promo copy; use brand off-symbol rules.`;
+
+const CREATIVE_PROMPT_LAYER = `Guardrails are constraints, not a script. Let the model write fresh language.
+A/B options must differ by at least four: angle, framework, opener mechanic, emotional arc, proof role, product bridge, subject style, visual direction, CTA wording, urgency texture.
+Rotate opener mechanics: story, fact, question, occasion, re-engagement, insider reveal, or direct problem. Avoid repeating the last-send structure.
+Segment versions keep one hook but adapt motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next product; lapsed = low-risk return reason; high-return-risk = fit/material clarity.`;
+
+const COMPONENT_PROMPT_LAYER = `Subject/preheader: 3+ paired options per segment, distinct Claude/Gemini/ChatGPT-style lenses, subject hard cap 60, preheader 60-90, preheader adds a new beat.
+Body: 120-150 words per segment, persona-signed, selected opener in 2-3 sentences, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words.
+Banner: main_text_1/2/3 and sub_text_1/2/3 each use distinct angles; image_guidance is 4-6 compact bullets covering first 200px, product, offer, palette, crop, CTA path.
+Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words. HTML product modules use linked images only, so image overlay_copy includes headline/sub/CTA.
+Product image_options: exactly A and B per product; make visual directions genuinely different; include main_image, sub_image, overlay_copy, alt_text, notes.`;
+
+const PERFORMANCE_PROMPT_LAYER = `Pages are generally converting; assume email intent is the leak unless supplied page/product data says otherwise.
+Access/Delivered drop -> improve hero/body/CTA path. PO/View drop -> improve product order, price clarity, fit proof, page-product match. Optout/spam risk -> softer urgency and narrower list.
+Prioritize proven heroes: BG Daisy/Posy/ZipLacy; GL JettJeans/FlexCamo/Icy; LF StretchActive/Icy; SF Pouchic/TimelessMark.`;
 
 // ---- prompt builders ----
 /** The clause appended to Option B's system prompt forcing a different angle + framework than A. */
@@ -761,138 +793,41 @@ export function buildSystemPrompt(
   const productContext = products
     .map((p, i) => {
       const usps = (p.usps || []).filter(Boolean);
-      return `Product ${i + 1}${i === 0 ? " (HERO)" : ""}: ${p.name}\n  URL: ${p.url || "not supplied"}\n  Price: 💲${p.price}\n  USPs: ${usps.join(" | ")}\n  Review: ${p.review || ""}`;
+      return `${i + 1}${i === 0 ? " HERO" : ""}. ${p.name} | ${p.url || "no URL"} | 💲${p.price} | USP: ${usps.join("; ") || "none"} | review: ${p.review || "none"}`;
     })
     .join("\n");
   const segContext = campaign.segments
     .map((id) => {
       const g = segGuidance(campaign.brandId, id);
-      return `Segment ${id}: ${segLabel(campaign.brandId, id)} — ${segMeta(campaign.brandId, id)}${g ? `. ${g}` : ""}`;
+      return `${id}: ${segLabel(campaign.brandId, id)} | ${segMeta(campaign.brandId, id)}${g ? " | " + g : ""}`;
     })
     .join("\n");
 
-  const segKeys = campaign.segments
-    .map((id) => `"${segJsonKey(id)}": {
-      "subject": "<selected best subject, 42-58 chars, hard cap 60>",
-      "preheader": "<selected paired preheader, 60-90 chars>",
-      "style": "<selected style>",
-      "model_hint": "<Claude strategic|Gemini curiosity|ChatGPT direct-response>",
-      "shared_thread": "<exact shared product/offer/proof/urgency/emotion also used in banner/body>",
-      "options": [
-        {"style": "strategic", "model_hint": "Claude strategic", "subject": "<option 1>", "preheader": "<paired preheader>", "shared_thread": "<same promise thread>"},
-        {"style": "curiosity", "model_hint": "Gemini curiosity", "subject": "<option 2>", "preheader": "<paired preheader>", "shared_thread": "<same promise thread>"},
-        {"style": "direct-response", "model_hint": "ChatGPT direct-response", "subject": "<option 3>", "preheader": "<paired preheader>", "shared_thread": "<same promise thread>"}
-      ]
-    }`)
+  const subjectSchema = campaign.segments
+    .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"strategic","model_hint":"Claude strategic","subject":"","preheader":"","shared_thread":""},{"style":"curiosity","model_hint":"Gemini curiosity","subject":"","preheader":"","shared_thread":""},{"style":"direct-response","model_hint":"ChatGPT direct-response","subject":"","preheader":"","shared_thread":""}]}`)
     .join(",\n    ");
-  const bodyKeys = campaign.segments
-    .map((id) => `"${segJsonKey(id)}": "<segment ${id} body copy variant>"`)
+  const bodySchema = campaign.segments
+    .map((id) => `"${segJsonKey(id)}":""`)
     .join(",\n    ");
   const bodySchemaHint = campaign.bodyLayout === "interspersed"
-    ? "<120-150 words (aim for 130+); paragraph 1 opener before products, paragraph 2 optional bridge after products; use ==accent==, **bold**, and [Product Name](slug:productslug)>"
+    ? "120-150 words; opener before products, optional bridge after; use ==accent==, **bold**, [Product](slug:slug)"
     : campaign.bodyLayout === "custom"
-      ? "<120-150 words; write 1-3 short modular paragraphs that each stand alone as a text block; use ==accent==, **bold**, and [Product Name](slug:productslug)>"
-      : "<120-150 words (aim for 130+); 3-5 short continuous paragraphs using ==accent==, **bold**, and [Product Name](slug:productslug)>";
-  const productSlots = products
+      ? "120-150 words; 1-3 modular paragraphs; use ==accent==, **bold**, [Product](slug:slug)"
+      : "120-150 words; 3-5 short paragraphs; use ==accent==, **bold**, [Product](slug:slug)";
+  const productSchema = products
     .map(
-      (_, i) => `{
-      "slot": ${i + 1},
-      "name": "<product name>",
-      "template_style": "<${campaign.productCopyStyle || "headline_winner"}>",
-      "main_text": "<ALL CAPS <=5 words>",
-      "sub_text": "<descriptor with visible price/offer when supplied; may use ==accent== around exact price/offer>",
-      "popup_badge": "<e.g. BESTSELLER|LOW STOCK|98% LOVED>",
-      "usps": ["<verb/adj-led USP>", "<USP 2>"],
-      "review": "<supplied product review exactly, or an unattributed trust/risk reducer; no invented quote/name/count>",
-      "cta": "<2-4 word plain-text CTA, no markdown>",
-      "image_options": [
-        {
-          "label": "A",
-          "model_hint": "<visual angle, e.g. lifestyle warmth>",
-          "main_image": "<primary image direction: angle, framing, background, model/flat-lay, lighting>",
-          "sub_image": "<detail or secondary shot direction>",
-          "overlay_copy": "<HEADLINE / sub text / CTA — all text baked into image>",
-          "alt_text": "<screen-reader description: product name + benefit, no 'image of'>",
-          "notes": "<one designer tip: palette, safe zone, or brand rule>"
-        },
-        {
-          "label": "B",
-          "model_hint": "<different visual angle from A>",
-          "main_image": "<different primary image direction from A>",
-          "sub_image": "<different detail shot from A>",
-          "overlay_copy": "<same copy, different emphasis or layout>",
-          "alt_text": "<alt text>",
-          "notes": "<notes>"
-        }
-      ]
-    }`
+      (_, i) => `{"slot":${i + 1},"name":"","template_style":"${campaign.productCopyStyle || "headline_winner"}","main_text":"","sub_text":"","popup_badge":"","usps":["",""],"review":"","cta":"","image_options":[{"label":"A","model_hint":"","main_image":"","sub_image":"","overlay_copy":"","alt_text":"","notes":""},{"label":"B","model_hint":"","main_image":"","sub_image":"","overlay_copy":"","alt_text":"","notes":""}]}`
     )
     .join(",\n    ");
 
   const contrast = isOptionB && optionADirection ? contrastInstruction(optionADirection) : "";
   const winning = campaign.winningContent?.trim()
-    ? `\nWINNING REFERENCE EMAIL (mirror its structure, pacing, hook style - write all-new copy):\n---\n${campaign.winningContent.trim().slice(0, 1800)}\n---`
+    ? `Mirror structure/pacing only; write new copy:\n${truncateForPrompt(campaign.winningContent, 900)}`
     : "";
   const perfContext = campaign.customPerfContext?.trim()
-    ? `CUSTOM PERFORMANCE CONTEXT (user-edited; use as campaign guidance, never expose to customers):\n${campaign.customPerfContext.trim()}`
-    : `PERFORMANCE INTELLIGENCE (decision support only; never expose to customers):\n${intelligencePromptBlock(campaign.brandId)}`;
-
-  return `You are an expert email copywriter for ${brand.name}.
-Brand persona: ${brand.persona} (${brand.voice})
-Layout: ${brand.layout}
-
-PRODUCTS:
-${productContext}
-
-SEGMENTS FOR THIS SEND:
-${segContext}
-
-BODY LAYOUT:
-${bodyLayoutLabel(campaign)}
-
-PRODUCT BLOCK TEMPLATE:
-${productCopyStyleLabel(campaign)}
-
-${PLAYBOOK_RULES}
-
-${PROMPT_CONTRACT}
-
-${PLAYBOOK_ENFORCEMENT}
-
-${EMAIL_CAMPAIGN_PLAYBOOK_RULES}
-
-${UPDATED_PLAYBOOK_CONTENT_FLOW}
-
-${CONTENT_CREATION_CHAIN_RULES}
-
-${CREATIVE_DIVERGENCE_RULES}
-
-${PERFORMANCE_DECISION_RULES}
-
-${PLAYBOOK_OPERATOR_CHECKLIST}
-
-${SUBJECT_OPTION_RULES}
-
-${BODY_COPY_RULES}
-
-${BRAND_PLAYBOOK_RULES[campaign.brandId] || ""}
-
-${BRAND_COLOR_GOVERNANCE}
-
-${BANNER_BRIEF_FORMAT}
-
-${WIN_EMAIL_FORMATTING_RULES}
-
-${PRODUCT_BLOCK_TEMPLATE_RULES}
-
-${PRODUCT_IMAGE_BRIEF_RULES}
-
-${perfContext}
-${contrast}${winning}
-
-OUTPUT FORMAT — return ONLY a valid JSON object (no prose, no markdown fences). Escape any double-quote inside a string value as \\".
-
-{
+    ? truncateForPrompt(campaign.customPerfContext, 1200)
+    : intelligencePromptBlock(campaign.brandId);
+  const outputSchema = `{
   "creative_direction": {
     "angle": "<${PLAYBOOK_ANGLES.join("|")}>",
     "framework": "<${PLAYBOOK_FRAMEWORKS.join("|")}>",
@@ -901,54 +836,50 @@ OUTPUT FORMAT — return ONLY a valid JSON object (no prose, no markdown fences)
     "differentiator": "<what makes this option distinct>"
   },
   "subject_lines": {
-    ${segKeys}
+    ${subjectSchema}
   },
   "theme": "<visual brief for the designer>",
   "banner": {
-    "logo_stars": "Logo + supplied rating/proof line, or logo only",
-    "main_text": "<legacy combined headline mirror>",
-    "sub_text": "<legacy combined support mirror>",
-    "main_text_1": "<ALL CAPS headline line 1, <=8 words — hook/emotion/offer>",
-    "main_text_2": "<ALL CAPS headline line 2, <=8 words — proof/product/benefit — DIFFERENT angle from line 1>",
-    "main_text_3": "<ALL CAPS headline line 3, <=8 words — urgency/risk reducer/contrast — DIFFERENT angle from lines 1 and 2>",
-    "sub_text_1": "<supporting line 1 — offer elaboration>",
-    "sub_text_2": "<supporting line 2 — proof or secondary benefit — different from sub 1>",
-    "sub_text_3": "<supporting line 3 — urgency or CTA path reinforcement — different from subs 1 and 2>",
-    "image_guidance": "- <compact bullet: first-200px hook + hero product>\n- <compact bullet: price/offer signal>\n- <compact bullet: crop/composition/model/product visibility>\n- <compact bullet: brand palette>\n- <compact bullet: CTA path>",
-    "review_quote": "<supplied quote with name, or empty>",
-    "review_texts": ["<short review/proof text>", "<optional second proof text>"],
-    "main_image": "<dominant hero-product image direction>",
-    "sub_image": "<supporting close-up/secondary image direction>",
-    "trust_booster": "<supplied proof/risk reducer only>",
-    "emergency": "<urgency/deadline signal only>",
-    "cta": "<2-4 word CTA>"
+    "logo_stars":"","main_text":"","sub_text":"","main_text_1":"","main_text_2":"","main_text_3":"",
+    "sub_text_1":"","sub_text_2":"","sub_text_3":"","image_guidance":"- bullet\n- bullet\n- bullet\n- bullet",
+    "review_quote":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","cta":""
   },
   "body": {
     "base": "${bodySchemaHint}",
-    ${bodyKeys}
+    ${bodySchema}
   },
-  "ps": "<10-15 words, hard-hitting proof/deadline/curiosity/risk reducer>",
+  "ps": "",
   "products": [
-    ${productSlots}
+    ${productSchema}
   ],
   "quality_checks": {
-    "click_reason": "<concrete reason to click: product name + fit/occasion/proof/price before first CTA>",
-    "hook_alignment": "<confirm banner, body, and product grid all prove the same Hook Contract promise>",
-    "proof_safety": "<list any proof claims used; confirm each is supplied in the input or is unattributed benefit language>",
-    "spam_risk": "<low|medium|high + specific reason>",
-    "optout_risk": "<low|medium|high + specific reason>",
-    "photo_watchout": "<any photography risk: busy background, model not matching persona, off-brand colors>",
-    "first_200px": "<confirm hero product + offer signal + CTA path are visible in first 200px>",
-    "inline_link_plan": "<product-name link in para 2 confirmed; total link count; no 'click here' text>",
-    "layout_risk": "<mobile, odd product count, orphan row, or grid overflow risks>",
-    "playbook_dos_donts": "<explicitly confirm playbook dos followed and don'ts avoided; call out any deviations>",
-    "brand_rule_alignment": "<confirm brand-specific rulebook: persona voice, color range, hero product, promo code>",
-    "accessibility_layout": "<mobile readability, image alt text, dark-mode safety, role=presentation tables, CTA aria-label>",
-    "opener_mechanic": "<which opener type: story|fact|question|re-engagement|insider reveal|occasion|direct problem — one sentence describing the chosen opener>",
-    "hook_coherence": "<confirm subject, preheader, banner headline, and body opener all carry the exact same one promise — no competing hook>",
-    "cta_assessment": "<primary CTA text + verb + word count; confirm product-name link in para 2; confirm grid CTAs are 2-4 words each>"
+    "click_reason":"","hook_alignment":"","proof_safety":"","spam_risk":"","optout_risk":"","photo_watchout":"",
+    "first_200px":"","inline_link_plan":"","layout_risk":"","playbook_dos_donts":"","brand_rule_alignment":"",
+    "accessibility_layout":"","opener_mechanic":"","hook_coherence":"","cta_assessment":""
   }
 }`;
+
+  return renderPromptLayers([
+    {
+      title: "Role",
+      body: `You are an expert ecommerce email copywriter for ${brand.name}. Persona: ${brand.persona}. Voice: ${brand.voice}. Layout: ${brand.layout}.`,
+    },
+    {
+      title: "Campaign Inputs",
+      body: `Products:\n${productContext}\n\nSegments:\n${segContext}\n\nBody layout: ${bodyLayoutLabel(campaign)}\nProduct copy template: ${productCopyStyleLabel(campaign)}`,
+    },
+    { title: "Core Rules", body: CORE_PROMPT_LAYER },
+    { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
+    { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
+    { title: "Brand Rules", body: BRAND_PLAYBOOK_RULES[campaign.brandId] || "" },
+    { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
+    { title: "Option Contrast", body: contrast },
+    { title: "Winning Reference", body: winning },
+    {
+      title: "Output Contract",
+      body: `Return ONLY valid JSON. No prose, no markdown fence. Escape quotes inside strings.\n${outputSchema}`,
+    },
+  ]);
 }
 
 export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
@@ -977,18 +908,24 @@ export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
 Write naturally in the brand persona, avoid repeating sentence skeletons from prior campaigns, and record the opener mechanic label in quality_checks.opener_mechanic.`
     : "";
 
-  return `Generate a complete email brief for this send:
-
-Brand: ${BRANDS[campaign.brandId].name}
+  return renderPromptLayers([
+    {
+      title: "Generation Request",
+      body: `Generate Option ${isB ? "B" : "A"} as a complete email brief. Lead with creative_direction, then fill every JSON section.`,
+    },
+    {
+      title: "Campaign",
+      body: `Brand: ${BRANDS[campaign.brandId].name}
 Send date: ${campaign.sendDate}
-Campaign theme: ${campaign.theme}
-Hook Contract input: ${campaign.hookContract?.trim() || "Model must construct one before writing from the selected segment, hero product, offer, urgency, proof, and avoid rules."}
+Theme: ${campaign.theme}
+Hook input: ${campaign.hookContract?.trim() || "Construct one from segment, hero product, offer, urgency, proof, avoid rules."}
 Promo: ${promoLine(campaign)}
 Body layout: ${bodyLayoutLabel(campaign)}
-Product block template: ${productCopyStyleLabel(campaign)}
-Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}${varietyMandate}
-
-Generate Option ${isB ? "B" : "A"} now. Lead with a strong creative direction, then write all copy sections.`;
+Product template: ${productCopyStyleLabel(campaign)}
+Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}`,
+    },
+    { title: "Creative Variety", body: varietyMandate },
+  ]);
 }
 
 // ---- validation ----
