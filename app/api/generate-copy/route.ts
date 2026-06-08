@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateOptions } from "@/lib/anthropic";
+import { selectVarietyProfile } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
-import { RECIPIENT_NAME_TOKEN, type Campaign, type EmailModuleKey, type Product } from "@/lib/config/types";
+import { RECIPIENT_NAME_TOKEN, type BodyVarietyProfile, type Campaign, type EmailModuleKey, type Product } from "@/lib/config/types";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
 import type { GenBrief } from "@/lib/briefgen";
@@ -69,6 +70,21 @@ export async function POST(req: NextRequest) {
   const v = validate(body);
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
 
+  // Compute variety profile and attach to campaign so the prompt builder can use it.
+  const variety = selectVarietyProfile(v.campaign);
+  const campaignWithVariety = { ...v.campaign, bodyVariety: variety };
+  // Strip the ephemeral directive strings before storing/returning (keep only display fields).
+  const cleanVariety: BodyVarietyProfile = {
+    openerMechanic: variety.openerMechanic,
+    openerMechanicLabel: variety.openerMechanicLabel,
+    namedCharacter: variety.namedCharacter,
+    characterRole: variety.characterRole,
+    painPoint: variety.painPoint,
+    sensoryPhrase: variety.sensoryPhrase,
+    emotionalArc: variety.emotionalArc,
+    emotionalArcLabel: variety.emotionalArcLabel,
+  };
+
   const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;
   const overrides = po && (po.system || po.user) ? { system: po.system, user: po.user } : undefined;
   const models = normalizeModelPair((body as { models?: Parameters<typeof normalizeModelPair>[0] }).models);
@@ -76,10 +92,12 @@ export async function POST(req: NextRequest) {
   const revision = revisionBody.feedback?.trim()
     ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
     : undefined;
-  const result = await generateOptions(v.campaign, v.products, overrides, models, revision);
+  const result = await generateOptions(campaignWithVariety, v.products, overrides, models, revision);
   if (result.error) {
     const status = result.error.includes("ANTHROPIC_API_KEY") ? 500 : 502;
     return NextResponse.json({ error: result.error }, { status });
   }
+  if (result.a) result.a.body_variety = cleanVariety;
+  if (result.b) result.b.body_variety = cleanVariety;
   return NextResponse.json({ a: result.a, b: result.b });
 }
