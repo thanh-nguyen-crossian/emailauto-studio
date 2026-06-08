@@ -107,6 +107,21 @@ export interface LastSend {
   hero?: string;
   angle?: string;
   note?: string;
+  /** Opener mechanic used in last send — auto-rotated away from next time. */
+  openerMechanic?: string;
+  /** Emotional arc used in last send — auto-rotated away from next time. */
+  emotionalArc?: string;
+}
+
+export interface BodyVarietyProfile {
+  openerMechanic: "story" | "re_engagement" | "insider_reveal" | "occasion" | "direct_problem";
+  openerMechanicLabel: string;
+  namedCharacter: string;
+  characterRole: string;
+  painPoint: string;
+  sensoryPhrase: string;
+  emotionalArc: "pain_relief" | "curiosity_reveal" | "gratitude_surprise" | "social_proof_invitation";
+  emotionalArcLabel: string;
 }
 
 /** A campaign. The variant axis is the selected segments (per brand; SantaFare = lifecycle tiers). */
@@ -147,6 +162,8 @@ export interface Campaign {
   customPerfContext?: string;
   /** Slugs of products featured in the last 3 sends for this brand; model tries to avoid repeating them. */
   recentProductSlugs?: string[];
+  /** Auto-computed variety profile for this send. Never user-typed. */
+  bodyVariety?: BodyVarietyProfile;
 }
 
 /**
