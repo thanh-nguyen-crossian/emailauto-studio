@@ -793,6 +793,18 @@ export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
     campaign.recentProductSlugs?.length
       ? `\nProduct rotation — these slugs appeared in the last 3 sends; avoid featuring them as hero or lead unless no better alternative exists: ${campaign.recentProductSlugs.join(", ")}.`
       : "";
+
+  const variety = campaign.bodyVariety as (BodyVarietyProfile & { _openerDirective?: string; _arcDirective?: string }) | undefined;
+  const varietyMandate = variety
+    ? `\nBODY VARIETY MANDATE — mandatory, not optional. The body copy MUST open with exactly this structure:
+• Opener mechanic: ${variety.openerMechanicLabel} — ${variety._openerDirective || ""}
+• Named character: ${variety.namedCharacter} (${variety.characterRole}) — mention by name in the opener
+• Core pain to name: "${variety.painPoint}" — use this exact pain scenario in the first 1-2 sentences
+• Sensory phrase to include: "${variety.sensoryPhrase}" — use this phrase (or a very close variant) in the body
+• Emotional arc: ${variety.emotionalArcLabel} — ${variety._arcDirective || ""}
+Record the opener mechanic label in quality_checks.opener_mechanic.`
+    : "";
+
   return `Generate a complete email brief for this send:
 
 Brand: ${BRANDS[campaign.brandId].name}
@@ -802,7 +814,7 @@ Hook Contract input: ${campaign.hookContract?.trim() || "Model must construct on
 Promo: ${promoLine(campaign)}
 Body layout: ${bodyLayoutLabel(campaign)}
 Product block template: ${productCopyStyleLabel(campaign)}
-Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}
+Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}${varietyMandate}
 
 Generate Option ${isB ? "B" : "A"} now. Lead with a strong creative direction, then write all copy sections.`;
 }
