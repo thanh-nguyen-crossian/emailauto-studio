@@ -35,10 +35,11 @@ export async function POST(req: NextRequest) {
     const { error } = await admin.from("profiles").update({ status }).eq("id", userId);
     if (error) throw new HttpError(500, error.message);
 
-    // Enforce at the auth layer too: ban an inactive user, unban otherwise.
+    // Enforce at the auth layer too: ban/unban and confirm email on activation.
     try {
       await admin.auth.admin.updateUserById(userId, {
         ban_duration: status === "inactive" ? "876000h" : "none",
+        ...(status === "active" ? { email_confirm: true } : {}),
       });
     } catch {
       /* non-fatal: profile status still gates the app */
