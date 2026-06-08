@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateOptions } from "@/lib/anthropic";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
-import { RECIPIENT_NAME_TOKEN, type Campaign, type Product } from "@/lib/config/types";
+import { RECIPIENT_NAME_TOKEN, type Campaign, type EmailModuleKey, type Product } from "@/lib/config/types";
+
+const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
 import type { GenBrief } from "@/lib/briefgen";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
@@ -34,10 +36,13 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
     urgency: c.urgency || "none",
     offer: c.offer || "",
     bodyLayout: c.bodyLayout || "continuous",
-    moduleLayout: Array.isArray(c.moduleLayout) ? c.moduleLayout : undefined,
+    moduleLayout: Array.isArray(c.moduleLayout)
+      ? (c.moduleLayout as string[]).filter((k) => VALID_MODULE_KEYS.has(k)) as EmailModuleKey[]
+      : undefined,
     productCopyStyle: c.productCopyStyle || "headline_winner",
     hookContract: c.hookContract || "",
     recipientName: RECIPIENT_NAME_TOKEN,
+    recentProductSlugs: Array.isArray(c.recentProductSlugs) ? c.recentProductSlugs as string[] : undefined,
     lastSend: c.lastSend,
     winningContent: c.winningContent,
     customPerfContext: c.customPerfContext,

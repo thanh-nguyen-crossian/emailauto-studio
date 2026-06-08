@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import type { GenBannerOption, GenBrief, GenProductBlock, GenProductImageOption } from "@/lib/briefgen";
 
 const defaultBannerOption = (index: number): GenBannerOption => ({
@@ -7,8 +8,10 @@ const defaultBannerOption = (index: number): GenBannerOption => ({
   model_hint: "",
   main_text_1: "",
   main_text_2: "",
+  main_text_3: "",
   sub_text_1: "",
   sub_text_2: "",
+  sub_text_3: "",
   cta: "",
   review_texts: [],
   main_image: "",
@@ -267,10 +270,12 @@ export function BriefView({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <EditField label="Logo / stars" value={banner.logo_stars} onChange={(v) => patchBanner({ logo_stars: v })} />
             <EditField label="CTA" value={banner.cta} onChange={(v) => patchBanner({ cta: v })} />
-            <EditField label="Main text 1" value={banner.main_text_1 || banner.main_text} onChange={(v) => patchBanner({ main_text_1: v, main_text: [v, banner.main_text_2].filter(Boolean).join("\n") })} />
-            <EditField label="Main text 2" value={banner.main_text_2} onChange={(v) => patchBanner({ main_text_2: v, main_text: [banner.main_text_1 || banner.main_text, v].filter(Boolean).join("\n") })} />
-            <EditField label="Sub text 1" value={banner.sub_text_1 || banner.sub_text} onChange={(v) => patchBanner({ sub_text_1: v, sub_text: [v, banner.sub_text_2].filter(Boolean).join("\n") })} />
-            <EditField label="Sub text 2" value={banner.sub_text_2} onChange={(v) => patchBanner({ sub_text_2: v, sub_text: [banner.sub_text_1 || banner.sub_text, v].filter(Boolean).join("\n") })} />
+            <EditField label="Main text 1 (hook)" value={banner.main_text_1 || banner.main_text} onChange={(v) => patchBanner({ main_text_1: v, main_text: [v, banner.main_text_2, banner.main_text_3].filter(Boolean).join("\n") })} />
+            <EditField label="Main text 2 (proof)" value={banner.main_text_2} onChange={(v) => patchBanner({ main_text_2: v, main_text: [banner.main_text_1 || banner.main_text, v, banner.main_text_3].filter(Boolean).join("\n") })} />
+            <EditField label="Main text 3 (urgency)" value={banner.main_text_3} onChange={(v) => patchBanner({ main_text_3: v, main_text: [banner.main_text_1 || banner.main_text, banner.main_text_2, v].filter(Boolean).join("\n") })} />
+            <EditField label="Sub text 1 (offer)" value={banner.sub_text_1 || banner.sub_text} onChange={(v) => patchBanner({ sub_text_1: v, sub_text: [v, banner.sub_text_2, banner.sub_text_3].filter(Boolean).join("\n") })} />
+            <EditField label="Sub text 2 (proof)" value={banner.sub_text_2} onChange={(v) => patchBanner({ sub_text_2: v, sub_text: [banner.sub_text_1 || banner.sub_text, v, banner.sub_text_3].filter(Boolean).join("\n") })} />
+            <EditField label="Sub text 3 (urgency)" value={banner.sub_text_3} onChange={(v) => patchBanner({ sub_text_3: v, sub_text: [banner.sub_text_1 || banner.sub_text, banner.sub_text_2, v].filter(Boolean).join("\n") })} />
             <EditField label="Main image" value={banner.main_image} onChange={(v) => patchBanner({ main_image: v })} />
             <EditField label="Sub image" value={banner.sub_image} onChange={(v) => patchBanner({ sub_image: v })} />
             <EditField label="Trust-booster" value={banner.trust_booster} onChange={(v) => patchBanner({ trust_booster: v })} />
@@ -289,9 +294,9 @@ export function BriefView({
         ) : (
           <>
             {banner.logo_stars && <div className="text-xs text-[var(--muted)] mb-1">{banner.logo_stars}</div>}
-            <div className="text-sm font-bold whitespace-pre-line">{[banner.main_text_1, banner.main_text_2].filter(Boolean).join("\n") || banner.main_text || "—"}</div>
-            {([banner.sub_text_1, banner.sub_text_2].filter(Boolean).join("\n") || banner.sub_text) && (
-              <div className="text-sm text-[var(--muted)] mt-1 whitespace-pre-line">{[banner.sub_text_1, banner.sub_text_2].filter(Boolean).join("\n") || banner.sub_text}</div>
+            <div className="text-sm font-bold whitespace-pre-line">{[banner.main_text_1, banner.main_text_2, banner.main_text_3].filter(Boolean).join("\n") || banner.main_text || "—"}</div>
+            {([banner.sub_text_1, banner.sub_text_2, banner.sub_text_3].filter(Boolean).join("\n") || banner.sub_text) && (
+              <div className="text-sm text-[var(--muted)] mt-1 whitespace-pre-line">{[banner.sub_text_1, banner.sub_text_2, banner.sub_text_3].filter(Boolean).join("\n") || banner.sub_text}</div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
               {banner.main_image && <QC k="Main image" v={banner.main_image} />}
@@ -318,8 +323,10 @@ export function BriefView({
                       <EditField label="Model hint" value={o.model_hint} onChange={(v) => patchBannerOption(i, "model_hint", v)} />
                       <EditField label="Main 1" value={o.main_text_1} onChange={(v) => patchBannerOption(i, "main_text_1", v)} />
                       <EditField label="Main 2" value={o.main_text_2} onChange={(v) => patchBannerOption(i, "main_text_2", v)} />
+                      <EditField label="Main 3" value={o.main_text_3} onChange={(v) => patchBannerOption(i, "main_text_3", v)} />
                       <EditField label="Sub 1" value={o.sub_text_1} onChange={(v) => patchBannerOption(i, "sub_text_1", v)} />
                       <EditField label="Sub 2" value={o.sub_text_2} onChange={(v) => patchBannerOption(i, "sub_text_2", v)} />
+                      <EditField label="Sub 3" value={o.sub_text_3} onChange={(v) => patchBannerOption(i, "sub_text_3", v)} />
                       <EditField label="CTA" value={o.cta} onChange={(v) => patchBannerOption(i, "cta", v)} />
                       <EditField label="Emergency" value={o.emergency} onChange={(v) => patchBannerOption(i, "emergency", v)} />
                     </div>
@@ -331,8 +338,8 @@ export function BriefView({
                   </div>
                 ) : (
                   <>
-                    <div className="text-xs font-semibold">{[o.main_text_1, o.main_text_2].filter(Boolean).join(" / ")}</div>
-                    <div className="text-xs text-[var(--muted)]">{[o.sub_text_1, o.sub_text_2].filter(Boolean).join(" / ")}</div>
+                    <div className="text-xs font-semibold">{[o.main_text_1, o.main_text_2, o.main_text_3].filter(Boolean).join(" / ")}</div>
+                    <div className="text-xs text-[var(--muted)]">{[o.sub_text_1, o.sub_text_2, o.sub_text_3].filter(Boolean).join(" / ")}</div>
                     <div className="text-[11px] text-[var(--muted)] mt-1">{o.main_image}</div>
                   </>
                 )}
@@ -420,22 +427,38 @@ export function BriefView({
       </Card>
 
       <Card title="Self-QA (model)" defaultOpen={false}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-          <QC k="Click reason" v={qc.click_reason} />
-          <QC k="Hook alignment" v={qc.hook_alignment} />
-          <QC k="Proof safety" v={qc.proof_safety} />
-          <QC k="Spam risk" v={qc.spam_risk} color={riskColor(qc.spam_risk)} />
-          <QC k="Opt-out risk" v={qc.optout_risk} color={riskColor(qc.optout_risk)} />
-          <QC k="First 200px" v={qc.first_200px} />
-          <QC k="Inline link" v={qc.inline_link_plan} />
-          <QC k="Layout risk" v={qc.layout_risk} />
-          <QC k="Photo watchout" v={qc.photo_watchout} />
-          <QC k="Playbook dos/don'ts" v={qc.playbook_dos_donts} />
-          <QC k="Brand rules" v={qc.brand_rule_alignment} />
-          <QC k="Accessibility/layout" v={qc.accessibility_layout} />
+        <div className="mb-2">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5">Message Promise</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <QC k="Opener mechanic" v={qc.opener_mechanic} />
+            <QC k="Hook coherence" v={qc.hook_coherence} />
+            <QC k="Click reason" v={qc.click_reason} />
+            <QC k="Hook alignment" v={qc.hook_alignment} />
+          </div>
+        </div>
+        <div className="mb-2 pt-2 border-t border-[var(--border)]">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5">Offer / Product / Design</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <QC k="First 200px" v={qc.first_200px} />
+            <QC k="CTA assessment" v={qc.cta_assessment} />
+            <QC k="Inline link" v={qc.inline_link_plan} />
+            <QC k="Layout risk" v={qc.layout_risk} />
+            <QC k="Photo watchout" v={qc.photo_watchout} />
+          </div>
+        </div>
+        <div className="mb-2 pt-2 border-t border-[var(--border)]">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5">Safety / Brand</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <QC k="Spam risk" v={qc.spam_risk} color={riskColor(qc.spam_risk)} />
+            <QC k="Opt-out risk" v={qc.optout_risk} color={riskColor(qc.optout_risk)} />
+            <QC k="Proof safety" v={qc.proof_safety} />
+            <QC k="Brand rules" v={qc.brand_rule_alignment} />
+            <QC k="Playbook dos/don'ts" v={qc.playbook_dos_donts} />
+            <QC k="Accessibility/layout" v={qc.accessibility_layout} />
+          </div>
         </div>
         {editable && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3 pt-2 border-t border-[var(--border)]">
             {PLAYBOOK_QA_FIELDS.map(([field, label]) => (
               <EditArea key={field} label={label} value={String(qc[field] || "")} onChange={(v) => patchQa(field, v)} />
             ))}
@@ -447,15 +470,18 @@ export function BriefView({
 }
 
 const PLAYBOOK_QA_FIELDS: [keyof GenBrief["quality_checks"], string][] = [
+  ["opener_mechanic", "Opener mechanic"],
+  ["hook_coherence", "Hook coherence"],
   ["click_reason", "Click reason"],
   ["hook_alignment", "Hook alignment"],
-  ["proof_safety", "Proof safety"],
-  ["spam_risk", "Spam risk"],
-  ["optout_risk", "Opt-out risk"],
-  ["photo_watchout", "Photo watchout"],
+  ["cta_assessment", "CTA assessment"],
   ["first_200px", "First 200px"],
   ["inline_link_plan", "Inline link"],
   ["layout_risk", "Layout risk"],
+  ["photo_watchout", "Photo watchout"],
+  ["proof_safety", "Proof safety"],
+  ["spam_risk", "Spam risk"],
+  ["optout_risk", "Opt-out risk"],
   ["playbook_dos_donts", "Playbook dos/don'ts"],
   ["brand_rule_alignment", "Brand rules"],
   ["accessibility_layout", "Accessibility/layout"],
@@ -490,11 +516,33 @@ function EditArea({
   rows?: number;
   onChange: (value: string) => void;
 }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const wrap = (open: string, close: string) => {
+    const ta = ref.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? 0;
+    const end = ta.selectionEnd ?? 0;
+    const v = value || "";
+    const selected = v.slice(start, end);
+    const newValue = v.slice(0, start) + open + selected + close + v.slice(end);
+    onChange(newValue);
+    const newCursor = selected.length > 0 ? start + open.length + selected.length + close.length : start + open.length;
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(newCursor, newCursor); }, 0);
+  };
+
   return (
-    <label className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1">
       <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</span>
-      <textarea value={value || ""} rows={rows} onChange={(e) => onChange(e.target.value)} className="input text-xs" />
-    </label>
+      <div className="flex items-center gap-1">
+        <button type="button" title="Bold (**text**)" onClick={() => wrap("**", "**")} className="fmt-btn font-bold">B</button>
+        <button type="button" title="Italic (*text*)" onClick={() => wrap("*", "*")} className="fmt-btn italic">I</button>
+        <button type="button" title="Underline (__text__)" onClick={() => wrap("__", "__")} className="fmt-btn underline">U</button>
+        <button type="button" title="Brand accent (==text==)" onClick={() => wrap("==", "==")} className="fmt-btn" style={{ color: "var(--accent)" }}>A</button>
+        <span className="text-[9px] text-[var(--muted)] ml-0.5">select + click</span>
+      </div>
+      <textarea ref={ref} value={value || ""} rows={rows} onChange={(e) => onChange(e.target.value)} className="input text-xs" />
+    </div>
   );
 }
 
@@ -621,8 +669,10 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
     `- Logo/stars: ${b.logo_stars || ""}`,
     `- Main text 1: ${b.main_text_1 || b.main_text || ""}`,
     `- Main text 2: ${b.main_text_2 || ""}`,
+    `- Main text 3: ${b.main_text_3 || ""}`,
     `- Sub text 1: ${b.sub_text_1 || b.sub_text || ""}`,
     `- Sub text 2: ${b.sub_text_2 || ""}`,
+    `- Sub text 3: ${b.sub_text_3 || ""}`,
     `- Main image: ${b.main_image || ""}`,
     `- Sub image: ${b.sub_image || ""}`,
     `- Trust-booster: ${b.trust_booster || ""}`,
@@ -638,8 +688,10 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
             `- Option ${o.label || i + 1} (${o.model_hint || ""})`,
             `  Main text 1: ${o.main_text_1 || ""}`,
             `  Main text 2: ${o.main_text_2 || ""}`,
+            `  Main text 3: ${o.main_text_3 || ""}`,
             `  Sub text 1: ${o.sub_text_1 || ""}`,
             `  Sub text 2: ${o.sub_text_2 || ""}`,
+            `  Sub text 3: ${o.sub_text_3 || ""}`,
             `  CTA: ${o.cta || ""}`,
             `  Main image: ${o.main_image || ""}`,
             `  Sub image: ${o.sub_image || ""}`,

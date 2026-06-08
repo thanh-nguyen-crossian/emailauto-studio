@@ -3,22 +3,24 @@
 
 /* Light theme — mirrors email-brief-generator.html palette. */
 :root {
-  --background: #f4f7f8;
+  --background: #edf2f3;
   --surface: #ffffff;
-  --surface-2: #eef2f3;
-  --border: #d7dee0;
-  --text: #1f2a28;
-  --muted: #5f6b69;
-  --accent: #23665a;
-  --accent-2: #d66f3f;
-  --accent-soft: #e7f1ed;
-  --ring: rgba(35, 102, 90, 0.28);
-  --shadow-soft: 0 14px 34px rgba(31, 42, 40, 0.08);
-  --shadow-tiny: 0 1px 2px rgba(31, 42, 40, 0.07);
+  --surface-2: #e7eef0;
+  --surface-3: #f7faf9;
+  --border: #b8c6c9;
+  --border-strong: #91a5a9;
+  --text: #142421;
+  --muted: #40514e;
+  --accent: #155f53;
+  --accent-2: #b8502d;
+  --accent-soft: #d9ebe5;
+  --ring: rgba(21, 95, 83, 0.32);
+  --shadow-soft: 0 18px 40px rgba(20, 36, 33, 0.14);
+  --shadow-tiny: 0 1px 3px rgba(20, 36, 33, 0.13);
   /* semantic states (tuned for contrast on white) */
-  --ok: #1a7f5a;
-  --warn: #b06a00;
-  --bad: #c83434;
+  --ok: #0f704f;
+  --warn: #945800;
+  --bad: #b42323;
 }
 
 html,

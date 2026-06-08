@@ -110,7 +110,7 @@ function briefToRows(brief: GenBrief): Row[] {
       "Image: " + (b.image_guidance || ""),
       "Review: " + ((b.review_texts || []).join("\n") || b.review_quote || ""),
       "CTA: " + (b.cta || ""),
-      bannerOptionsValue(b) ? "A/B options:\n" + bannerOptionsValue(b) : "",
+      (() => { const bov = bannerOptionsValue(b); return bov ? "A/B options:\n" + bov : ""; })(),
     ]
       .filter(Boolean)
       .join("\n")

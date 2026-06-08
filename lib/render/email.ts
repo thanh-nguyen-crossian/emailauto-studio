@@ -1,3 +1,4 @@
+import { DEFAULT_MODULE_LAYOUT } from "../config/types";
 import type { BodyLayout, Brand, Campaign, EmailModuleKey, ImageOverrides, Product } from "../config/types";
 import type { GenBrief, GenProductBlock } from "../briefgen";
 import { segJsonKey } from "../briefgen";
@@ -37,7 +38,6 @@ export interface RenderOptions {
   moduleLayout?: EmailModuleKey[];
 }
 
-const DEFAULT_MODULE_LAYOUT: EmailModuleKey[] = ["hero", "body_1", "products_1_2", "products_3_4", "products_5_6", "body_2", "body_3"];
 
 // ---- module-id generator (data-muid); counter-based, deterministic per render ----
 function muidFactory() {
@@ -234,8 +234,8 @@ ${modules}
 // ---- banner caption (main/sub headline + supplied review, rendered under the hero image) ----
 function bannerCaptionBlock(brand: Brand, accent: string, banner: GenBrief["banner"], muid: () => string): string {
   const parts: string[] = [];
-  const mainLines = [banner.main_text_1, banner.main_text_2].filter(Boolean) as string[];
-  const subLines = [banner.sub_text_1, banner.sub_text_2].filter(Boolean) as string[];
+  const mainLines = [banner.main_text_1, banner.main_text_2, banner.main_text_3].filter(Boolean) as string[];
+  const subLines = [banner.sub_text_1, banner.sub_text_2, banner.sub_text_3].filter(Boolean) as string[];
   const reviews = banner.review_texts?.length ? banner.review_texts : banner.review_quote ? [banner.review_quote] : [];
   if (mainLines.length) parts.push(mainLines.map((line) => `==${line.replace(/\n+/g, " ")}==`).join("\n"));
   else if (banner.main_text) parts.push(`==${banner.main_text.replace(/\n+/g, " ")}==`);
@@ -300,7 +300,7 @@ export function renderEmailHTML(
   const bodyChunks = [
     bodyParts.slice(0, 1).join("\n\n"),
     bodyParts.slice(1, 2).join("\n\n"),
-    [bodyParts.slice(2).join("\n\n"), brief.ps ? `P.S. ${brief.ps}` : ""].filter(Boolean).join("\n\n"),
+    bodyParts.slice(2).join("\n\n"),
   ];
   const pushHero = () => {
     mods.push(heroBlock(brand, images, muid));
@@ -327,12 +327,17 @@ export function renderEmailHTML(
   const pushProductRange = (start: number, end: number) => {
     const available = blocks.slice(start, Math.min(end, blocks.length));
     if (!available.length) return;
-    if (available.length === 1) {
-      mods.push(productBlock(brand, ordered[start], available[0], images, muid));
+    if (available.length === 1 || layout === "stack") {
+      available.forEach((pb, j) => mods.push(productBlock(brand, ordered[start + j], pb, images, muid)));
       return;
     }
-    const cells = available.map((_pb, j) => cell(start + j, 282));
-    mods.push(columnsRow(cells, 282, 18, "0px 9px 18px 9px"));
+    if (layout === "three") {
+      const cells = available.map((_pb, j) => cell(start + j, 176));
+      mods.push(columnsRow(cells, 176, 12, "0px 9px 18px 9px"));
+    } else {
+      const cells = available.map((_pb, j) => cell(start + j, 282));
+      mods.push(columnsRow(cells, 282, 18, "0px 9px 18px 9px"));
+    }
   };
 
   if (bodyLayout === "custom") {
@@ -346,6 +351,7 @@ export function renderEmailHTML(
       else if (key === "products_3_4") pushProductRange(2, 4);
       else if (key === "products_5_6") pushProductRange(4, 6);
     });
+    if (brief.ps) mods.push(textBlock(`P.S. ${brief.ps}`, brand, accent, muid));
   } else {
     pushHero();
     const beforeProducts = bodyLayout === "interspersed" ? bodyParts.slice(0, 1).join("\n\n") : bodyText;

@@ -2,35 +2,148 @@
 
 import type { Flag } from "@/lib/briefgen";
 
-// Renders the validation flags + score the engine attaches to a generated option.
+const CATEGORIES = [
+  {
+    label: "Message Promise",
+    pattern: /subject|preheader|hook|first.name|segment|shared.thread|options|opener|body.variant|persona|sign.?off/i,
+  },
+  {
+    label: "Offer / Product / Design",
+    pattern: /product|cta|price|offer|banner|grid|image|200px|orphan|count|review|proof|p\.s\.|word/i,
+  },
+  {
+    label: "Format / Spam",
+    pattern: /spam|weak|bold|accent|markdown|link|bullet|paragraph|formatting/i,
+  },
+  {
+    label: "Technical / Brand",
+    pattern: /.*/i,
+  },
+] as const;
+
+function categorize(msg: string): number {
+  for (let i = 0; i < CATEGORIES.length - 1; i++) {
+    if (CATEGORIES[i].pattern.test(msg)) return i;
+  }
+  return CATEGORIES.length - 1;
+}
+
 export function PreflightPanel({ flags, score }: { flags?: Flag[]; score?: number }) {
   const list = flags || [];
   const errors = list.filter((f) => f.type === "error");
   const warns = list.filter((f) => f.type === "warn");
   const s = typeof score === "number" ? score : 100;
   const scoreColor = s >= 85 ? "var(--ok)" : s >= 60 ? "var(--warn)" : "var(--bad)";
+  const status = s >= 85 ? "PASS" : s >= 60 ? "REVIEW" : "FIX ERRORS";
+  const statusDesc =
+    s >= 85
+      ? "Ready to export"
+      : s >= 60
+      ? "Minor issues — review before sending"
+      : "Fix errors before sending";
+
+  const grouped = CATEGORIES.map((cat, i) => ({
+    label: cat.label,
+    items: list.filter((f) => categorize(f.msg) === i),
+  }));
 
   return (
     <div className="section-panel">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-[var(--text)]">Quality checks</h3>
-        <span className="status-pill" style={{ color: scoreColor }}>
-          {s}/100
-        </span>
-      </div>
-      {list.length === 0 ? (
-        <p className="text-sm text-[var(--ok)]">No issues flagged.</p>
-      ) : (
-        <ul className="flex flex-col gap-1.5">
-          {errors.concat(warns).map((f, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm">
-              <span className="status-pill shrink-0" style={{ color: f.type === "error" ? "var(--bad)" : "var(--warn)" }}>
-                {f.type === "error" ? "Error" : "Warn"}
+      <div className="flex items-start justify-between mb-3 gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--text)]">Pre-flight QA</h3>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">
+            {errors.length > 0 && (
+              <span style={{ color: "var(--bad)" }} className="font-semibold">
+                {errors.length} error{errors.length !== 1 ? "s" : ""}
               </span>
-              <span className="pt-0.5" style={{ color: f.type === "error" ? "var(--bad)" : "var(--warn)" }}>{f.msg}</span>
-            </li>
-          ))}
-        </ul>
+            )}
+            {errors.length > 0 && warns.length > 0 && (
+              <span className="text-[var(--muted)]"> · </span>
+            )}
+            {warns.length > 0 && (
+              <span style={{ color: "var(--warn)" }}>
+                {warns.length} warning{warns.length !== 1 ? "s" : ""}
+              </span>
+            )}
+            {list.length === 0 && (
+              <span style={{ color: "var(--ok)" }}>No issues</span>
+            )}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <span className="text-xl font-extrabold leading-none" style={{ color: scoreColor }}>
+            {s}/100
+          </span>
+          <span className="status-pill" style={{ color: scoreColor }}>
+            {status}
+          </span>
+          <span className="text-[10px] text-[var(--muted)] mt-0.5">{statusDesc}</span>
+        </div>
+      </div>
+
+      {list.length === 0 ? (
+        <div
+          className="rounded-lg border p-3"
+          style={{ borderColor: "var(--ok)", background: "rgba(15,112,79,0.05)" }}
+        >
+          <p className="text-sm font-semibold" style={{ color: "var(--ok)" }}>
+            All checks passed
+          </p>
+          <p className="text-xs text-[var(--muted)] mt-1">
+            Hook contract, subjects, body copy, product blocks, formatting, and self-QA checks all
+            clear.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {grouped
+            .filter((g) => g.items.length > 0)
+            .map((group) => (
+              <div key={group.label}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                    {group.label}
+                  </span>
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{
+                      background: group.items.some((f) => f.type === "error")
+                        ? "rgba(180,35,35,0.1)"
+                        : "rgba(148,88,0,0.1)",
+                      color: group.items.some((f) => f.type === "error")
+                        ? "var(--bad)"
+                        : "var(--warn)",
+                    }}
+                  >
+                    {group.items.length}
+                  </span>
+                </div>
+                <ul className="flex flex-col gap-1.5">
+                  {group.items.map((f, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span
+                        className="status-pill shrink-0 mt-0.5"
+                        style={{
+                          color: f.type === "error" ? "var(--bad)" : "var(--warn)",
+                        }}
+                      >
+                        {f.type === "error" ? "Error" : "Warn"}
+                      </span>
+                      <span
+                        className="text-xs leading-relaxed"
+                        style={{
+                          color: f.type === "error" ? "var(--bad)" : "var(--warn)",
+                        }}
+                      >
+                        {f.msg}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </div>
       )}
     </div>
   );

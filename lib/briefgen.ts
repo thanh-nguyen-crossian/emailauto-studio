@@ -42,8 +42,10 @@ export interface GenBanner {
   sub_text: string;
   main_text_1?: string;
   main_text_2?: string;
+  main_text_3?: string;
   sub_text_1?: string;
   sub_text_2?: string;
+  sub_text_3?: string;
   image_guidance: string;
   review_quote: string;
   review_texts?: string[];
@@ -59,8 +61,10 @@ export interface GenBannerOption {
   model_hint: string;
   main_text_1: string;
   main_text_2: string;
+  main_text_3: string;
   sub_text_1: string;
   sub_text_2: string;
+  sub_text_3: string;
   cta: string;
   review_texts: string[];
   main_image: string;
@@ -107,9 +111,12 @@ export interface GenQualityChecks {
   first_200px: string;
   inline_link_plan: string;
   layout_risk: string;
-  playbook_dos_donts?: string;
-  brand_rule_alignment?: string;
-  accessibility_layout?: string;
+  playbook_dos_donts: string;
+  brand_rule_alignment: string;
+  accessibility_layout: string;
+  opener_mechanic: string;
+  hook_coherence: string;
+  cta_assessment: string;
 }
 export interface Flag {
   type: "error" | "warn";
@@ -138,6 +145,7 @@ export const PLAYBOOK_REQUIRED_QA = [
   "click_reason", "hook_alignment", "proof_safety", "spam_risk", "optout_risk",
   "photo_watchout", "first_200px", "inline_link_plan", "layout_risk",
   "playbook_dos_donts", "brand_rule_alignment", "accessibility_layout",
+  "opener_mechanic", "hook_coherence", "cta_assessment",
 ];
 
 const PLAYBOOK_RULES = `EMAIL COPY RULES (must follow):
@@ -191,6 +199,16 @@ const EMAIL_CAMPAIGN_PLAYBOOK_RULES = `EMAIL-CAMPAIGN-PLAYBOOK.HTML HARD RULES:
 
 const WIN_EMAIL_FORMATTING_RULES = `WINEMAILTEMPS FORMATTING + SENDGRID RHYTHM:
 - Real reference emails use short SendGrid text beats, linked images, and 2-up product columns. Write copy that supports 3-5 concise text paragraphs, 5-8 linked image/product moments, and 6-10 column modules.
+- OPENER MECHANICS (rotate each send — pick one, state it in opener_mechanic QA field):
+  • story: "[Persona] here — I thought of you when I saw [product] for 💲[price]." (personal + price in first sentence)
+  • re-engagement: "I know it's been a while, {{first_name}} — but I had to reach out about this." (break silence + reveal)
+  • insider reveal: "[Persona] here — I wanted you to see this before anyone else: [product] is [offer]." (exclusive framing)
+  • occasion: "With [event/moment] coming up, [product] would be perfect for [recipient/you]." (gifting/timing narrative)
+  • direct problem: "If [pain] has been frustrating you, [product] is the exact fix." (pain-to-relief)
+- NEVER open with: "Meet [product]", "I hope you're doing well", generic gratitude, a feature list, or a product description without personal framing.
+- Brand persona opener voice: Sandra = warm personal price reveal ("I thought of you when I saw Daisy for 💲12.99"); Jordan = curiosity re-engagement ("I know it's been a while — 70% markdown, 100 spots only"); Adele = price-anchored sensory moment ("💲29.99 and it feels like a second skin"); Mary = thoughtful gifting story ("I found the most thoughtful gift for someone who…").
+- Use at least one sensory/tactile phrase: "feels like a hug", "buttery soft", "cool on skin", "moves with you", "easy to pull on". Sensory language converts better than feature descriptions.
+- Price/offer in first 1-2 sentences when promo is supplied: write exact price like "💲12.99 (regularly 💲89.99)" — not "a great deal" or "significant savings".
 - Use renderer-safe inline formatting tokens in body/banner/product copy: ==key phrase== for brand-accent bold, **key phrase** for bold, [Product Name](slug:productslug) for product links, and [short text](home) for the homepage.
 - Place 2-4 accent/bold beats across the body, prioritising exact price/offer, proof, product name, deadline, or customer-name moment. Do not color generic greetings.
 - Use exactly one natural product-name hyperlink by paragraph 2, then keep later links purposeful. Never use "click here" as link text.
@@ -203,6 +221,15 @@ const CONTENT_CREATION_CHAIN_RULES = `CONTENT CREATION CHAIN:
 - Framework is message order; flow is how it unfolds in the email. Keep the same promise across subject, hero, body, product grid, CTA, and P.S.
 - Brief fields are execution specs for copy/design/dev. Keep strategy/QA in UI, and keep exported production brief focused on execution.`;
 
+const PLAYBOOK_OPERATOR_CHECKLIST = `PLAYBOOK OPERATOR CHECKLIST (self-audit before JSON):
+1. Hook Contract: one segment insight, one emotion/curiosity, one hero product, one proof/price point, one urgency mechanism, one avoid rule.
+2. First 200px: hero product, offer/price signal, CTA path, and brand palette confirm the same promise immediately.
+3. Body: opener is a named micro-story or direct problem in 2-3 sentences; paragraph 2 contains one natural product-name link.
+4. Proof: every review, rating, count, guarantee, stock, shipping, price, and material claim is supplied in the inputs; otherwise write unattributed qualitative benefit language.
+5. Product grid: 4-6 products, even 2-up rows preferred, no orphan final row, price/offer visible in every product block.
+6. Subject/preheader: generated last; subject sets the promise, preheader adds a new beat, and {{first_name}} appears in one slot only.
+7. Output discipline: no fake Re/Fwd, no grammar errors, no bullet opener, no generic thanks, no "don't let X go to waste", no second competing hook.`;
+
 const SUBJECT_OPTION_RULES = `SUBJECT/PREHEADER OPTION RULES:
 - For EACH segment, produce at least 3 subject/preheader options in subject_lines[segment].options.
 - Options must use distinct styles and model_hint labels: Claude strategic, Gemini curiosity, ChatGPT direct-response. If the selected provider writes all text, still label the option by the lens.
@@ -211,7 +238,7 @@ const SUBJECT_OPTION_RULES = `SUBJECT/PREHEADER OPTION RULES:
 - Subject, hero banner, and body must share at least one clear thing. Never let a subject introduce a new angle.`;
 
 const BODY_COPY_RULES = `BODY + P.S. RULES:
-- Body copy for each segment must be <=150 words total, persona-signed, and cover the campaign theme's concrete parts: trigger/occasion, offer or price, hero product, proof/risk reducer, urgency when supplied, and CTA path.
+- Body copy for each segment must be 120-150 words total (aim for 130+). Too short loses engagement; too long loses clicks. Persona-signed. Cover all concrete parts: trigger/occasion, offer or price, hero product, proof/risk reducer, urgency when supplied, and CTA path.
 - If bodyLayout is continuous, write 3-5 short paragraphs in one flow before product blocks.
 - If bodyLayout is interspersed, write only 1 opener paragraph before product blocks and at most 1 short bridge paragraph after. Do not split two or more storytelling paragraphs around products.
 - Add ps as a separate 10-15 word line. It must hit harder than the body: proof, deadline, curiosity, or sharp risk reducer.`;
@@ -223,14 +250,28 @@ const PRODUCT_BLOCK_TEMPLATE_RULES = `PRODUCT BLOCK TEMPLATE RULES (apply the se
 - urgency_badge: popup_badge = scarcity signal (e.g. "LOW STOCK", "SELLING OUT", "LAST CHANCE"). main_text = action prompt (e.g. "CLAIM YOURS"). sub_text = price + deadline. USPs: 1-2 proof facts only.
 - price_prominent: sub_text leads with the exact price or discount figure (e.g. "💲12.99 — Today Only"). main_text = short benefit. popup_badge = savings or value signal (e.g. "SAVE 30%").
 - Product blocks should feel like headline-led winning templates, not catalog feature paragraphs.
-- Product block copy is for text embedded inside the generated product image. The HTML email renderer will not add text or CTA underneath product images.`;
+- Product block copy is for text embedded inside the generated product image. The HTML email renderer will not add text or CTA underneath product images.
+- Product review/proof must use the supplied product review exactly or be left as an unattributed trust/risk-reducer note. Never invent reviewer names, ages, dates, ratings, counts, or quotes.
+- If a template style mentions ratings, review counts, bestseller status, stock scarcity, guarantees, or savings badges, use those only when supplied in the input; otherwise write a qualitative benefit badge.`;
 
+
+const PRODUCT_IMAGE_BRIEF_RULES = `PRODUCT IMAGE BRIEF RULES (image_options per product block):
+- Every product block MUST include image_options with exactly 2 items (label "A" and label "B").
+- Option A and B must have genuinely different visual directions (e.g. lifestyle vs flat-lay, outdoor vs studio, warm vs cool palette, front view vs 45° angle). Never produce identical or near-identical options.
+- main_image: primary product photo direction — specify angle, framing, background, model/flat-lay, and lighting. Be designer-actionable; not decorative.
+- sub_image: close-up detail, texture highlight, or secondary angle that supports the hero shot.
+- overlay_copy: the complete text baked into this image — headline (= main_text), sub copy (= sub_text), and CTA. Format as "HEADLINE / sub text / CTA".
+- alt_text: screen-reader description — product name + benefit context; no "image of".
+- notes: one designer tip — palette alignment, safe zone margin, or brand rule reference.
+- Do not leave image_options empty, null, or with blank main_image/overlay_copy.`;
 
 const BANNER_BRIEF_FORMAT = `BANNER BRIEF FORMAT:
 - banner.image_guidance MUST be a compact bullet list, not a paragraph.
 - Use 4-6 bullets, each 12 words or fewer.
 - Cover: first-200px hook, hero product visibility, price/offer signal, palette, composition/crop, CTA path.
-- Split banner into main_text_1, main_text_2, sub_text_1, sub_text_2, cta, review_texts, main_image, sub_image, trust_booster, and emergency.
+- Split banner headlines into main_text_1, main_text_2, main_text_3 — each ALL CAPS line must use a DISTINCT message angle: line 1 = hook/emotion/offer, line 2 = proof/product detail, line 3 = urgency/risk reducer or contrast angle. Never repeat the same angle across lines.
+- Split banner support into sub_text_1, sub_text_2, sub_text_3 — vary the angle: sub 1 = offer elaboration, sub 2 = proof or secondary benefit, sub 3 = urgency or CTA path reinforcement.
+- Also include cta, review_texts, main_image, sub_image, trust_booster, and emergency.
 - main_image describes the dominant hero-product image; sub_image describes the support/close-up image or motion cue.
 - trust_booster is supplied proof or risk reducer only; emergency is urgency/deadline only.
 - Do not add decorative-only direction; every bullet must clarify the product, offer, or action.`;
@@ -256,7 +297,13 @@ SUBJECT: 42-56 chars; name often in preheader; use SAVING/O.F.F; reluctant deadl
 
 // ---- validation pattern banks ----
 const SPAM_WORDS = ["free!", "winner", "congratulations", "click here", "limited time offer", "act now", "urgent"];
-const WEAK_COPY = ["i hope this email finds you well", "meet your new favorite", "amazing value", "great quality", "don't miss out", "dont miss out"];
+const WEAK_COPY = ["i hope this email finds you well", "meet your new favorite", "meet the ", "meet your ", "introducing the ", "amazing value", "great quality", "don't miss out", "dont miss out"];
+const BRAND_PERSONA_NAMES: Record<string, string> = {
+  bra_goddess: "Sandra",
+  gents_lux: "Jordan",
+  lux_fitting: "Adele",
+  santa_fare: "Mary",
+};
 const OPTOUT_RISK = ["for older women", "hide your", "fix your body", "anti aging", "look younger", "flaws"];
 const UNSUPPLIED_PROOF = ["clinically proven", "doctor recommended", "medically proven", "guaranteed results", "thousands of customers", "rated #1", "scientifically proven"];
 const WEAK_CTA = ["click here", "learn more", "shop now", "discover more", "see more"];
@@ -293,7 +340,7 @@ function productCopyStyleLabel(c: Campaign): string {
     headline_winner: "headline_winner: winning template default, short headline does the work, USPs stay tiny",
     benefit_pair: "benefit_pair: two compact pain-to-relief benefit cues",
     proof_badge: "proof_badge: trust badge/review leads, USPs stay minimal",
-    urgency_badge: "urgency_badge: scarcity popup_badge leads (LOW STOCK / SELLING OUT), action main_text, price + deadline in sub_text",
+    urgency_badge: "urgency_badge: supplied scarcity/deadline popup_badge leads, action main_text, price + deadline in sub_text",
     price_prominent: "price_prominent: exact price or discount figure leads in sub_text, popup_badge shows savings signal",
   };
   return labels[c.productCopyStyle || "headline_winner"] || labels["headline_winner"];
@@ -332,6 +379,22 @@ function sharesContentThread(subjectish: string, bodyish: string, products: Prod
   const productTokens = products.flatMap((p) => significantWords(p.name));
   if (productTokens.some((w) => left.includes(w) && right.includes(w))) return true;
   return significantWords(subjectish).some((w) => right.includes(w));
+}
+function hasOfferSignal(text: string, campaign: Campaign): boolean {
+  const promo = promoLine(campaign);
+  if (/^No promo/i.test(promo)) return true;
+  const target = norm(text);
+  const numbers = promo.match(/\d+(?:\.\d+)?/g) || [];
+  if (numbers.some((n) => target.includes(n))) return true;
+  return /free shipping|shipping|ship|saving|o f f|off/.test(target);
+}
+function hasAttributedReview(text: string): boolean {
+  return /["“”']/.test(text) && /(?:—|-)\s*[A-Z][a-z]+(?:\s+[A-Z]\.?)?/.test(text);
+}
+function matchesSuppliedReview(text: string, source?: string): boolean {
+  if (!text.trim()) return true;
+  if (!hasAttributedReview(text)) return true;
+  return !!source && norm(text) === norm(source);
 }
 
 // ---- prompt builders ----
@@ -378,8 +441,10 @@ export function buildSystemPrompt(
     .map((id) => `"${segJsonKey(id)}": "<segment ${id} body copy variant>"`)
     .join(",\n    ");
   const bodySchemaHint = campaign.bodyLayout === "interspersed"
-    ? "<max 150 words; paragraph 1 opener before products, paragraph 2 optional bridge after products; use ==accent==, **bold**, and [Product Name](slug:productslug)>"
-    : "<max 150 words; 3-5 short continuous paragraphs using ==accent==, **bold**, and [Product Name](slug:productslug)>";
+    ? "<120-150 words (aim for 130+); paragraph 1 opener before products, paragraph 2 optional bridge after products; use ==accent==, **bold**, and [Product Name](slug:productslug)>"
+    : campaign.bodyLayout === "custom"
+      ? "<120-150 words; write 1-3 short modular paragraphs that each stand alone as a text block; use ==accent==, **bold**, and [Product Name](slug:productslug)>"
+      : "<120-150 words (aim for 130+); 3-5 short continuous paragraphs using ==accent==, **bold**, and [Product Name](slug:productslug)>";
   const productSlots = products
     .map(
       (_, i) => `{
@@ -390,8 +455,28 @@ export function buildSystemPrompt(
       "sub_text": "<descriptor with visible price/offer when supplied; may use ==accent== around exact price/offer>",
       "popup_badge": "<e.g. BESTSELLER|LOW STOCK|98% LOVED>",
       "usps": ["<verb/adj-led USP>", "<USP 2>"],
-      "review": "<short customer quote - Name>",
-      "cta": "<2-4 word plain-text CTA, no markdown>"
+      "review": "<supplied product review exactly, or an unattributed trust/risk reducer; no invented quote/name/count>",
+      "cta": "<2-4 word plain-text CTA, no markdown>",
+      "image_options": [
+        {
+          "label": "A",
+          "model_hint": "<visual angle, e.g. lifestyle warmth>",
+          "main_image": "<primary image direction: angle, framing, background, model/flat-lay, lighting>",
+          "sub_image": "<detail or secondary shot direction>",
+          "overlay_copy": "<HEADLINE / sub text / CTA — all text baked into image>",
+          "alt_text": "<screen-reader description: product name + benefit, no 'image of'>",
+          "notes": "<one designer tip: palette, safe zone, or brand rule>"
+        },
+        {
+          "label": "B",
+          "model_hint": "<different visual angle from A>",
+          "main_image": "<different primary image direction from A>",
+          "sub_image": "<different detail shot from A>",
+          "overlay_copy": "<same copy, different emphasis or layout>",
+          "alt_text": "<alt text>",
+          "notes": "<notes>"
+        }
+      ]
     }`
     )
     .join(",\n    ");
@@ -430,6 +515,8 @@ ${EMAIL_CAMPAIGN_PLAYBOOK_RULES}
 
 ${CONTENT_CREATION_CHAIN_RULES}
 
+${PLAYBOOK_OPERATOR_CHECKLIST}
+
 ${SUBJECT_OPTION_RULES}
 
 ${BODY_COPY_RULES}
@@ -443,6 +530,8 @@ ${BANNER_BRIEF_FORMAT}
 ${WIN_EMAIL_FORMATTING_RULES}
 
 ${PRODUCT_BLOCK_TEMPLATE_RULES}
+
+${PRODUCT_IMAGE_BRIEF_RULES}
 
 ${perfContext}
 ${contrast}${winning}
@@ -462,13 +551,15 @@ OUTPUT FORMAT — return ONLY a valid JSON object (no prose, no markdown fences)
   },
   "theme": "<visual brief for the designer>",
   "banner": {
-    "logo_stars": "Logo + star rating line",
+    "logo_stars": "Logo + supplied rating/proof line, or logo only",
     "main_text": "<legacy combined headline mirror>",
     "sub_text": "<legacy combined support mirror>",
-    "main_text_1": "<ALL CAPS headline line 1, <=8 words>",
-    "main_text_2": "<ALL CAPS headline line 2, <=8 words>",
-    "sub_text_1": "<supporting line 1>",
-    "sub_text_2": "<supporting line 2>",
+    "main_text_1": "<ALL CAPS headline line 1, <=8 words — hook/emotion/offer>",
+    "main_text_2": "<ALL CAPS headline line 2, <=8 words — proof/product/benefit — DIFFERENT angle from line 1>",
+    "main_text_3": "<ALL CAPS headline line 3, <=8 words — urgency/risk reducer/contrast — DIFFERENT angle from lines 1 and 2>",
+    "sub_text_1": "<supporting line 1 — offer elaboration>",
+    "sub_text_2": "<supporting line 2 — proof or secondary benefit — different from sub 1>",
+    "sub_text_3": "<supporting line 3 — urgency or CTA path reinforcement — different from subs 1 and 2>",
     "image_guidance": "- <compact bullet: first-200px hook + hero product>\n- <compact bullet: price/offer signal>\n- <compact bullet: crop/composition/model/product visibility>\n- <compact bullet: brand palette>\n- <compact bullet: CTA path>",
     "review_quote": "<supplied quote with name, or empty>",
     "review_texts": ["<short review/proof text>", "<optional second proof text>"],
@@ -487,12 +578,21 @@ OUTPUT FORMAT — return ONLY a valid JSON object (no prose, no markdown fences)
     ${productSlots}
   ],
   "quality_checks": {
-    "click_reason": "", "hook_alignment": "", "proof_safety": "",
-    "spam_risk": "<low|medium|high + reason>", "optout_risk": "<low|medium|high + reason>",
-    "photo_watchout": "", "first_200px": "", "inline_link_plan": "", "layout_risk": "",
-    "playbook_dos_donts": "<confirm playbook dos followed and don'ts avoided>",
-    "brand_rule_alignment": "<confirm brand-specific rulebook compliance>",
-    "accessibility_layout": "<mobile/image/CTA/table accessibility checks>"
+    "click_reason": "<concrete reason to click: product name + fit/occasion/proof/price before first CTA>",
+    "hook_alignment": "<confirm banner, body, and product grid all prove the same Hook Contract promise>",
+    "proof_safety": "<list any proof claims used; confirm each is supplied in the input or is unattributed benefit language>",
+    "spam_risk": "<low|medium|high + specific reason>",
+    "optout_risk": "<low|medium|high + specific reason>",
+    "photo_watchout": "<any photography risk: busy background, model not matching persona, off-brand colors>",
+    "first_200px": "<confirm hero product + offer signal + CTA path are visible in first 200px>",
+    "inline_link_plan": "<product-name link in para 2 confirmed; total link count; no 'click here' text>",
+    "layout_risk": "<mobile, odd product count, orphan row, or grid overflow risks>",
+    "playbook_dos_donts": "<explicitly confirm playbook dos followed and don'ts avoided; call out any deviations>",
+    "brand_rule_alignment": "<confirm brand-specific rulebook: persona voice, color range, hero product, promo code>",
+    "accessibility_layout": "<mobile readability, image alt text, dark-mode safety, role=presentation tables, CTA aria-label>",
+    "opener_mechanic": "<which opener type: story|re-engagement|insider reveal|occasion|direct problem — one sentence describing the chosen opener>",
+    "hook_coherence": "<confirm subject, preheader, banner headline, and body opener all carry the exact same one promise — no competing hook>",
+    "cta_assessment": "<primary CTA text + verb + word count; confirm product-name link in para 2; confirm grid CTAs are 2-4 words each>"
   }
 }`;
 }
@@ -597,7 +697,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   (bannerMain || "").split(/\n|<br\s*\/?>/i).forEach((line) => {
     if (wordCount(line) > 8) addFlag(brief, "warn", `Banner line over 8 words: "${line.trim()}"`);
   });
-  (["main_text_1", "main_text_2", "sub_text_1", "sub_text_2", "main_image", "sub_image", "trust_booster", "emergency"] as const).forEach((f) => {
+  (["main_text_1", "main_text_2", "main_text_3", "sub_text_1", "sub_text_2", "sub_text_3", "main_image", "sub_image", "trust_booster", "emergency"] as const).forEach((f) => {
     if (!banner[f]) addFlag(brief, "warn", `Structured hero banner missing: ${f}`);
   });
   if (banner.cta && WEAK_CTA.includes(banner.cta.toLowerCase())) addFlag(brief, "warn", `Weak banner CTA: "${banner.cta}"`);
@@ -612,6 +712,13 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
 
   const opener = (body.base || Object.values(body)[0] || "").slice(0, 250);
   if (BULLET_OPENER.test(opener)) addFlag(brief, "warn", "Body opens with a bullet/checkmark list");
+  if (/^(meet |this is |introducing )/i.test(opener.trim())) {
+    addFlag(brief, "warn", "Body opener looks like a product introduction ('Meet X / Introducing X') — use a named micro-story or personal opener instead");
+  }
+  const personaName = BRAND_PERSONA_NAMES[campaign.brandId];
+  if (personaName && !full.includes(personaName.toLowerCase())) {
+    addFlag(brief, "warn", `Body copy missing persona sign-off — "${personaName}" should appear in the body or P.S.`);
+  }
   if (richText && accentMarks + boldMarks < 2) {
     addFlag(brief, "warn", "Final output needs 2+ bold/accent formatting beats from WinEmailTemps patterns");
   }
@@ -623,14 +730,19 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     const paras = String(text || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
     const firstTwoParas = paras.slice(0, 2).join("\n\n");
     if (text && wordCount(text) > 150) addFlag(brief, "warn", `${seg} body over 150 words (${wordCount(text)})`);
+    if (text && wordCount(text) < 100) addFlag(brief, "warn", `${seg} body too short (${wordCount(text)} words; target 120-150)`);
     if (campaign.bodyLayout === "interspersed" && paras.length > 2) {
       addFlag(brief, "warn", `${seg} interspersed body should be opener + one short bridge only`);
     }
     if (text && !MARKDOWN_PRODUCT_LINK.test(firstTwoParas)) {
       addFlag(brief, "warn", `${seg} missing product-name markdown link by paragraph 2`);
     }
-    if (campaign.bodyLayout !== "interspersed" && text && paras.length < 3) addFlag(brief, "warn", `${seg} body below 3-paragraph win-template rhythm`);
-    if (campaign.bodyLayout !== "interspersed" && text && paras.length > 6) addFlag(brief, "warn", `${seg} body above 5-paragraph win-template rhythm`);
+    if (text && !hasOfferSignal(text, campaign)) {
+      addFlag(brief, "warn", `${seg} body needs visible price/offer or shipping threshold`);
+    }
+    const isContinuous = campaign.bodyLayout !== "interspersed" && campaign.bodyLayout !== "custom";
+    if (isContinuous && text && paras.length < 3) addFlag(brief, "warn", `${seg} body below 3-paragraph win-template rhythm`);
+    if (isContinuous && text && paras.length > 6) addFlag(brief, "warn", `${seg} body above 5-paragraph win-template rhythm`);
     const themeWords = significantWords(campaign.theme);
     const themeHits = themeWords.filter((w) => norm(text).includes(w)).length;
     if (themeWords.length && themeHits === 0) addFlag(brief, "warn", `${seg} body may miss campaign theme cues`);
@@ -651,8 +763,12 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   if (campaign.brandId !== "santa_fare" && prods.length > 0 && prods.length < 4) {
     addFlag(brief, "warn", "Product grid below 4 products; playbook default is 4-6 for BG/GL/LF");
   }
+  if (prods.length > 1 && prods.length % 2 === 1) {
+    addFlag(brief, "warn", "Odd product count creates an orphan final row; playbook prefers even 2-up rows");
+  }
   const offerNumbers = promoLine(campaign).match(/\d+(?:\.\d+)?/g) || [];
   prods.forEach((p, i) => {
+    const sourceReview = products[i]?.review;
     if (wordCount(p.main_text) > 5) addFlag(brief, "warn", `Product ${i + 1} main text over 5 words`);
     if ((campaign.productCopyStyle || "headline_winner") === "headline_winner" && wordCount(p.main_text) > 4) {
       addFlag(brief, "warn", `Product ${i + 1} headline-winner main text should be <=4 words`);
@@ -667,6 +783,18 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (offerNumbers.length && !offerNumbers.some((n) => JSON.stringify(p).includes(n))) {
       addFlag(brief, "warn", `Product ${i + 1} may be missing visible price/offer context`);
     }
+    if (!matchesSuppliedReview(p.review || "", sourceReview)) {
+      addFlag(brief, "warn", `Product ${i + 1} review looks invented; use supplied review or unattributed benefit language`);
+    }
+    const imageOptions = Array.isArray(p.image_options) ? p.image_options : [];
+    if (imageOptions.length !== 2) {
+      addFlag(brief, "warn", `Product ${i + 1} needs exactly 2 product image options`);
+    }
+    imageOptions.forEach((opt, j) => {
+      (["main_image", "sub_image", "overlay_copy", "alt_text", "notes"] as const).forEach((field) => {
+        if (!opt[field]) addFlag(brief, "warn", `Product ${i + 1} image option ${j + 1} missing ${field}`);
+      });
+    });
   });
 
   const qc = brief.quality_checks || ({} as GenQualityChecks);

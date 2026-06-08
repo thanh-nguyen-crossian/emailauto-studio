@@ -85,6 +85,10 @@ export type EmailModuleKey =
   | "body_3"
   | "products_5_6";
 
+export const DEFAULT_MODULE_LAYOUT: EmailModuleKey[] = [
+  "hero", "body_1", "products_1_2", "products_3_4", "products_5_6", "body_2", "body_3",
+];
+
 export const RECIPIENT_NAME_TOKEN = "{{first_name}}" as const;
 
 export interface AIModelSelection {

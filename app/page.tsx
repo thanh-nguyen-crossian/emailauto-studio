@@ -11,6 +11,7 @@ import { AdminPanel } from "./components/AdminPanel";
 import { BRAND_LIST, BRANDS } from "@/lib/config/brands";
 import { AI_PROVIDERS, DEFAULT_AI_MODELS, normalizeModelPair, type AIProviderOption } from "@/lib/config/aiModels";
 import {
+  DEFAULT_MODULE_LAYOUT,
   RECIPIENT_NAME_TOKEN,
   type AIModelSelection,
   type BodyLayout,
@@ -55,7 +56,6 @@ const OFFER_PRESETS: Record<OfferType, string[]> = {
   none: [],
 };
 const SHIPPING_PRESETS = ["Free Shipping 💲35+", "Free Shipping 💲45+", "Free Shipping 💲50+", "Free Shipping 💲55+"];
-const DEFAULT_MODULE_LAYOUT: EmailModuleKey[] = ["hero", "body_1", "products_1_2", "products_3_4", "products_5_6", "body_2", "body_3"];
 
 // Format an ISO date (2026-05-31) as the team's naming token: Sun31May26.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -265,9 +265,8 @@ export default function Studio() {
   }
   function pickProduct(i: number, slug: string) {
     const cat = brand.catalog.find((p) => p.slug === slug);
+    // Reset scrapedUsps so ProductSlotCard's useEffect fires the scrape automatically.
     updateSlot(i, { slug, url: cat?.url || "", usps: [...(cat?.usps || [])], scrapedUsps: [] });
-    // Auto-scrape additional USPs from the product page if a URL is available.
-    if (cat?.url) scrapeSlot(i, cat.url);
   }
   // Fetch the slot's URL server-side, extract USPs, merge into the pool and auto-select the top few.
   async function scrapeSlot(i: number, url: string): Promise<string> {
@@ -1004,6 +1003,14 @@ export default function Studio() {
         <section className="flex flex-col gap-4">
           <PerfPanel brandId={brandId} hero={selectedProducts[0]?.name} productCount={selectedProducts.length} />
           <WinTemplateRhythm />
+          <PlaybookChecklist
+            brandId={brandId}
+            hookContract={hookContract}
+            offer={offer}
+            productCount={selectedProducts.length}
+            segments={segments.length}
+            hasLastSend={Boolean(lastHero || lastAngle || lastNote)}
+          />
 
           <div className="section-panel">
             <h3 className="text-sm font-semibold mb-2">Pre-flight summary</h3>
@@ -1331,6 +1338,82 @@ function WinTemplateRhythm() {
           <div key={label} className="summary-tile">
             <div className="text-[10px] uppercase text-[var(--muted)]">{label}</div>
             <div className="text-sm font-semibold mt-0.5">{value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlaybookChecklist({
+  brandId,
+  hookContract,
+  offer,
+  productCount,
+  segments,
+  hasLastSend,
+}: {
+  brandId: string;
+  hookContract: string;
+  offer: string;
+  productCount: number;
+  segments: number;
+  hasLastSend: boolean;
+}) {
+  const focusedGrid =
+    brandId === "santa_fare"
+      ? productCount > 0 && productCount <= 4
+      : productCount >= 4 && productCount <= 6 && productCount % 2 === 0;
+  const items = [
+    {
+      label: "Hook contract",
+      value: hookContract.trim() ? "Locked by brief" : "Model will construct it",
+      tone: hookContract.trim() ? "ok" : "warn",
+    },
+    {
+      label: "One promise",
+      value: segments ? `${segments} segment thread${segments === 1 ? "" : "s"}` : "No segment selected",
+      tone: segments ? "ok" : "bad",
+    },
+    {
+      label: "Price proof",
+      value: /^No promo/i.test(offer) ? "No promo; use product facts" : "Offer must show in body + grid",
+      tone: /^No promo/i.test(offer) ? "warn" : "ok",
+    },
+    {
+      label: "Grid shape",
+      value: focusedGrid ? "Playbook range" : brandId === "santa_fare" ? "Aim for 4 products" : "Aim for 4-6 even",
+      tone: focusedGrid ? "ok" : "warn",
+    },
+    {
+      label: "Rotation",
+      value: hasLastSend ? "Avoid rule supplied" : "Add last-send avoid if known",
+      tone: hasLastSend ? "ok" : "warn",
+    },
+    {
+      label: "Subject order",
+      value: "Generated last from finished copy",
+      tone: "ok",
+    },
+  ] as const;
+
+  return (
+    <div className="section-panel">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-sm font-semibold">Playbook operator checklist</h3>
+          <p className="text-xs text-[var(--muted)] mt-0.5">From email-campaign-playbook.html: lock one hook, prove it, then generate subjects last.</p>
+        </div>
+        <span className="text-xs text-[var(--muted)]">Pre-generation QA</span>
+      </div>
+      <div className="playbook-grid">
+        {items.map((item) => (
+          <div key={item.label} className={`playbook-card playbook-card-${item.tone}`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[10px] uppercase text-[var(--muted)]">{item.label}</div>
+              <span className="playbook-status">{item.tone}</span>
+            </div>
+            <div className="text-sm font-semibold mt-1">{item.value}</div>
           </div>
         ))}
       </div>
@@ -1950,61 +2033,73 @@ function ProductSlotCard({
 function Styles() {
   return (
     <style>{`
-      .app-header { background:rgba(255,255,255,.86); border:1px solid var(--border); border-radius:8px; padding:18px; box-shadow:var(--shadow-tiny); backdrop-filter:blur(12px); }
+      .app-header { background:rgba(255,255,255,.94); border:1px solid var(--border-strong); border-radius:8px; padding:18px; box-shadow:var(--shadow-tiny); backdrop-filter:blur(12px); }
       .header-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-      .top-nav { display:flex; gap:6px; padding:4px; border:1px solid var(--border); border-radius:8px; background:var(--surface); width:max-content; max-width:100%; overflow-x:auto; box-shadow:var(--shadow-tiny); }
+      .top-nav { display:flex; gap:6px; padding:4px; border:1px solid var(--border-strong); border-radius:8px; background:var(--surface); width:max-content; max-width:100%; overflow-x:auto; box-shadow:var(--shadow-tiny); }
       .nav-step { border:0; border-radius:6px; padding:8px 12px; color:var(--muted); background:transparent; font-size:13px; font-weight:650; white-space:nowrap; cursor:pointer; }
-      .nav-step-active { background:var(--accent); color:#fff; }
+      .nav-step-active { background:var(--accent); color:#fff; box-shadow:0 1px 0 rgba(255,255,255,.18) inset; }
       .nav-step:disabled { opacity:.45; cursor:not-allowed; }
-      .section-panel { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:16px; box-shadow:var(--shadow-tiny); }
-      .soft-panel { border:1px solid var(--border); background:var(--surface-2); border-radius:8px; padding:12px; }
-      .input { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:9px 11px; color:var(--text); font-size:14px; min-height:38px; box-shadow:inset 0 1px 0 rgba(31,42,40,.02); }
+      .section-panel { border:1px solid var(--border-strong); background:var(--surface); border-radius:8px; padding:16px; box-shadow:var(--shadow-tiny); }
+      .soft-panel { border:1px solid var(--border); background:var(--surface-3); border-radius:8px; padding:12px; }
+      .input { width:100%; background:var(--surface); border:1px solid var(--border-strong); border-radius:7px; padding:9px 11px; color:var(--text); font-size:14px; min-height:38px; box-shadow:inset 0 1px 0 rgba(20,36,33,.04); }
       .input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); outline:none; }
       textarea.input { line-height:1.55; }
       .btn-primary { background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:7px; padding:9px 14px; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 8px 18px rgba(35,102,90,.16); }
       .btn-primary:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
-      .btn-ghost { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:7px 11px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:var(--shadow-tiny); }
+      .btn-ghost { background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:7px; padding:7px 11px; font-size:13px; font-weight:650; cursor:pointer; box-shadow:var(--shadow-tiny); }
       .btn-ghost:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
       .btn-ghost:disabled { opacity:.4; cursor:not-allowed; box-shadow:none; }
       .btn-subtle { background:transparent; color:var(--accent); border:0; padding:4px 0; font-size:12px; font-weight:700; cursor:pointer; }
-      .offer-preview { margin-top:8px; padding:8px 11px; background:var(--accent-soft); border:1px solid #b9d8cc; border-radius:7px; font-size:12px; color:#315c51; }
+      .offer-preview { margin-top:8px; padding:8px 11px; background:var(--accent-soft); border:1px solid #8dbdae; border-radius:7px; font-size:12px; color:#194f45; }
       .offer-preview strong { font-weight:700; }
-      .step-card { border:1px solid var(--border); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
+      .step-card { border:1px solid var(--border-strong); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
       .step-card-open { border-color:var(--accent); box-shadow:var(--shadow-soft); }
       .step-button { width:100%; display:flex; align-items:center; gap:12px; padding:14px 16px; text-align:left; background:var(--surface); border:0; }
       .step-index { width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
       .step-index-open { background:var(--accent); color:#fff; }
       .step-index-done { background:var(--ok); color:#fff; }
-      .step-index-idle { background:var(--surface-2); color:var(--muted); border:1px solid var(--border); }
+      .step-index-idle { background:var(--surface-2); color:var(--muted); border:1px solid var(--border-strong); }
       .step-action { color:var(--muted); font-size:12px; font-weight:700; }
-      .choice-card { text-align:left; border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:var(--surface); color:var(--muted); font-size:13px; cursor:pointer; min-height:44px; }
-      .choice-card-active { border-color:var(--accent); background:var(--accent-soft); color:var(--text); box-shadow:0 0 0 1px rgba(35,102,90,.08); }
-      .choice-pill { border:1px solid var(--border); border-radius:999px; padding:6px 10px; background:var(--surface); color:var(--muted); font-size:12px; font-weight:650; cursor:pointer; }
+      .choice-card { text-align:left; border:1px solid var(--border-strong); border-radius:8px; padding:10px 12px; background:var(--surface); color:var(--text); font-size:13px; cursor:pointer; min-height:44px; box-shadow:var(--shadow-tiny); }
+      .choice-card-active { border-color:var(--accent); background:var(--accent-soft); color:var(--text); box-shadow:0 0 0 2px rgba(21,95,83,.16), var(--shadow-tiny); }
+      .choice-pill { border:1px solid var(--border-strong); border-radius:999px; padding:6px 10px; background:var(--surface); color:var(--muted); font-size:12px; font-weight:650; cursor:pointer; }
       .choice-pill-active { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
-      .snapshot-chip { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:10px 12px; min-width:0; box-shadow:var(--shadow-tiny); }
-      .summary-tile { border:1px solid var(--border); background:var(--surface-2); border-radius:7px; padding:9px; min-width:0; }
-      .product-slot-card { border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:12px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-tiny); }
+      .snapshot-chip { border:1px solid var(--border-strong); background:var(--surface); border-radius:8px; padding:10px 12px; min-width:0; box-shadow:var(--shadow-tiny); }
+      .summary-tile { border:1px solid var(--border); background:var(--surface-3); border-radius:7px; padding:9px; min-width:0; }
+      .product-slot-card { border:1px solid var(--border-strong); border-radius:8px; background:var(--surface); padding:12px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-tiny); }
       .product-slot-hero { border-color:var(--accent); box-shadow:0 0 0 1px rgba(35,102,90,.12), var(--shadow-tiny); }
       .usp-grid { display:flex; flex-wrap:wrap; gap:6px; }
       .usp-pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:6px 9px; background:var(--surface); color:var(--muted); font-size:12px; cursor:pointer; max-width:100%; }
       .usp-pill-selected { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
       .usp-dot { width:7px; height:7px; border-radius:999px; border:1px solid currentColor; flex-shrink:0; }
       .usp-pill-selected .usp-dot { background:currentColor; }
-      .prompt-block { border:1px solid var(--border); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
-      .prompt-header { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+      .prompt-block { border:1px solid var(--border-strong); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
+      .prompt-header { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border-strong); background:var(--surface-2); }
       .prompt-toggle { flex:1; border:0; background:transparent; padding:0; color:var(--text); text-align:left; cursor:pointer; }
-      .prompt-body { width:100%; background:#fbfcfc; color:var(--text); border:0; border-top:1px solid var(--border); border-radius:0; }
-      .subject-drawer { margin-bottom:12px; border:1px solid var(--border); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
+      .prompt-body { width:100%; background:#fbfcfc; color:var(--text); border:0; border-top:1px solid var(--border-strong); border-radius:0; }
+      .subject-drawer { margin-bottom:12px; border:1px solid var(--border-strong); background:var(--surface); border-radius:8px; overflow:hidden; box-shadow:var(--shadow-tiny); }
       .subject-drawer-head { width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; border:0; background:var(--surface-2); padding:10px 12px; text-align:left; }
       .option-card { border:1px solid var(--border); border-radius:7px; padding:10px; background:var(--surface); }
       .option-card-active { border-color:var(--accent); background:var(--accent-soft); }
-      .preview-shell { display:flex; justify-content:center; background:#e8ecef; border:1px solid var(--border); border-radius:8px; padding:16px; overflow:auto; }
+      .playbook-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+      .playbook-card { border:1px solid var(--border); border-left-width:4px; background:var(--surface-3); border-radius:8px; padding:10px; min-width:0; }
+      .playbook-card-ok { border-left-color:var(--ok); }
+      .playbook-card-warn { border-left-color:var(--warn); }
+      .playbook-card-bad { border-left-color:var(--bad); }
+      .playbook-status { border:1px solid currentColor; border-radius:999px; padding:2px 6px; font-size:10px; font-weight:800; text-transform:uppercase; color:var(--muted); }
+      .playbook-card-ok .playbook-status { color:var(--ok); }
+      .playbook-card-warn .playbook-status { color:var(--warn); }
+      .playbook-card-bad .playbook-status { color:var(--bad); }
+      .preview-shell { display:flex; justify-content:center; background:#dfe7e9; border:1px solid var(--border-strong); border-radius:8px; padding:16px; overflow:auto; }
       .status-pill { display:inline-flex; align-items:center; border-radius:999px; border:1px solid currentColor; padding:3px 8px; font-size:11px; font-weight:700; }
+      .fmt-btn { background:var(--surface-2); color:var(--muted); border:1px solid var(--border); border-radius:5px; padding:2px 7px; font-size:11px; font-weight:700; cursor:pointer; line-height:1.4; }
+      .fmt-btn:hover { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
       @media (max-width: 720px) {
         .app-header { padding:14px; }
         .header-actions { justify-content:flex-start; }
         .top-nav { width:100%; }
         .nav-step { flex:1; text-align:center; }
+        .playbook-grid { grid-template-columns:1fr; }
       }
     `}</style>
   );
