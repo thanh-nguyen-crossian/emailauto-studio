@@ -3,7 +3,7 @@
 
 import { BRANDS } from "./config/brands";
 import { intelligencePromptBlock, getBrandIntelligence } from "./config/intelligence";
-import type { Campaign, Product, Urgency } from "./config/types";
+import type { Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 
 // ---- generated output shape (snake_case, matching the prompt schema) ----
 export interface GenHookContract {
@@ -136,6 +136,7 @@ export interface GenBrief {
   _score?: number;
   _provider?: string;
   _model?: string;
+  body_variety?: BodyVarietyProfile;
 }
 
 // ---- playbook constants (cleaned from the source file) ----
@@ -314,6 +315,191 @@ const MARKDOWN_ANY_LINK = /\[[^\]]+\]\((?:slug:[a-z0-9_-]+|home)\)/i;
 const ACCENT_MARKER = /==[^=]+==/g;
 const BOLD_MARKER = /\*\*[^*]+\*\*/g;
 const THEME_STOPWORDS = new Set(["sale", "email", "campaign", "offer", "promo", "spring", "summer", "winter", "fall", "thank", "thanks"]);
+
+// ---- body variety system ----
+function hashSeed(s: string): number {
+  let h = 0;
+  for (const c of s) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
+  return Math.abs(h);
+}
+
+const VARIETY_BANKS: Record<string, {
+  characters: { name: string; role: string }[];
+  painPoints: string[];
+  sensoryPhrases: string[];
+}> = {
+  bra_goddess: {
+    characters: [
+      { name: "Dorothy", role: "neighbor" },
+      { name: "Carol", role: "friend" },
+      { name: "Rose", role: "sister" },
+      { name: "Margaret", role: "woman from my book club" },
+      { name: "Linda", role: "coworker" },
+    ],
+    painPoints: [
+      "underwire digging in by noon",
+      "straps that slip off the shoulder all day",
+      "cups that gap or wrinkle under clothes",
+      "a bra that rides up in the back",
+      "side boning that leaves marks at the end of the day",
+    ],
+    sensoryPhrases: [
+      "no digging, no pinching",
+      "feels like a second skin",
+      "so light you forget you're wearing it",
+      "lifts without squeezing",
+      "buttery soft against the skin",
+    ],
+  },
+  gents_lux: {
+    characters: [
+      { name: "Frank P.", role: "longtime subscriber" },
+      { name: "Marcus", role: "guy from my gym" },
+      { name: "David", role: "subscriber who emailed me" },
+      { name: "Tony", role: "coworker" },
+      { name: "Ray", role: "customer" },
+    ],
+    painPoints: [
+      "stiff denim that restricts movement all day",
+      "shorts that ride up mid-walk",
+      "jeans that look professional but feel like a straitjacket",
+      "camo that looks cool but runs hot after an hour",
+      "pants that won't stretch when you actually need them to",
+    ],
+    sensoryPhrases: [
+      "moves with you, not against you",
+      "cool on skin even when it's hot out",
+      "four-way stretch you actually feel",
+      "lightweight — like it's barely there",
+      "built to wear everywhere, all day",
+    ],
+  },
+  lux_fitting: {
+    characters: [
+      { name: "Michelle", role: "woman who reached out to me" },
+      { name: "Diane", role: "longtime customer" },
+      { name: "Susan", role: "woman from our community" },
+      { name: "Claire", role: "subscriber who messaged us" },
+      { name: "Pam", role: "customer" },
+    ],
+    painPoints: [
+      "activewear that goes sheer when you bend over",
+      "leggings that roll down mid-workout",
+      "shorts that dig in when you sit",
+      "clothes that don't move with your body",
+      "nothing in the closet that fits properly off the rack",
+    ],
+    sensoryPhrases: [
+      "cool and breathable from the first wear",
+      "smooths without squeezing",
+      "stretches four ways without going sheer",
+      "moves with you, not against you",
+      "feels like wearing nothing at all",
+    ],
+  },
+  santa_fare: {
+    characters: [
+      { name: "Michelle", role: "my sister" },
+      { name: "Karen", role: "a close friend" },
+      { name: "Janet", role: "someone I know" },
+      { name: "Diane", role: "a longtime customer" },
+      { name: "Barbara", role: "who asked me for gift ideas" },
+    ],
+    painPoints: [
+      "no idea what to get them for their birthday",
+      "wanting something personal but practical, not just a gift card",
+      "needing a gift that travels well and lasts",
+      "finding something they'd never splurge on for themselves",
+      "they already have everything — except something really thoughtful",
+    ],
+    sensoryPhrases: [
+      "the kind of gift they'll reach for every single day",
+      "soft leather that only gets better with age",
+      "substantial but never heavy",
+      "luxurious to carry, easy to love",
+      "opens smoothly, closes clean — that quality you can feel",
+    ],
+  },
+};
+
+const OPENER_MECHANICS: {
+  key: BodyVarietyProfile["openerMechanic"];
+  label: string;
+  directive: (char: string, role: string, pain: string, persona: string) => string;
+}[] = [
+  {
+    key: "story",
+    label: "Named Micro-Story",
+    directive: (char, role, pain, persona) =>
+      `Open with a 2-3 sentence micro-story about ${char} (${role}) — mention them by name. The story ties "${pain}" to discovering the hero product as the solution. Price appears in sentence 1 or 2. Do NOT open with ${persona}'s own opinion — this is ${char}'s story.`,
+  },
+  {
+    key: "re_engagement",
+    label: "Re-engagement",
+    directive: (_char, _role, pain, _persona) =>
+      `Open by acknowledging it has been a while — without apologising. Immediately name "${pain}" as the reason for reaching out now, then reveal the product as the answer. Do not use "I hope this email finds you well."`,
+  },
+  {
+    key: "insider_reveal",
+    label: "Insider Reveal",
+    directive: (_char, _role, pain, persona) =>
+      `Open as ${persona} sharing something exclusive before anyone else: "I wanted you to see this first..." Frame the product or offer as an early/private reveal tied to solving "${pain}". Exclusive framing only — not a broadcast.`,
+  },
+  {
+    key: "occasion",
+    label: "Occasion / Timing",
+    directive: (_char, _role, pain, _persona) =>
+      `Open by tying "${pain}" to a specific upcoming moment, season, or occasion named in the campaign theme. The product arrives as the natural solution for that moment. The offer is the confirmation, not the headline.`,
+  },
+  {
+    key: "direct_problem",
+    label: "Direct Problem",
+    directive: (_char, _role, pain, _persona) =>
+      `Open by naming "${pain}" directly in the first sentence — as though you already know {{first_name}} has experienced it. The product is the precise fix, named in sentence 2.`,
+  },
+];
+
+const EMOTIONAL_ARCS: {
+  key: BodyVarietyProfile["emotionalArc"];
+  label: string;
+  directive: string;
+}[] = [
+  { key: "pain_relief", label: "Pain → Relief", directive: "Body moves from naming the pain clearly → product as relief → offer as confirmation. End on resolution, not urgency." },
+  { key: "curiosity_reveal", label: "Curiosity → Reveal", directive: "Body withholds the full picture early → builds curiosity → reveals the product + offer as the payoff. The offer is the reward for reading." },
+  { key: "gratitude_surprise", label: "Gratitude → Surprise", directive: "Body opens with warm personal recognition → surprises with an offer the recipient did not expect. Gratitude is genuine, not a setup." },
+  { key: "social_proof_invitation", label: "Social Proof → Invitation", directive: "Body leads with what others (or the named character) experienced → invites {{first_name}} to have the same experience. Proof first, pitch second." },
+];
+
+export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
+  const seed = hashSeed(campaign.brandId + campaign.sendDate);
+  const banks = VARIETY_BANKS[campaign.brandId] || VARIETY_BANKS.bra_goddess;
+  const persona = BRANDS[campaign.brandId]?.persona || "Sandra";
+
+  const lastMechanic = campaign.lastSend?.openerMechanic;
+  const availableMechanics = OPENER_MECHANICS.filter((m) => m.key !== lastMechanic);
+  const mechanic = availableMechanics[seed % availableMechanics.length];
+
+  const lastArc = campaign.lastSend?.emotionalArc;
+  const availableArcs = EMOTIONAL_ARCS.filter((a) => a.key !== lastArc);
+  const arc = availableArcs[(seed >> 5) % availableArcs.length];
+
+  const char = banks.characters[(seed >> 3) % banks.characters.length];
+  const pain = banks.painPoints[(seed >> 7) % banks.painPoints.length];
+  const sensory = banks.sensoryPhrases[(seed >> 11) % banks.sensoryPhrases.length];
+
+  return {
+    openerMechanic: mechanic.key,
+    openerMechanicLabel: mechanic.label,
+    namedCharacter: char.name,
+    characterRole: char.role,
+    painPoint: pain,
+    sensoryPhrase: sensory,
+    emotionalArc: arc.key,
+    emotionalArcLabel: arc.label,
+    _openerDirective: mechanic.directive(char.name, char.role, pain, persona),
+    _arcDirective: arc.directive,
+  } as BodyVarietyProfile & { _openerDirective: string; _arcDirective: string };
+}
 
 // ---- helpers ----
 export function segJsonKey(id: string): string {
