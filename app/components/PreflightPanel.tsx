@@ -1,6 +1,7 @@
 "use client";
 
 import type { Flag } from "@/lib/briefgen";
+import type { BodyVarietyProfile } from "@/lib/config/types";
 
 const CATEGORIES = [
   {
@@ -28,7 +29,16 @@ function categorize(msg: string): number {
   return CATEGORIES.length - 1;
 }
 
-export function PreflightPanel({ flags, score }: { flags?: Flag[]; score?: number }) {
+function VarietyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2 text-xs">
+      <span className="shrink-0 font-semibold text-[var(--muted)] w-20">{label}</span>
+      <span className="text-[var(--text)]">{value}</span>
+    </div>
+  );
+}
+
+export function PreflightPanel({ flags, score, variety }: { flags?: Flag[]; score?: number; variety?: BodyVarietyProfile }) {
   const list = flags || [];
   const errors = list.filter((f) => f.type === "error");
   const warns = list.filter((f) => f.type === "warn");
@@ -49,6 +59,18 @@ export function PreflightPanel({ flags, score }: { flags?: Flag[]; score?: numbe
 
   return (
     <div className="section-panel">
+      {variety && (
+        <div className="mb-4 rounded-lg border p-3 flex flex-col gap-1.5" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-0.5">Body Variety — auto-selected</span>
+          <div className="grid grid-cols-1 gap-1">
+            <VarietyRow label="Opener" value={variety.openerMechanicLabel} />
+            <VarietyRow label="Character" value={`${variety.namedCharacter} (${variety.characterRole})`} />
+            <VarietyRow label="Pain focus" value={variety.painPoint} />
+            <VarietyRow label="Sensory" value={`"${variety.sensoryPhrase}"`} />
+            <VarietyRow label="Arc" value={variety.emotionalArcLabel} />
+          </div>
+        </div>
+      )}
       <div className="flex items-start justify-between mb-3 gap-3">
         <div>
           <h3 className="text-sm font-semibold text-[var(--text)]">Pre-flight QA</h3>
