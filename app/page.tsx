@@ -15,6 +15,7 @@ import {
   RECIPIENT_NAME_TOKEN,
   type AIModelSelection,
   type BodyLayout,
+  type BodyVarietyProfile,
   type Campaign,
   type EmailModuleKey,
   type ImageOverrides,
@@ -27,6 +28,7 @@ import {
   buildSystemPrompt,
   buildUserPrompt,
   segJsonKey,
+  selectVarietyProfile,
   type GenBrief,
 } from "@/lib/briefgen";
 import { getBrandIntelligence, intelligencePromptBlock, PROGRAM_INTELLIGENCE } from "@/lib/config/intelligence";
@@ -86,6 +88,8 @@ export default function Studio() {
   const [lastAngle, setLastAngle] = useState("");
   const [lastCtr, setLastCtr] = useState("");
   const [lastNote, setLastNote] = useState("");
+  const [lastOpenerMechanic, setLastOpenerMechanic] = useState("");
+  const [lastEmotionalArc, setLastEmotionalArc] = useState("");
   const [winningContent, setWinningContent] = useState("");
   const [customPerfContext, setCustomPerfContext] = useState<string | null>(null);
   const [modelA, setModelA] = useState<AIModelSelection>(DEFAULT_AI_MODELS.a);
@@ -226,12 +230,25 @@ export default function Studio() {
     () => ({
       brandId, sendDate, segments, layout, theme,
       offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, recipientName: RECIPIENT_NAME_TOKEN,
-      lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote },
+      lastSend: {
+        ctr: lastCtr,
+        hero: lastHero,
+        angle: lastAngle,
+        note: lastNote,
+        openerMechanic: lastOpenerMechanic || undefined,
+        emotionalArc: lastEmotionalArc || undefined,
+      },
       winningContent,
       customPerfContext: customPerfContext ?? undefined,
       recentProductSlugs: recentProductSlugs.length ? recentProductSlugs : undefined,
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, winningContent, customPerfContext, recentProductSlugs]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, winningContent, customPerfContext, recentProductSlugs]
+  );
+
+  const varietyProfile: BodyVarietyProfile = useMemo(
+    () => selectVarietyProfile(campaign),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [campaign.brandId, campaign.sendDate, campaign.lastSend?.openerMechanic, campaign.lastSend?.emotionalArc]
   );
 
   // Filled slots → Product list, applying the per-slot URL + selected-USP overrides. Hero first.
@@ -373,6 +390,11 @@ export default function Studio() {
         return;
       }
       setOptions({ a: data.a, b: data.b });
+      const usedVariety = data.a?.body_variety || data.b?.body_variety;
+      if (usedVariety) {
+        setLastOpenerMechanic(usedVariety.openerMechanic);
+        setLastEmotionalArc(usedVariety.emotionalArc);
+      }
       setActiveOption(data.a ? "a" : "b");
       setActiveSegment(segments[0]);
       setOutputTab("preview");
@@ -592,6 +614,8 @@ export default function Studio() {
     setLastHero(d.lastSend?.hero || "");
     setLastAngle(d.lastSend?.angle || "");
     setLastNote(d.lastSend?.note || "");
+    setLastOpenerMechanic(d.lastSend?.openerMechanic || "");
+    setLastEmotionalArc(d.lastSend?.emotionalArc || "");
     setWinningContent(d.winningContent || "");
     setCustomPerfContext(d.customPerfContext ?? null);
     const models = normalizeModelPair(d.models);
@@ -1187,7 +1211,7 @@ export default function Studio() {
                   </div>
                   <div className="flex flex-col gap-4 lg:sticky lg:top-4 self-start">
                     <ImageEditor brand={brand} products={selectedProducts} images={images} onChange={setImages} includeLogo={includeLogo} onToggleLogo={setIncludeLogo} />
-                    <PreflightPanel flags={activeBrief._flags} score={activeBrief._score} />
+                    <PreflightPanel flags={activeBrief._flags} score={activeBrief._score} variety={varietyProfile} />
                   </div>
                 </div>
               )}
