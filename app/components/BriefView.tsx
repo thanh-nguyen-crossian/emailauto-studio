@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import type { GenBannerOption, GenBrief, GenProductBlock, GenProductImageOption } from "@/lib/briefgen";
+import type { BodyVarietyProfile } from "@/lib/config/types";
 
 const defaultBannerOption = (index: number): GenBannerOption => ({
   label: index === 0 ? "A" : "B",
@@ -129,6 +130,14 @@ export function BriefView({
             <EditField label="Framework" value={cd.framework} onChange={(v) => patchDirection({ framework: v })} />
             <EditArea label="Flow" value={cd.flow} onChange={(v) => patchDirection({ flow: v })} />
             <EditArea label="Differentiator" value={cd.differentiator} onChange={(v) => patchDirection({ differentiator: v })} />
+            {brief.body_variety && (
+              <div className="col-span-2 rounded border p-2.5 flex flex-col gap-1" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Body variety used</span>
+                <p className="text-xs text-[var(--text)] mt-1">
+                  {brief.body_variety.openerMechanicLabel} · {brief.body_variety.namedCharacter} ({brief.body_variety.characterRole}) · &ldquo;{brief.body_variety.sensoryPhrase}&rdquo; · {brief.body_variety.emotionalArcLabel}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -138,6 +147,25 @@ export function BriefView({
             </div>
             <Row k="Flow" v={cd.flow} />
             <Row k="Differentiator" v={cd.differentiator} />
+            {brief.body_variety && (
+              <div className="mt-3 rounded border p-2.5 flex flex-col gap-1" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Body variety used</span>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1">
+                  {([
+                    ["Opener", brief.body_variety.openerMechanicLabel],
+                    ["Character", `${brief.body_variety.namedCharacter} (${brief.body_variety.characterRole})`],
+                    ["Pain", brief.body_variety.painPoint],
+                    ["Sensory", `"${brief.body_variety.sensoryPhrase}"`],
+                    ["Arc", brief.body_variety.emotionalArcLabel],
+                  ] as [string, string][]).map(([k, v]) => (
+                    <div key={k} className="flex gap-1.5 text-xs col-span-2 sm:col-span-1">
+                      <span className="font-semibold text-[var(--muted)] w-16 shrink-0">{k}</span>
+                      <span className="text-[var(--text)]">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
         <div className="mt-2 pt-2 border-t border-[var(--border)]">
