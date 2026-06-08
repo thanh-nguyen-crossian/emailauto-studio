@@ -545,7 +545,7 @@ export default function Studio() {
         brandId, sendDate, theme, offerType, offerValue, offerShipping, urgency, offer, hookContract, recipientName,
         segments, slots, includeLogo, productLayout, bodyLayout, moduleLayout, productCopyStyle, images, options, htmlOverrides,
         models: normalizeModelPair({ a: modelA, b: modelB }),
-        lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote },
+        lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote, openerMechanic: lastOpenerMechanic || undefined, emotionalArc: lastEmotionalArc || undefined },
         winningContent,
         customPerfContext: customPerfContext ?? undefined,
       };
