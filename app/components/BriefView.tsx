@@ -134,7 +134,7 @@ export function BriefView({
               <div className="col-span-2 rounded border p-2.5 flex flex-col gap-1" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Body variety used</span>
                 <p className="text-xs text-[var(--text)] mt-1">
-                  {brief.body_variety.openerMechanicLabel} · {brief.body_variety.namedCharacter} ({brief.body_variety.characterRole}) · &ldquo;{brief.body_variety.sensoryPhrase}&rdquo; · {brief.body_variety.emotionalArcLabel}
+                  {brief.body_variety.openerMechanicLabel} · {brief.body_variety.namedCharacter} ({brief.body_variety.characterRole}) · {brief.body_variety.painPoint} · &ldquo;{brief.body_variety.sensoryPhrase}&rdquo; · {brief.body_variety.emotionalArcLabel}
                 </p>
               </div>
             )}
