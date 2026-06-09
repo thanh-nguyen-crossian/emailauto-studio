@@ -325,6 +325,18 @@ SUBJECT: 42-56 chars; name often in preheader; use SAVING/O.F.F; reluctant deadl
 // ---- validation pattern banks ----
 const SPAM_WORDS = ["free!", "winner", "congratulations", "click here", "limited time offer", "act now", "urgent"];
 const WEAK_COPY = ["i hope this email finds you well", "meet your new favorite", "meet the ", "meet your ", "introducing the ", "amazing value", "great quality", "don't miss out", "dont miss out"];
+const BODY_HARD_SELL_PATTERNS: { label: string; pattern: RegExp }[] = [
+  { label: "act now", pattern: /\bact now\b/gi },
+  { label: "buy now", pattern: /\bbuy now\b/gi },
+  { label: "hurry", pattern: /\bhurry\b/gi },
+  { label: "don't miss", pattern: /\bdon'?t miss(?: out)?\b/gi },
+  { label: "last chance", pattern: /\blast chance\b/gi },
+  { label: "claim now", pattern: /\bclaim (?:now|yours|this|it|them)\b/gi },
+  { label: "grab now", pattern: /\bgrab (?:now|yours|this|it|them|these)\b/gi },
+  { label: "rush", pattern: /\brush\b/gi },
+  { label: "selling out", pattern: /\bselling out\b/gi },
+  { label: "before gone", pattern: /\bbefore (?:it'?s|they'?re|these are) gone\b/gi },
+];
 const BRAND_PERSONA_NAMES: Record<string, string> = {
   bra_goddess: "Sandra",
   gents_lux: "Jordan",
@@ -620,6 +632,45 @@ const EMOTIONAL_ARCS: {
   { key: "social_proof_invitation", label: "Social Proof → Invitation", directive: "Body leads with what others (or the named character) experienced → invites {{first_name}} to have the same experience. Proof first, pitch second." },
 ];
 
+const SEGMENT_BODY_MOVES = [
+  {
+    label: "Recognition -> useful next step",
+    directive: "open by recognizing what this buyer already values, then make the hero product feel like the natural next useful piece",
+  },
+  {
+    label: "Objection -> quiet proof",
+    directive: "open from the likely hesitation, then answer it with one supplied USP, review, return, price, or shipping fact",
+  },
+  {
+    label: "Use moment -> product fit",
+    directive: "open inside a specific wear/gift/use moment, then show why the product fits that moment better than a generic option",
+  },
+  {
+    label: "Low-risk return",
+    directive: "open softly for someone who has not clicked or bought recently, then lower friction before asking for the click",
+  },
+  {
+    label: "Completion bridge",
+    directive: "connect what this segment likely bought or browsed before to the missing complementary product in this send",
+  },
+  {
+    label: "Sensory proof",
+    directive: "lead with a tactile or visual detail from the product, then let the offer support that believable product reason",
+  },
+  {
+    label: "Reluctant urgency",
+    directive: "state the time limit calmly as a constraint, not excitement; the brand sounds helpful, not pushy",
+  },
+] as const;
+
+const SEGMENT_SOFT_SELL_MODES = [
+  "The offer appears after the human reason, as a helpful detail.",
+  "Use one calm CTA sentence; avoid hurry/grab/claim language in the body.",
+  "Make the urgency reluctant or practical, never countdown energy.",
+  "Use a service tone: 'I picked this because...', not 'you must buy now'.",
+  "Let product proof do the selling; the discount should not carry the paragraph.",
+] as const;
+
 export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
   const seed = hashSeed([
     campaign.brandId,
@@ -706,11 +757,70 @@ function segMeta(brandId: string, code: string): string {
 function segGuidance(brandId: string, code: string): string {
   return BRANDS[brandId]?.productSegments.find((s) => s.code === code)?.guidance || "";
 }
+function segmentBodyDirectionLines(campaign: Campaign): string {
+  const seed = hashSeed([
+    campaign.brandId,
+    campaign.sendDate,
+    campaign.theme,
+    campaign.offerValue,
+    campaign.offerShipping,
+  ].join("::"));
+  return campaign.segments
+    .map((id, i) => {
+      const label = segLabel(campaign.brandId, id);
+      const meta = segMeta(campaign.brandId, id);
+      const guidance = segGuidance(campaign.brandId, id) || meta || "Use the segment label as the buyer motivation.";
+      const move = SEGMENT_BODY_MOVES[(seed + i * 2) % SEGMENT_BODY_MOVES.length];
+      const softSell = SEGMENT_SOFT_SELL_MODES[(seed + i) % SEGMENT_SOFT_SELL_MODES.length];
+      return `• body.${segJsonKey(id)} (${id} ${label}${meta ? ` — ${meta}` : ""}): audience motive: ${guidance} Copy move: ${move.label} — ${move.directive}. Soft-sell mode: ${softSell}`;
+    })
+    .join("\n");
+}
 function wordCount(s: string): number {
   return String(s || "").trim().split(/\s+/).filter(Boolean).length;
 }
 function norm(s: string): string {
   return String(s || "").toLowerCase().replace(/[^a-z0-9{}]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function stripCopyMarkup(s: string): string {
+  return String(s || "")
+    .replace(/\[([^\]]+)\]\((?:slug:[^)]+|home)\)/gi, "$1")
+    .replace(/==([^=]+)==/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1");
+}
+function firstParagraph(s: string): string {
+  return stripCopyMarkup(s).split(/\n{2,}/).map((p) => p.trim()).find(Boolean) || "";
+}
+function openingStart(s: string): string {
+  return norm(firstParagraph(s)).split(" ").filter(Boolean).slice(0, 8).join(" ");
+}
+function ngramSet(s: string, size = 5): Set<string> {
+  const words = norm(stripCopyMarkup(s)).split(" ").filter((w) => w.length > 2 && !THEME_STOPWORDS.has(w));
+  const grams = new Set<string>();
+  for (let i = 0; i <= words.length - size; i++) {
+    grams.add(words.slice(i, i + size).join(" "));
+  }
+  return grams;
+}
+function phraseOverlap(a: string, b: string, size = 5): number {
+  const left = ngramSet(a, size);
+  const right = ngramSet(b, size);
+  const denom = Math.min(left.size, right.size);
+  if (!denom) return 0;
+  let shared = 0;
+  left.forEach((gram) => {
+    if (right.has(gram)) shared++;
+  });
+  return shared / denom;
+}
+function hardSellHits(s: string): string[] {
+  const hits: string[] = [];
+  BODY_HARD_SELL_PATTERNS.forEach(({ label, pattern }) => {
+    pattern.lastIndex = 0;
+    if (pattern.test(s)) hits.push(label);
+  });
+  return hits;
 }
 function similarity(a: string, b: string): number {
   const l = new Set(norm(a).split(" ").filter(Boolean));
@@ -778,10 +888,11 @@ Use {{first_name}} in subject OR preheader, never both. Replace $ with 💲 in p
 const CREATIVE_PROMPT_LAYER = `Guardrails are constraints, not a script. Let the model write fresh language.
 A/B options must differ by at least four: angle, framework, opener mechanic, emotional arc, proof role, product bridge, subject style, visual direction, CTA wording, urgency texture.
 Rotate opener mechanics: story, fact, question, occasion, re-engagement, insider reveal, or direct problem. Avoid repeating the last-send structure.
-Segment versions keep one hook but adapt motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next product; lapsed = low-risk return reason; high-return-risk = fit/material clarity.`;
+Segment versions keep one hook but adapt motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next product; lapsed = low-risk return reason; high-return-risk = fit/material clarity.
+Multi-segment body copy must not be cloned paragraph skeletons. Change the first sentence, proof/risk reducer, product bridge, and final line for every segment.`;
 
 const COMPONENT_PROMPT_LAYER = `Subject/preheader: 3+ paired options per segment, distinct Claude/Gemini/ChatGPT-style lenses, subject hard cap 60, preheader 60-90, preheader adds a new beat.
-Body: 120-150 words per segment, persona-signed, selected opener in 2-3 sentences, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words.
+Body: 120-150 words per segment, persona-signed, selected opener in 2-3 sentences, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words. Tone is personal-note first: product fit before promo, one calm urgency beat, no hard-sell command stack.
 Banner: main_text_1/2/3 and sub_text_1/2/3 each use distinct angles; image_guidance is 4-6 compact bullets covering first 200px, product, offer, palette, crop, CTA path.
 Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words. HTML product modules use linked images only, so product text/CTA should be written as text to bake into each image.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
@@ -928,6 +1039,17 @@ export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
 • Emotional arc: ${variety.emotionalArcLabel} — ${variety._arcDirective || ""}
 Write naturally in the brand persona, avoid repeating sentence skeletons from prior campaigns, and record the opener mechanic label in quality_checks.opener_mechanic.`
     : "";
+  const segmentBodyMandate = campaign.segments.length > 1
+    ? `\nSEGMENT BODY DIFFERENTIATION — required:
+Keep one Hook Contract across all segments, but body text must be meaningfully different by segment. Do not rewrite the same paragraph skeleton with different nouns.
+${segmentBodyDirectionLines(campaign)}
+For every segment body, change all four: first sentence entry point, proof/risk reducer, product bridge sentence, and final sign-off/CTA sentence.`
+    : "";
+  const winToneMandate = `\nWINEMAILTEMPS TONE CALIBRATION — required:
+Recent winning emails read like a short personal note: one concrete moment or pain, then product fit, then offer as a helpful detail. The body should not sound like a sale alert.
+Use calm phrasing such as "I picked this because...", "take a look while it is still open", or "this may be useful if..." instead of stacking "hurry", "grab", "claim", "act now", or "don't miss".
+Do not copy those example phrases verbatim across segments; they show tone only.
+Mention price/offer/urgency clearly, but limit the body to one sales command at most. Let the product proof and segment motive do most of the selling.`;
 
   return renderPromptLayers([
     {
@@ -946,6 +1068,8 @@ Product template: ${productCopyStyleLabel(campaign)}
 Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}`,
     },
     { title: "Creative Variety", body: varietyMandate },
+    { title: "Segment Body Differentiation", body: segmentBodyMandate },
+    { title: "Tone Calibration", body: winToneMandate },
   ]);
 }
 
@@ -1103,6 +1227,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (text && !hasOfferSignal(text, campaign)) {
       addFlag(brief, "warn", `${seg} body needs visible price/offer or shipping threshold`);
     }
+    const hardSell = hardSellHits(String(text || ""));
+    if (hardSell.length > 1) {
+      addFlag(brief, "warn", `${seg} body sounds too salesy (${[...new Set(hardSell)].slice(0, 3).join(", ")}); make the offer a helpful detail, not a command stack`);
+    }
     if (text && heroProductName && !containsSignificantReference(firstTwoParas, heroProductName)) {
       addFlag(brief, "warn", `${seg} body opener should name or clearly reference the hero product`);
     }
@@ -1129,8 +1257,16 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     for (let j = i + 1; j < segmentBodies.length; j++) {
       const [leftKey, leftText] = segmentBodies[i];
       const [rightKey, rightText] = segmentBodies[j];
-      if (similarity(String(leftText), String(rightText)) > 0.86) {
+      const fullSimilarity = similarity(String(leftText), String(rightText));
+      const openerSimilarity = similarity(firstParagraph(String(leftText)), firstParagraph(String(rightText)));
+      const sharedPhraseOverlap = phraseOverlap(String(leftText), String(rightText));
+      const leftOpeningStart = openingStart(String(leftText));
+      const rightOpeningStart = openingStart(String(rightText));
+      const sameOpeningStart = !!leftOpeningStart && leftOpeningStart === rightOpeningStart;
+      if (fullSimilarity > 0.74) {
         addFlag(brief, "warn", `${leftKey} and ${rightKey} body variants are too similar; adapt motivation/risk reducer by segment`);
+      } else if (openerSimilarity > 0.68 || sharedPhraseOverlap > 0.28 || sameOpeningStart) {
+        addFlag(brief, "warn", `${leftKey} and ${rightKey} share the same body structure; change the opener, proof/risk reducer, bridge, and final CTA sentence`);
       }
     }
   }

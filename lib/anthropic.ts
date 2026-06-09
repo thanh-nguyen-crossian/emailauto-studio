@@ -352,7 +352,7 @@ function isRepairablePlaybookFlag(message: string): boolean {
 }
 
 function isHighImpactPlaybookFlag(message: string): boolean {
-  return /missing required field|missing subject\/preheader|subject over hard cap|repeats \{\{first_name\}\}|subject and preheader too similar|needs 3\+ subject|spam word|weak\/generic|opt-out risk|invented proof|brand avoid|hook contract missing|hero banner should|structured hero banner missing|weak banner cta|body opens|missing persona|formatting beats|renderer-safe hyperlink|body over 150|body too short|missing product-name markdown link|visible price\/offer|hero, and body need|body opener should|body variants are too similar|missing p\.s\.|p\.s\. should|product .*main text|product .*usp|product .*weak cta|product .*cta should|review looks invented|image brief missing|quality check missing/i.test(message);
+  return /missing required field|missing subject\/preheader|subject over hard cap|repeats \{\{first_name\}\}|subject and preheader too similar|needs 3\+ subject|spam word|weak\/generic|opt-out risk|invented proof|brand avoid|hook contract missing|hero banner should|structured hero banner missing|weak banner cta|body opens|body sounds too salesy|same body structure|missing persona|formatting beats|renderer-safe hyperlink|body over 150|body too short|missing product-name markdown link|visible price\/offer|hero, and body need|body opener should|body variants are too similar|missing p\.s\.|p\.s\. should|product .*main text|product .*usp|product .*weak cta|product .*cta should|review looks invented|image brief missing|quality check missing/i.test(message);
 }
 
 function repairFlagsFor(brief: GenBrief): string[] {
