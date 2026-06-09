@@ -30,6 +30,39 @@ function parseStrictJson(text: string): Record<string, unknown> {
 const FIX_JSON_NOTE =
   '\n\nYour previous response was NOT valid JSON. Return ONLY one valid JSON object — escape every double-quote inside a string value as \\", escape newlines as \\n, no trailing commas, no comments, no prose.';
 
+const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS || 145_000);
+
+const OPTION_B_INITIAL_CONTRAST = `\nOPTION B CONTRAST REQUIREMENT:
+You are writing Option B in parallel with Option A. Deliberately avoid the obvious/default route.
+Pick a distinct angle, framework, opener mechanic, emotional arc, visual direction, CTA wording, and proof role.
+Do not wait to see Option A; make Option B a clearly different usable challenger.`;
+
+function timeoutMessage(provider: string, model: string): string {
+  return `${provider} ${model} timed out after ${Math.round(PROVIDER_TIMEOUT_MS / 1000)} seconds. Try a faster model such as Claude Haiku, Gemini Flash/Lite, or a GPT mini/nano model, or reduce segments/products.`;
+}
+
+async function fetchJsonWithTimeout<T>(
+  provider: string,
+  model: string,
+  url: string,
+  init: RequestInit
+): Promise<{ res: Response; data: T }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    const data = (await res.json().catch(() => ({}))) as T;
+    return { res, data };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(timeoutMessage(provider, model));
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function createText(system: string, user: string, selection: AIModelSelection): Promise<string> {
   if (selection.provider === "claude") return callClaude(system, user, selection.model);
   if (selection.provider === "gemini") return callGemini(system, user, selection.model);
@@ -55,13 +88,24 @@ async function createAndParseWithModel(
 }
 
 async function callClaude(system: string, user: string, model: string): Promise<string> {
-  const resp = await getClient().messages.create({
-    model,
-    max_tokens: 16000,
-    temperature: 0.65,
-    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: user }],
-  });
+  let resp;
+  try {
+    resp = await getClient().messages.create(
+      {
+        model,
+        max_tokens: 16000,
+        temperature: 0.65,
+        system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+        messages: [{ role: "user", content: user }],
+      },
+      { timeout: PROVIDER_TIMEOUT_MS }
+    );
+  } catch (err) {
+    if (err instanceof Error && /timeout|timed out|abort/i.test(err.message)) {
+      throw new Error(timeoutMessage("Claude", model));
+    }
+    throw err;
+  }
   const textPart = resp.content.find((c) => c.type === "text");
   return textPart && textPart.type === "text" ? textPart.text : "";
 }
@@ -69,7 +113,10 @@ async function callClaude(system: string, user: string, model: string): Promise<
 async function callGemini(system: string, user: string, model: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+  const { res, data } = await fetchJsonWithTimeout<{
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    error?: { message?: string };
+  }>("Gemini", model, `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -85,10 +132,6 @@ async function callGemini(system: string, user: string, model: string): Promise<
       },
     }),
   });
-  const data = (await res.json().catch(() => ({}))) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-    error?: { message?: string };
-  };
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${data.error?.message || "request failed"}`);
   return data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
 }
@@ -96,28 +139,36 @@ async function callGemini(system: string, user: string, model: string): Promise<
 async function callOpenAI(system: string, user: string, model: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const payload: Record<string, unknown> = {
+    model,
+    input: [
+      { role: "system", content: [{ type: "input_text", text: system }] },
+      { role: "user", content: [{ type: "input_text", text: user }] },
+    ],
+    max_output_tokens: 16000,
+    text: { format: { type: "json_object" }, verbosity: "low" },
+  };
+  if (/^gpt-5/i.test(model)) payload.reasoning = { effort: "low" };
+
+  const { res, data } = await fetchJsonWithTimeout<{
+    output_text?: string;
+    output?: { content?: { text?: string; type?: string; output_text?: string }[] }[];
+    choices?: { message?: { content?: string } }[];
+    error?: { message?: string };
+  }>("OpenAI", model, "https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      max_completion_tokens: 16000,
-      response_format: { type: "json_object" },
-    }),
+    body: JSON.stringify(payload),
   });
-  const data = (await res.json().catch(() => ({}))) as {
-    choices?: { message?: { content?: string } }[];
-    error?: { message?: string };
-  };
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${data.error?.message || "request failed"}`);
-  return data.choices?.[0]?.message?.content || "";
+  if (data.output_text) return data.output_text;
+  const outputText = data.output?.flatMap((item) => item.content || [])
+    .map((part) => part.text || part.output_text || "")
+    .join("");
+  return outputText || data.choices?.[0]?.message?.content || "";
 }
 
 export interface GenerationResult {
@@ -179,20 +230,26 @@ export async function generateOptions(
     const models = normalizeModelPair(modelInput);
     const sysA = overrides?.system?.trim() || buildSystemPrompt(campaign, products, false);
     const usrA = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaign, false), revision);
-    const a = validateBrief((await createAndParseWithModel(sysA, usrA, models.a)) as unknown as GenBrief, campaign, products);
+
+    const sysBInitial = overrides?.system?.trim()
+      ? overrides.system.trim() + OPTION_B_INITIAL_CONTRAST
+      : buildSystemPrompt(campaign, products, true) + OPTION_B_INITIAL_CONTRAST;
+    const usrBBase = overrides?.user?.trim()
+      ? overrides.user.trim() + "\n\nGenerate Option B now — make it a clearly different challenger from Option A."
+      : buildUserPrompt(campaign, true);
+    const usrB = appendRevisionFeedback(usrBBase, revision);
+
+    const startedAt = Date.now();
+    const [aRaw, bRaw] = await Promise.all([
+      createAndParseWithModel(sysA, usrA, models.a),
+      createAndParseWithModel(sysBInitial, usrB, models.b),
+    ]);
+
+    const a = validateBrief(aRaw as unknown as GenBrief, campaign, products);
     a._provider = providerLabel(models.a.provider);
     a._model = models.a.model;
 
-    // Option B keeps the contrast requirement even when the prompts are user-edited: append it
-    // to the (possibly edited) base rather than re-deriving from scratch.
-    const sysB = overrides?.system?.trim()
-      ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
-      : buildSystemPrompt(campaign, products, true, a.creative_direction);
-    const usrBBase = overrides?.user?.trim()
-      ? overrides.user.trim() + "\n\nGenerate Option B now — you MUST use a different angle AND framework than Option A."
-      : buildUserPrompt(campaign, true);
-    const usrB = appendRevisionFeedback(usrBBase, revision);
-    let b = validateBrief((await createAndParseWithModel(sysB, usrB, models.b)) as unknown as GenBrief, campaign, products);
+    let b = validateBrief(bRaw as unknown as GenBrief, campaign, products);
     b._provider = providerLabel(models.b.provider);
     b._model = models.b.model;
 
@@ -201,12 +258,16 @@ export async function generateOptions(
       b.creative_direction?.angle === a.creative_direction?.angle ||
       b.creative_direction?.framework === a.creative_direction?.framework
     ) {
+      const sysB = overrides?.system?.trim()
+        ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
+        : buildSystemPrompt(campaign, products, true, a.creative_direction);
       const retry = usrB + "\n\nWARNING: your previous attempt reused Option A's direction. You MUST choose a different angle AND a different framework.";
       b = validateBrief((await createAndParseWithModel(sysB, retry, models.b)) as unknown as GenBrief, campaign, products);
       b._provider = providerLabel(models.b.provider);
       b._model = models.b.model;
     }
 
+    console.info(`[generate-copy] completed A/B in ${Math.round((Date.now() - startedAt) / 1000)}s using ${models.a.provider}:${models.a.model} + ${models.b.provider}:${models.b.model}`);
     return { a, b };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Generation failed" };

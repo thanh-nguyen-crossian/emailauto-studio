@@ -10,8 +10,8 @@ import type { GenBrief } from "@/lib/briefgen";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
-// Two sequential generations (A, then B) scale with segment count: ~84s for 1 segment, ~122s for 2,
-// plus a possible B-contrast retry. 120s was too low (2+ segments timed out → non-JSON error page).
+// A/B generations run in parallel, then B only retries if its angle/framework overlaps A.
+// Keep a generous route ceiling for high-segment briefs and slower frontier models.
 export const maxDuration = 300;
 
 function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {

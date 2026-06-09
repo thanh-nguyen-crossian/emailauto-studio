@@ -388,7 +388,7 @@ export default function Studio() {
         data = JSON.parse(raw);
       } catch {
         if (res.status === 504 || /timeout|timed out|FUNCTION_INVOCATION/i.test(raw)) {
-          setApiError("The server timed out while generating. This can happen with many segments — try 1–2 segments at a time, then retry.");
+          setApiError("The server timed out while generating. Try a faster model pair (Claude Haiku, Gemini Flash/Lite, or GPT mini/nano), reduce segments/products, then retry.");
         } else {
           setApiError(`Server returned an unexpected response (HTTP ${res.status}). Please retry.`);
         }
@@ -1061,7 +1061,7 @@ export default function Studio() {
           </div>
 
           <p className="text-sm text-[var(--muted)]">
-            One combined prompt produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. We run it twice for two contrasting options. A and B share the same user prompt below; <strong className="text-[var(--text)]">B&apos;s divergence is enforced in its system prompt</strong> — once A returns, B is told <em>&ldquo;A used angle X / framework Y — pick different ones&rdquo;</em> (with an auto-retry if it overlaps). These are the exact prompts the server sends.
+            One combined prompt produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server now requests A and B in parallel for speed, then re-runs B only if it overlaps A&apos;s angle/framework. These are the exact prompts the server sends.
           </p>
           {apiError && <Banner level="fail">{apiError}</Banner>}
 
@@ -1069,6 +1069,9 @@ export default function Studio() {
             <ModelSelector label="Option A model" value={modelA} onChange={setModelA} providers={AI_PROVIDERS} />
             <ModelSelector label="Option B model" value={modelB} onChange={setModelB} providers={AI_PROVIDERS} />
           </div>
+          <Banner level="warn">
+            Timeout tip: Opus, Pro, and full frontier GPT models can be slow on multi-segment briefs. For fastest runs, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model only for final polish.
+          </Banner>
 
           <PromptBlock
             title="Performance context"
@@ -1081,7 +1084,7 @@ export default function Studio() {
 
           <PromptBlock
             title="System prompt (shared, cached)"
-            subtitle={`${brand.name} · ${brand.persona} — B also gets a contrast clause after A returns`}
+            subtitle={`${brand.name} · ${brand.persona} — B also gets a parallel contrast clause`}
             value={effectiveSystem}
             edited={systemOverride !== null}
             onChange={(v) => setSystemOverride(v)}
