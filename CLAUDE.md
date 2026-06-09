@@ -23,7 +23,7 @@ they preview, edit, export, and push into SendGrid. Backed by Supabase auth/hist
 |---|---|
 | Framework | Next.js 15 (App Router, TypeScript), React 19 |
 | UI | Tailwind CSS v4, light theme (palette in `app/globals.css`) |
-| AI | Anthropic Claude `claude-sonnet-4-6` via `@anthropic-ai/sdk`, prompt-cached system prompt |
+| AI | Selectable Claude / Gemini / ChatGPT models; Claude uses `@anthropic-ai/sdk`, Gemini/OpenAI use server-side REST calls |
 | Email API | SendGrid v3 via `@sendgrid/client` (Designs + Dynamic Templates) |
 | Auth + DB | Supabase (Postgres + Auth), Row-Level Security, `@supabase/supabase-js` |
 | Export | `jszip` (zip of HTML); SpreadsheetML (hand-written, zero-dep Excel) |
@@ -45,6 +45,14 @@ npx tsc --noEmit     # type-check without emitting
 | Var | Scope | Notes |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | server | Claude generation |
+| `GEMINI_API_KEY` | server | Gemini generation |
+| `OPENAI_API_KEY` | server | ChatGPT/OpenAI generation |
+| `AI_PROVIDER_TIMEOUT_MS` | server | optional per-provider generation timeout override; default 145000 |
+| `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
+| `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default 78 |
+| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default 3 |
+| `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default 2 |
+| `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent continuation batches after anchor; default 2 |
 | `SENDGRID_API_KEY` | server | needs Marketing + Templates scopes for `/v3/designs` |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | anon/publishable key — browser-safe, RLS-gated |
@@ -72,16 +80,24 @@ get two contrasting options (**A** and **B**) — B is forced to a different ang
 ### Generation flow (`lib/anthropic.ts → generateOptions`)
 
 1. Build system + user prompt from the campaign (`lib/briefgen.ts`).
-2. Generate **Option A** → `validateBrief` (attaches `_flags` + `_score`).
-3. Generate **Option B** with `contrastInstruction(A.creative_direction)` appended ("A used angle
-   X / framework Y — pick different ones"). If B still overlaps A, retry once.
-4. Optional `PromptOverrides {system?, user?}` (from the user-edited review step) replace the
+2. If selected segments exceed `AI_SEGMENT_BATCH_THRESHOLD` and no system/user prompt override is
+   active, split the segment list into batches. Batch 1 creates the shared strategy/banner/products;
+   later batches preserve that anchor and generate only their segment keys before merge.
+3. Generate **Option A** and an initially contrasted **Option B** in parallel for each batch.
+4. Run `validateBrief` (attaches `_flags` + `_score`). If B still overlaps A's angle/framework,
+   retry B once with `contrastInstruction(A.creative_direction)` appended ("A used angle X /
+   framework Y — pick different ones").
+5. Optional `PromptOverrides {system?, user?}` (from the user-edited review step) replace the
    generated prompts; B's contrast clause is appended to the edited system prompt so divergence
-   survives edits.
-- Model: `claude-sonnet-4-6`, `max_tokens: 8192`, system prompt `cache_control: ephemeral`.
-- `createAndParse` retries **once** on a JSON parse failure with a correction note.
-- **Sequential A→B is slow** (~60s/segment). Route `maxDuration = 300`. Multi-segment sends take
-  1–3 min — this is expected, not a bug.
+   survives edits. Full prompt overrides intentionally disable auto-batching.
+- Models: selected per option from `lib/config/aiModels.ts`; defaults live in `DEFAULT_AI_MODELS`.
+- Output budget: 16,000 tokens per provider call; provider calls time out after `AI_PROVIDER_TIMEOUT_MS`
+  (default 145s) with guidance to use faster model pairs or fewer segments/products.
+- `createAndParseWithModel` retries **once** on a JSON parse failure with a correction note.
+- After validation, low-scoring or high-impact playbook failures can trigger one targeted repair call
+  per option. It is controlled by `AI_QUALITY_REPAIR` and `AI_QUALITY_REPAIR_THRESHOLD`.
+- Parallel A/B is still bounded by the slowest selected model, plus a possible B retry. Route
+  `maxDuration = 300`; multi-segment sends with Opus/Pro/frontier GPT can still take minutes.
 
 ### The generated object — `GenBrief` (`lib/briefgen.ts`, snake_case to match the prompt schema)
 
@@ -91,7 +107,8 @@ subject_lines      { [segKey]: { subject, preheader } }   // segKey = "seg_" + c
 theme              string (visual brief)
 banner             { logo_stars, main_text, sub_text, image_guidance, review_quote, cta }
 body               { base, [segKey]: "<per-segment body copy>" }
-products           [ { slot, name, main_text, sub_text, popup_badge, usps[], review, cta } ]
+products           [ { slot, name, main_text, sub_text, popup_badge, usps[], review, cta,
+                       main_image, sub_image, alt_text, image_notes } ]
 quality_checks     { click_reason, hook_alignment, proof_safety, spam_risk, … }
 _flags / _score    // added by validateBrief (validation engine, 0–100)
 ```
@@ -106,9 +123,9 @@ lib/config/brands.ts     BRANDS (persona, voice, layout, accent, heroSlug, produ
 lib/config/types.ts      Brand, Product, ProductSegment, Campaign, OfferType, Urgency, ImageOverrides …
 lib/config/intelligence.ts  BRAND_INTELLIGENCE perf data → intelligencePromptBlock() (prompt) + Perf panel
 lib/briefgen.ts          THE prompt engine: buildSystemPrompt / buildUserPrompt / validateBrief /
-                         contrastInstruction, PLAYBOOK_RULES / PROMPT_CONTRACT / PLAYBOOK_ENFORCEMENT,
-                         GenBrief types, segJsonKey
-lib/anthropic.ts         getClient, createAndParse (parse-retry), generateOptions(campaign, products, overrides?)
+                         contrastInstruction, layered playbook rules, GenBrief types, segJsonKey
+lib/anthropic.ts         provider adapters, provider timeout, JSON parse retry, quality repair,
+                         generateOptions(campaign, products, overrides?, models?, revision?)
 lib/render/email.ts      renderEmailHTML(brand, campaign, products, brief, segment, images, opts)
                          → SendGrid module HTML for ONE segment. ProductLayout: stack|two|three|hero_grid
 lib/render/markdown.ts   parseInlineMarkdown / paragraphsToHtml / buildUrl (markdown → SendGrid HTML)
@@ -152,7 +169,8 @@ docs/                    Analysis, playbook, architecture, presentations (refere
 - `campaign.segments` must be a subset of `brand.productSegments[].code` (`switchBrand` resets them).
 - Hero product (`brand.heroSlug`) is **locked into slot 0** and rendered first.
 - Subjects 42–58 chars (hard cap 60); preheaders 60–90; `{{first_name}}` in subject **or** preheader, not both.
-- Products ≤ 6 (SantaFare defaults to 4) — `validateBrief` warns at 7+.
+- Products ≤ 6 for generation/export quality (SantaFare defaults to 4); the UI allows staging more
+  slots, but the generate route rejects 7+ products.
 - Promo copy: write `$` as `💲`, "off" as `o.f.f`; no spam words (see `SPAM_WORDS` in `briefgen.ts`).
 - Never invent proof/scarcity/reviews not supplied in the product data.
 - **Never duplicate brand/segment/product logic in prompts** — derive it from `lib/config/*`.

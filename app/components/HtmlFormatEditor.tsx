@@ -104,6 +104,7 @@ export function HtmlFormatEditor({
       <textarea
         ref={ref}
         value={value}
+        aria-label="Editable email HTML"
         onChange={(e) => commitValue(e.target.value)}
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {

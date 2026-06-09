@@ -1,18 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateOptions } from "@/lib/anthropic";
-import { selectVarietyProfile } from "@/lib/briefgen";
+import { selectVarietyProfile, type GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
 import { RECIPIENT_NAME_TOKEN, type BodyVarietyProfile, type Campaign, type EmailModuleKey, type Product } from "@/lib/config/types";
+import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
-import type { GenBrief } from "@/lib/briefgen";
-import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
+const MAX_PRODUCTS = 6;
+const MAX_TEXT = 1200;
+const MAX_LONG_TEXT = 9000;
 
 export const runtime = "nodejs";
 // A/B generations run in parallel, then B only retries if its angle/framework overlaps A.
 // Keep a generous route ceiling for high-segment briefs and slower frontier models.
 export const maxDuration = 300;
+
+function cleanText(value: unknown, max = MAX_TEXT): string {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function cleanProducts(input: unknown): Product[] | string {
+  if (!Array.isArray(input)) return [];
+  if (input.length > MAX_PRODUCTS) return `Select ${MAX_PRODUCTS} or fewer products`;
+  return input.map((p) => {
+    const item = p as Partial<Product>;
+    return {
+      name: cleanText(item.name, 120),
+      slug: cleanText(item.slug, 120),
+      price: cleanText(item.price, 40),
+      url: cleanText(item.url, 500),
+      review: cleanText(item.review, 300),
+      usps: Array.isArray(item.usps) ? item.usps.map((u) => cleanText(u, 140)).filter(Boolean).slice(0, 8) : [],
+      hero: !!item.hero,
+      segment: cleanText(item.segment, 40),
+    };
+  }).filter((p) => p.name && p.slug);
+}
 
 function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {
   const c = body as Partial<Campaign> & { products?: Product[] };
@@ -22,33 +46,36 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
 
   const brand = BRANDS[c.brandId];
   const valid = new Set(brand.productSegments.map((s) => s.code));
-  const bad = c.segments.filter((s) => !valid.has(s));
+  const segments = Array.from(new Set(c.segments.map((s) => cleanText(s, 20)).filter(Boolean)));
+  const bad = segments.filter((s) => !valid.has(s));
+  if (!segments.length) return { ok: false, error: "Select at least one segment" };
   if (bad.length) return { ok: false, error: `Invalid segments for ${brand.name}: ${bad.join(", ")}` };
 
   const campaign: Campaign = {
     brandId: c.brandId,
     sendDate: c.sendDate || new Date().toISOString().slice(0, 10),
-    segments: c.segments,
+    segments,
     layout: c.layout || brand.layout,
-    theme: c.theme || "Limited-time offer",
+    theme: cleanText(c.theme, 180) || "Limited-time offer",
     offerType: c.offerType || "none",
-    offerValue: c.offerValue || "",
-    offerShipping: c.offerShipping || "",
+    offerValue: cleanText(c.offerValue, 80),
+    offerShipping: cleanText(c.offerShipping, 80),
     urgency: c.urgency || "none",
-    offer: c.offer || "",
+    offer: cleanText(c.offer, 180),
     bodyLayout: c.bodyLayout || "continuous",
     moduleLayout: Array.isArray(c.moduleLayout)
       ? (c.moduleLayout as string[]).filter((k) => VALID_MODULE_KEYS.has(k)) as EmailModuleKey[]
       : undefined,
     productCopyStyle: c.productCopyStyle || "headline_winner",
-    hookContract: c.hookContract || "",
+    hookContract: cleanText(c.hookContract, 700),
     recipientName: RECIPIENT_NAME_TOKEN,
     recentProductSlugs: Array.isArray(c.recentProductSlugs) ? c.recentProductSlugs as string[] : undefined,
     lastSend: c.lastSend,
-    winningContent: c.winningContent,
-    customPerfContext: c.customPerfContext,
+    winningContent: cleanText(c.winningContent, MAX_LONG_TEXT),
+    customPerfContext: cleanText(c.customPerfContext, 2500),
   };
-  const products = Array.isArray(c.products) ? c.products : [];
+  const products = cleanProducts(c.products);
+  if (typeof products === "string") return { ok: false, error: products };
   return { ok: true, campaign, products };
 }
 
@@ -98,7 +125,7 @@ export async function POST(req: NextRequest) {
     : undefined;
   const result = await generateOptions(campaignWithVariety, v.products, overrides, models, revision);
   if (result.error) {
-    const status = result.error.includes("ANTHROPIC_API_KEY") ? 500 : 502;
+    const status = /API_KEY|not set/i.test(result.error) ? 500 : 502;
     return NextResponse.json({ error: result.error }, { status });
   }
   if (result.a) result.a.body_variety = cleanVariety;

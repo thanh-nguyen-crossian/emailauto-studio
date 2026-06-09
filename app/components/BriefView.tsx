@@ -426,7 +426,7 @@ export function BriefView({
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">USPs</span>
                     {(p.usps || []).map((u, j) => (
-                      <input key={j} value={u} onChange={(e) => patchProductUsp(i, j, e.target.value)} className="input text-xs" />
+                      <input key={j} value={u} aria-label={`USP ${j + 1} for ${p.name || `product ${i + 1}`}`} onChange={(e) => patchProductUsp(i, j, e.target.value)} className="input text-xs" />
                     ))}
                     <button type="button" onClick={() => addProductUsp(i)} className="btn-ghost self-start">+ USP</button>
                   </div>
@@ -540,7 +540,7 @@ function EditField({ label, value, onChange }: { label: string; value?: string; 
   return (
     <label className="flex flex-col gap-1">
       <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</span>
-      <input value={value || ""} onChange={(e) => onChange(e.target.value)} className="input text-xs" />
+      <input value={value || ""} aria-label={label} onChange={(e) => onChange(e.target.value)} className="input text-xs" />
     </label>
   );
 }
@@ -581,7 +581,7 @@ function EditArea({
         <button type="button" title="Brand accent (==text==)" onClick={() => wrap("==", "==")} className="fmt-btn" style={{ color: "var(--accent)" }}>A</button>
         <span className="text-[9px] text-[var(--muted)] ml-0.5">select + click</span>
       </div>
-      <textarea ref={ref} value={value || ""} rows={rows} onChange={(e) => onChange(e.target.value)} className="input text-xs" />
+      <textarea ref={ref} value={value || ""} rows={rows} aria-label={label} onChange={(e) => onChange(e.target.value)} className="input text-xs" />
     </div>
   );
 }

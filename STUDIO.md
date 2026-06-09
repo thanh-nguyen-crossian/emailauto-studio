@@ -60,19 +60,21 @@ post-generation **validation engine** (`validateBrief`) scoring each option 0–
 |---|---|
 | Framework | **Next.js 15** (App Router, TypeScript) |
 | UI | React 19, Tailwind CSS v4 |
-| AI | **Anthropic Claude** (`claude-sonnet-4-6`) via `@anthropic-ai/sdk`, prompt-cached system prompts |
+| AI | Selectable **Claude · Gemini · ChatGPT/OpenAI** models; server-side provider routing |
 | Email API | **SendGrid v3** via `@sendgrid/client` (Designs + Dynamic Templates) |
 | Auth + DB | **Supabase** (Postgres + Auth) via `@supabase/supabase-js`, Row-Level Security |
 | Export | `jszip` (client-side zip of variants) |
-| Hosting | **Vercel** (auto-deploy from `main`) |
+| Hosting | **Vercel** (manual maintainer deploy; Git auto-deploy is intentionally disabled) |
 
 ### Key modules
 - `lib/config/` — `BRANDS` (persona, voice, layout, `productSegments`, catalog), `intelligence.ts`
   (performance data baked into the prompt), `types.ts` (source of truth).
 - `lib/briefgen.ts` — the combined-prompt engine: `buildSystemPrompt`/`buildUserPrompt`,
   `validateBrief` (QA score), `contrastInstruction`, the `GenBrief` output shape + guardrails.
-- `lib/anthropic.ts` — `generateOptions(campaign, products, overrides?)`: two contrasting A/B
-  generations, strict-JSON parse-retry, prompt-caching.
+- `lib/anthropic.ts` — `generateOptions(campaign, products, overrides?, models?, revision?)`: two
+  contrasting A/B generations requested in parallel, segment batching for large default-prompt runs,
+  provider timeout handling, strict-JSON parse-retry, targeted playbook repair, and B-only contrast
+  retry when needed.
 - `lib/render/` — SendGrid module-format HTML renderer (per segment, selectable product layout) + inline-markdown.
 - `lib/scrape.ts` — server-side USP extraction for the Customer URL field.
 - `lib/exportExcel.ts` — SpreadsheetML (.xls) export of the A/B briefs (zero-dep).
@@ -87,6 +89,14 @@ post-generation **validation engine** (`validateBrief`) scoring each option 0–
 | Var | Scope | Purpose |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | server | Claude generation |
+| `GEMINI_API_KEY` | server | Gemini generation |
+| `OPENAI_API_KEY` | server | ChatGPT/OpenAI generation |
+| `AI_PROVIDER_TIMEOUT_MS` | server | optional provider timeout override; default 145000 |
+| `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
+| `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default 78 |
+| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default 3 |
+| `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default 2 |
+| `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent continuation batches after anchor; default 2 |
 | `SENDGRID_API_KEY` | server | SendGrid Designs/Templates (needs Marketing + Templates scope) |
 | `NEXT_PUBLIC_SUPABASE_URL` | client | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client | Supabase publishable/anon key (browser-safe, RLS-gated) |
@@ -137,5 +147,5 @@ Run the SQL in `supabase/migrations/` once (Supabase SQL editor), then grant you
 
 ## Deploy
 
-Pushing to `main` auto-deploys on Vercel. Env vars are set in the Vercel project (Production).
-`NEXT_PUBLIC_*` changes require a redeploy to take effect.
+Deploy is maintainer-only and manual. Git pushes do not auto-deploy. Env vars are set in the Vercel
+project (Production). `NEXT_PUBLIC_*` changes require a redeploy to take effect.

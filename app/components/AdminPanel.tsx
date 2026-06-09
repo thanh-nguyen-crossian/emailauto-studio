@@ -91,11 +91,11 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
   const pending = (users || []).filter((u) => u.status === "pending");
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[var(--background)]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[var(--background)]" role="dialog" aria-modal="true" aria-labelledby="admin-title">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Admin · Users</h1>
+            <h1 id="admin-title" className="text-2xl font-bold">Admin · Users</h1>
             <p className="text-sm text-[var(--muted)] mt-1">Approve signups, set active/inactive, reset passwords.</p>
           </div>
           <button onClick={onClose} className="btn-ghost">Back to studio</button>
@@ -113,6 +113,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
         ) : (
           <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
             <table className="w-full text-sm">
+              <caption className="sr-only">EmailAuto user accounts and admin actions</caption>
               <thead className="bg-[var(--surface-2)] text-[var(--muted)] text-xs uppercase">
                 <tr>
                   <th className="text-left p-3">Email</th>

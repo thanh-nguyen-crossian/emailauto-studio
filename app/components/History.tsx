@@ -37,15 +37,14 @@ export function History({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
-      <div
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="history-title">
+      <button type="button" aria-label="Close history" className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <aside
         className="relative w-full max-w-md h-full bg-[var(--surface)] border-l border-[var(--border)] p-5 overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">History</h2>
-          <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--text)]">✕</button>
+          <h2 id="history-title" className="text-lg font-semibold">History</h2>
+          <button onClick={onClose} aria-label="Close history" className="text-[var(--muted)] hover:text-[var(--text)]">✕</button>
         </div>
         {error && <div className="text-xs text-[var(--bad)] mb-3">{error}</div>}
         {items === null && !error && <div className="text-sm text-[var(--muted)]">Loading…</div>}
@@ -79,7 +78,7 @@ export function History({
         <style>{`
           .btn-ghost { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 12px; font-size:13px; cursor:pointer; }
         `}</style>
-      </div>
+      </aside>
     </div>
   );
 }

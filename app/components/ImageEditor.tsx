@@ -43,6 +43,7 @@ function Row({
           onChange={(e) => onChange(e.target.value)}
           placeholder="Paste SendGrid image URL…"
           className="input mt-1 text-xs"
+          aria-label={`${label} image URL`}
         />
       </div>
     </div>
@@ -75,15 +76,18 @@ export function ImageEditor({
           Paste SendGrid image URLs for preview and export.
         </p>
       </div>
-      <label className="flex items-center gap-2 text-xs">
-        <input
-          type="checkbox"
-          checked={includeLogo}
-          onChange={(e) => onToggleLogo(e.target.checked)}
-        />
-        Include a logo block above the hero
-        <span className="text-[var(--muted)]">(off = email starts at the hero image)</span>
-      </label>
+      <fieldset className="border-0 p-0 m-0">
+        <legend className="sr-only">Logo rendering</legend>
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={includeLogo}
+            onChange={(e) => onToggleLogo(e.target.checked)}
+          />
+          Include a logo block above the hero
+          <span className="text-[var(--muted)]">(off = email starts at the hero image)</span>
+        </label>
+      </fieldset>
       {includeLogo && (
         <Row label="Logo" hint="≈160px wide" url={images.logo} onChange={(v) => onChange({ ...images, logo: v })} />
       )}

@@ -1,5 +1,10 @@
 # EmailAuto — Project Architecture
-_Updated: 2026-05-25_
+_Updated: 2026-06-09_
+
+> Current production note: EmailAuto Studio is now a Next.js app rooted in `app/` and `lib/`.
+> Several sections below describe the earlier agent/file layout and are retained as historical
+> planning context. For current implementation details, use `CLAUDE.md`, `STUDIO.md`, and the
+> module map in `README.md` as the source of truth.
 
 ## Overview
 Two AI agents in development:

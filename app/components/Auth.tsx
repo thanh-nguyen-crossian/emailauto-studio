@@ -38,7 +38,7 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
 
   return (
     // Dark, branded sign-in — independent of the app's light theme (scoped .auth-* styles).
-    <div className="auth-root min-h-screen flex items-center justify-center px-6">
+    <main id="main-content" className="auth-root min-h-screen flex items-center justify-center px-6">
       <form onSubmit={submit} className="auth-card w-full max-w-sm flex flex-col gap-4 p-7 rounded-2xl">
         <div className="flex flex-col items-center gap-4 mb-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -50,13 +50,13 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
             </p>
           </div>
         </div>
-        <label className="flex flex-col gap-1 text-sm">
+        <label htmlFor="auth-email" className="flex flex-col gap-1 text-sm">
           Email
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="auth-input" autoComplete="email" />
+          <input id="auth-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="auth-input" autoComplete="email" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label htmlFor="auth-password" className="flex flex-col gap-1 text-sm">
           Password
-          <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="auth-input" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
+          <input id="auth-password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="auth-input" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
         </label>
         {error && <div className="text-xs" style={{ color: "#ff7a7a" }}>{error}</div>}
         {notice && <div className="text-xs" style={{ color: "#54d6a0" }}>{notice}</div>}
@@ -81,6 +81,6 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
           .auth-btn:disabled { opacity:.5; cursor:not-allowed; }
         `}</style>
       </form>
-    </div>
+    </main>
   );
 }

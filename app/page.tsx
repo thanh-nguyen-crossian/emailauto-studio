@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { accessToken, type Profile } from "@/lib/profile";
 import { BriefView, briefToMarkdown } from "./components/BriefView";
@@ -354,6 +354,8 @@ export default function Studio() {
   const [userOverride, setUserOverride] = useState<string | null>(null);
   const effectiveSystem = systemOverride ?? systemPromptA;
   const effectiveUser = userOverride ?? userPromptA;
+  const promptOverridesActive = systemOverride !== null || userOverride !== null;
+  const autoSegmentBatching = segments.length > 3 && !promptOverridesActive;
 
   async function generate(feedback?: string) {
     setGenerating(true);
@@ -388,7 +390,7 @@ export default function Studio() {
         data = JSON.parse(raw);
       } catch {
         if (res.status === 504 || /timeout|timed out|FUNCTION_INVOCATION/i.test(raw)) {
-          setApiError("The server timed out while generating. Try a faster model pair (Claude Haiku, Gemini Flash/Lite, or GPT mini/nano), reduce segments/products, then retry.");
+          setApiError("The server timed out while generating. Use automatic batching by resetting edited system/user prompts, or try a faster model pair (Claude Haiku, Gemini Flash/Lite, GPT mini/nano) and fewer products.");
         } else {
           setApiError(`Server returned an unexpected response (HTTP ${res.status}). Please retry.`);
         }
@@ -761,7 +763,8 @@ export default function Studio() {
   }
 
   return (
-    <main className="min-h-screen max-w-[1280px] mx-auto px-4 sm:px-6 py-5 sm:py-7">
+    <main id="main-content" className="min-h-screen max-w-[1280px] mx-auto px-4 sm:px-6 py-5 sm:py-7">
+      <a href="#workflow-nav" className="skip-link">Skip to workflow</a>
       <header className="app-header mb-5 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold">EmailAuto Studio</h1>
@@ -794,7 +797,7 @@ export default function Studio() {
       )}
 
       {/* top view nav */}
-      <nav className="top-nav mb-5" aria-label="Workflow">
+      <nav id="workflow-nav" className="top-nav mb-5" aria-label="Workflow">
         {([
           ["build", "1 · Build brief"],
           ["review", "2 · Review & generate"],
@@ -855,21 +858,21 @@ export default function Studio() {
                   </Field>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <Field label="Send date">
-                      <input type="date" value={sendDate} onChange={(e) => setSendDate(e.target.value)} className="input" />
+                      <input type="date" value={sendDate} aria-label="Send date" onChange={(e) => setSendDate(e.target.value)} className="input" />
                     </Field>
                     <Field label="Recipient name token">
-                      <input value={recipientName} readOnly className="input" />
+                      <input value={recipientName} aria-label="Recipient name token" readOnly className="input" />
                     </Field>
                   </div>
                   <Field label="Campaign theme">
-                    <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="e.g. Spring comfort sale · Thank-you · Back in stock" className="input" />
+                    <input value={theme} aria-label="Campaign theme" onChange={(e) => setTheme(e.target.value)} placeholder="e.g. Spring comfort sale · Thank-you · Back in stock" className="input" />
                   </Field>
                   <Field label="Hook Contract (optional — leave blank to let the model build one)">
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={buildSuggestedHookContract} className="btn-ghost">Auto-build from brief</button>
                       <span className="text-xs text-[var(--muted)]">Uses current brand, segments, hero, offer, urgency, and avoid notes.</span>
                     </div>
-                    <textarea value={hookContract} onChange={(e) => setHookContract(e.target.value)} rows={3} className="input" placeholder="segment insight + emotion + hero product + price/proof + urgency + avoid rule" />
+                    <textarea value={hookContract} aria-label="Hook Contract" onChange={(e) => setHookContract(e.target.value)} rows={3} className="input" placeholder="segment insight + emotion + hero product + price/proof + urgency + avoid rule" />
                   </Field>
                 </div>
               )}
@@ -905,7 +908,7 @@ export default function Studio() {
                             </button>
                           ))}
                         </div>
-                        <input value={offerValue} onChange={(e) => setOfferValue(e.target.value)} placeholder="e.g. 80% O.F.F or 💲12.99" className="input" />
+                        <input value={offerValue} aria-label="Discount or price component" onChange={(e) => setOfferValue(e.target.value)} placeholder="e.g. 80% O.F.F or 💲12.99" className="input" />
                       </>
                     )}
                   </Field>
@@ -927,7 +930,7 @@ export default function Studio() {
                         </button>
                       ))}
                     </div>
-                    <input value={offerShipping} onChange={(e) => setOfferShipping(e.target.value)} placeholder="Custom shipping line, e.g. Free Shipping 💲35+" className="input" />
+                    <input value={offerShipping} aria-label="Free-shipping component" onChange={(e) => setOfferShipping(e.target.value)} placeholder="Custom shipping line, e.g. Free Shipping 💲35+" className="input" />
                     <div className="offer-preview">
                       Combined offer: <strong>{offer}</strong>
                     </div>
@@ -1004,17 +1007,17 @@ export default function Studio() {
                 <div className="flex flex-col gap-3">
                   <p className="text-sm text-[var(--muted)]">Optional — helps the model rotate away from the last send's angle/hero.</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Field label="Last send CTR %"><input value={lastCtr} onChange={(e) => setLastCtr(e.target.value)} placeholder="0.84" className="input" /></Field>
-                    <Field label="Last hero"><input value={lastHero} onChange={(e) => setLastHero(e.target.value)} placeholder="Daisy Bra" className="input" /></Field>
-                    <Field label="Last angle"><input value={lastAngle} onChange={(e) => setLastAngle(e.target.value)} placeholder="Proof" className="input" /></Field>
+                    <Field label="Last send CTR %"><input value={lastCtr} aria-label="Last send CTR percent" onChange={(e) => setLastCtr(e.target.value)} placeholder="0.84" className="input" /></Field>
+                    <Field label="Last hero"><input value={lastHero} aria-label="Last hero product" onChange={(e) => setLastHero(e.target.value)} placeholder="Daisy Bra" className="input" /></Field>
+                    <Field label="Last angle"><input value={lastAngle} aria-label="Last send angle" onChange={(e) => setLastAngle(e.target.value)} placeholder="Proof" className="input" /></Field>
                   </div>
-                  <Field label="Note (e.g. 3rd reviews arc — avoid)"><input value={lastNote} onChange={(e) => setLastNote(e.target.value)} className="input" /></Field>
+                  <Field label="Note (e.g. 3rd reviews arc — avoid)"><input value={lastNote} aria-label="Last-send note" onChange={(e) => setLastNote(e.target.value)} className="input" /></Field>
                 </div>
               )}
 
               {i === 5 && (
                 <Field label="Winning reference email (optional — mirror its structure/pacing, fresh copy)">
-                  <textarea value={winningContent} onChange={(e) => setWinningContent(e.target.value)} rows={5} className="input" placeholder="Paste a high-performing email here…" />
+                  <textarea value={winningContent} aria-label="Winning reference email" onChange={(e) => setWinningContent(e.target.value)} rows={5} className="input" placeholder="Paste a high-performing email here…" />
                 </Field>
               )}
 
@@ -1061,8 +1064,18 @@ export default function Studio() {
           </div>
 
           <p className="text-sm text-[var(--muted)]">
-            One combined prompt produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server now requests A and B in parallel for speed, then re-runs B only if it overlaps A&apos;s angle/framework. These are the exact prompts the server sends.
+            One generation run produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server requests A and B in parallel, batches large segment sets when using default prompts, and only retries B if it overlaps A&apos;s angle/framework.
           </p>
+          {autoSegmentBatching && (
+            <Banner level="warn">
+              Automatic segment batching is on for this run: shared strategy is generated first, then segment copy is split into smaller batches and merged into one A/B brief.
+            </Banner>
+          )}
+          {segments.length > 3 && promptOverridesActive && (
+            <Banner level="warn">
+              Custom system/user prompt edits disable automatic segment batching. Reset those prompt edits before generating if this many segments keeps timing out.
+            </Banner>
+          )}
           {apiError && <Banner level="fail">{apiError}</Banner>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1304,11 +1317,12 @@ function scoreColor(s?: number): string {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
   return (
-    <label className="flex flex-col gap-2">
-      <span className="text-sm font-medium">{label}</span>
+    <div className="flex flex-col gap-2" role="group" aria-labelledby={id}>
+      <span id={id} className="text-sm font-medium">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 
@@ -1690,6 +1704,7 @@ function ModelSelector({
       <div className="text-xs font-semibold text-[var(--muted)] mb-2">{label}</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <select
+          aria-label={`${label} provider`}
           value={provider.id}
           onChange={(e) => {
             const next = providers.find((p) => p.id === e.target.value) || providers[0];
@@ -1702,6 +1717,7 @@ function ModelSelector({
           ))}
         </select>
         <select
+          aria-label={`${label} model`}
           value={model.id}
           onChange={(e) => onChange({ provider: provider.id, model: e.target.value })}
           className="input"
@@ -1727,19 +1743,15 @@ function MiniProductBlock({ lines }: { lines: { text: string; style: "headline" 
     price: "text-[11px] font-bold",
     sub: "text-[9px] text-[var(--muted)]",
   };
-  const bgMap: Record<string, string> = {
-    badge: "background:#fef9c3; color:#78350f; border:1px solid #fde047;",
-    headline: "",
-    usp: "",
-    review: "border-left:2px solid var(--border); padding-left:4px;",
-    price: "",
-    sub: "",
+  const styleMap: Partial<Record<string, React.CSSProperties>> = {
+    badge: { background: "#fef9c3", color: "#78350f", border: "1px solid #fde047" },
+    review: { borderLeft: "2px solid var(--border)", paddingLeft: 4 },
   };
   return (
     <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2 w-full flex flex-col gap-0.5 text-left">
       <div className="h-8 rounded mb-1" style={{ background: "var(--border)" }} />
       {lines.map((l, i) => (
-        <span key={i} className={colorMap[l.style]} style={bgMap[l.style] ? ({ cssText: bgMap[l.style] } as React.CSSProperties) : undefined}>
+        <span key={i} className={colorMap[l.style]} style={styleMap[l.style]}>
           {l.style === "usp" && <span style={{ color: "var(--ok)", fontSize: 9, fontWeight: 800 }}>+</span>}
           {l.text}
         </span>
@@ -2013,7 +2025,7 @@ function ProductSlotCard({
           {index > 0 && <button onClick={onRemove} className="text-xs text-[var(--muted)] hover:text-[var(--bad)]">remove</button>}
         </div>
       </div>
-      <select value={slot.slug} onChange={(e) => onPick(e.target.value)} className="input">
+      <select value={slot.slug} aria-label={`${index === 0 ? "Hero" : `Support ${index + 1}`} product`} onChange={(e) => onPick(e.target.value)} className="input">
         <option value="">— select product —</option>
         {catalog.map((p) => {
           const alreadyUsed = usedSlugs.includes(p.slug) && p.slug !== slot.slug;
@@ -2032,6 +2044,7 @@ function ProductSlotCard({
             <div className="flex flex-col gap-1">
               <input
                 value={slot.url}
+                aria-label={`${cat?.name || "Product"} customer URL`}
                 onChange={(e) => onUrl(e.target.value)}
                 onBlur={(e) => runScrape(e.target.value)}
                 placeholder="https://… (blur to auto-extract USPs)"
@@ -2047,7 +2060,8 @@ function ProductSlotCard({
             <button onClick={() => setShowUrl(true)} className="btn-subtle text-left self-start">Override customer URL</button>
           )}
 
-          <div className="usp-grid">
+          <fieldset className="usp-grid">
+            <legend className="sr-only">USPs for {cat?.name || "selected product"}</legend>
             {pool.map((usp) => (
               <label key={usp} className={`usp-pill ${slot.usps.includes(usp) ? "usp-pill-selected" : ""}`}>
                 <input type="checkbox" checked={slot.usps.includes(usp)} onChange={() => onToggleUsp(usp)} className="sr-only" />
@@ -2055,10 +2069,10 @@ function ProductSlotCard({
                 <span>{usp}</span>
               </label>
             ))}
-          </div>
+          </fieldset>
           <div className="flex flex-col gap-1">
             {customUsps.map(({ u, j }) => (
-              <input key={`c${j}`} value={u} onChange={(e) => onSetCustomUsp(j, e.target.value)} placeholder="Custom USP" className="input text-xs" />
+              <input key={`c${j}`} value={u} aria-label={`Custom USP ${j + 1}`} onChange={(e) => onSetCustomUsp(j, e.target.value)} placeholder="Custom USP" className="input text-xs" />
             ))}
             <button onClick={onAddCustomUsp} className="btn-subtle text-left self-start">+ Add custom USP</button>
           </div>
@@ -2108,6 +2122,7 @@ function Styles() {
       .product-slot-card { border:1px solid var(--border-strong); border-radius:8px; background:var(--surface); padding:12px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-tiny); }
       .product-slot-hero { border-color:var(--accent); box-shadow:0 0 0 1px rgba(35,102,90,.12), var(--shadow-tiny); }
       .usp-grid { display:flex; flex-wrap:wrap; gap:6px; }
+      fieldset.usp-grid { border:0; margin:0; padding:0; min-inline-size:0; }
       .usp-pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:6px 9px; background:var(--surface); color:var(--muted); font-size:12px; cursor:pointer; max-width:100%; }
       .usp-pill-selected { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
       .usp-dot { width:7px; height:7px; border-radius:999px; border:1px solid currentColor; flex-shrink:0; }
@@ -2133,6 +2148,8 @@ function Styles() {
       .status-pill { display:inline-flex; align-items:center; border-radius:999px; border:1px solid currentColor; padding:3px 8px; font-size:11px; font-weight:700; }
       .fmt-btn { background:var(--surface-2); color:var(--muted); border:1px solid var(--border); border-radius:5px; padding:2px 7px; font-size:11px; font-weight:700; cursor:pointer; line-height:1.4; }
       .fmt-btn:hover { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+      .skip-link { position:absolute; left:16px; top:8px; z-index:60; transform:translateY(-140%); background:var(--accent); color:#fff; border-radius:7px; padding:8px 12px; font-size:13px; font-weight:700; }
+      .skip-link:focus { transform:translateY(0); outline:3px solid var(--ring); outline-offset:2px; }
       @media (max-width: 720px) {
         .app-header { padding:14px; }
         .header-actions { justify-content:flex-start; }

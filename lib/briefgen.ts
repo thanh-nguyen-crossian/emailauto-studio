@@ -720,7 +720,16 @@ function similarity(a: string, b: string): number {
   return shared / Math.max(l.size, r.size);
 }
 function significantWords(s: string): string[] {
-  return norm(s).split(" ").filter((w) => w.length >= 4 && !THEME_STOPWORDS.has(w));
+  return norm(String(s || "").replace(/([a-z])([A-Z])/g, "$1 $2")).split(" ").filter((w) => w.length >= 4 && !THEME_STOPWORDS.has(w));
+}
+function containsSignificantReference(text: string, reference?: string): boolean {
+  if (!reference) return true;
+  const target = norm(text);
+  const compactTarget = target.replace(/\s+/g, "");
+  const words = significantWords(reference);
+  const compactReference = norm(reference).replace(/\s+/g, "");
+  const checks = compactReference.length >= 4 ? [...words, compactReference] : words;
+  return !checks.length || checks.some((w) => target.includes(w) || compactTarget.includes(w));
 }
 function sharesContentThread(subjectish: string, bodyish: string, products: Product[], campaign: Campaign): boolean {
   const left = norm(subjectish);
@@ -1025,8 +1034,13 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   });
 
   const banner = brief.banner || ({} as GenBanner);
-  const bannerMain = [banner.main_text_1, banner.main_text_2, banner.main_text].filter(Boolean).join("\n");
-  const bannerSub = [banner.sub_text_1, banner.sub_text_2, banner.sub_text].filter(Boolean).join("\n");
+  const bannerMain = [banner.main_text_1, banner.main_text_2, banner.main_text_3, banner.main_text].filter(Boolean).join("\n");
+  const bannerSub = [banner.sub_text_1, banner.sub_text_2, banner.sub_text_3, banner.sub_text].filter(Boolean).join("\n");
+  const heroProductName = products[0]?.name || hc.hero_product;
+  const bannerSurface = [bannerMain, bannerSub, banner.main_image, banner.sub_image, banner.image_guidance].filter(Boolean).join("\n");
+  if (heroProductName && !containsSignificantReference(bannerSurface, heroProductName)) {
+    addFlag(brief, "warn", "Hero banner should visibly reference the hook/hero product");
+  }
   (bannerMain || "").split(/\n|<br\s*\/?>/i).forEach((line) => {
     if (wordCount(line) > 8) addFlag(brief, "warn", `Banner line over 8 words: "${line.trim()}"`);
   });
@@ -1089,6 +1103,9 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (text && !hasOfferSignal(text, campaign)) {
       addFlag(brief, "warn", `${seg} body needs visible price/offer or shipping threshold`);
     }
+    if (text && heroProductName && !containsSignificantReference(firstTwoParas, heroProductName)) {
+      addFlag(brief, "warn", `${seg} body opener should name or clearly reference the hero product`);
+    }
     const isContinuous = campaign.bodyLayout !== "interspersed" && campaign.bodyLayout !== "custom";
     if (isContinuous && text && paras.length < 3) addFlag(brief, "warn", `${seg} body below 3-paragraph win-template rhythm`);
     if (isContinuous && text && paras.length > 6) addFlag(brief, "warn", `${seg} body above 5-paragraph win-template rhythm`);
@@ -1100,6 +1117,12 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (subjectish && bodyish && !sharesContentThread(subjectish, bodyish, products, campaign)) {
       addFlag(brief, "warn", `${seg} subject, hero, and body need a clearer shared thread`);
     }
+    (sl[seg]?.options || []).forEach((option, i) => {
+      const optionThread = `${option.subject || ""} ${option.preheader || ""} ${option.shared_thread || ""}`;
+      if (optionThread.trim() && bodyish && !sharesContentThread(optionThread, bodyish, products, campaign)) {
+        addFlag(brief, "warn", `${seg} subject option ${i + 1} needs a clearer shared thread with hero/body`);
+      }
+    });
   });
   const segmentBodies = Object.entries(body).filter(([key, text]) => key !== "base" && wordCount(String(text || "")) >= 80);
   for (let i = 0; i < segmentBodies.length; i++) {
@@ -1119,15 +1142,18 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const prods = brief.products || [];
   if (campaign.brandId !== "santa_fare" && prods.length > 6) addFlag(brief, "warn", "7+ product blocks (overcrowding risk)");
   if (campaign.brandId === "santa_fare" && prods.length > 4) addFlag(brief, "warn", "SantaFare should default to 4 products unless the brief gives a clear exception");
-  if (campaign.brandId !== "santa_fare" && prods.length > 0 && prods.length < 4) {
+  if (campaign.brandId !== "santa_fare" && products.length >= 4 && prods.length > 0 && prods.length < 4) {
     addFlag(brief, "warn", "Product grid below 4 products; playbook default is 4-6 for BG/GL/LF");
   }
-  if (prods.length > 1 && prods.length % 2 === 1) {
+  if (products.length % 2 === 0 && prods.length > 1 && prods.length % 2 === 1) {
     addFlag(brief, "warn", "Odd product count creates an orphan final row; playbook prefers even 2-up rows");
   }
   const offerNumbers = promoLine(campaign).match(/\d+(?:\.\d+)?/g) || [];
   prods.forEach((p, i) => {
     const sourceReview = products[i]?.review;
+    if (i === 0 && products[0]?.name && p.name && !containsSignificantReference(p.name, products[0].name)) {
+      addFlag(brief, "warn", "First product block should remain the selected hero product");
+    }
     if (wordCount(p.main_text) > 5) addFlag(brief, "warn", `Product ${i + 1} main text over 5 words`);
     if ((campaign.productCopyStyle || "headline_winner") === "headline_winner" && wordCount(p.main_text) > 4) {
       addFlag(brief, "warn", `Product ${i + 1} headline-winner main text should be <=4 words`);
