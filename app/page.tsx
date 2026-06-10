@@ -345,8 +345,12 @@ export default function Studio() {
     segments.length > 0 && selectedProducts.length >= 1 && selectedProducts.length <= maxProducts;
 
   // ---- prompt previews (for the Review step; what the server rebuilds and sends) ----
-  const systemPromptA = useMemo(() => buildSystemPrompt(campaign, selectedProducts, false), [campaign, selectedProducts]);
-  const userPromptA = useMemo(() => buildUserPrompt(campaign, false), [campaign]);
+  // The server attaches the (deterministic) variety profile before building the user prompt, so the
+  // preview must include it too — otherwise the Creative Variety / Segment Body / Tone layers the
+  // server actually sends are invisible here ("what-you-see-is-what's-sent" would be a lie).
+  const campaignForPrompt = useMemo(() => ({ ...campaign, bodyVariety: varietyProfile }), [campaign, varietyProfile]);
+  const systemPromptA = useMemo(() => buildSystemPrompt(campaignForPrompt, selectedProducts, false), [campaignForPrompt, selectedProducts]);
+  const userPromptA = useMemo(() => buildUserPrompt(campaignForPrompt, false), [campaignForPrompt]);
   const perfContextDefault = useMemo(() => intelligencePromptBlock(brandId), [brandId]);
   const effectivePerfContext = customPerfContext ?? perfContextDefault;
   // Optional user edits to the prompts (null = use the generated default; what-you-see-is-what's-sent).
@@ -1698,7 +1702,10 @@ function ModelSelector({
   providers: AIProviderOption[];
 }) {
   const provider = providers.find((p) => p.id === value.provider) || providers[0];
-  const model = provider.models.find((m) => m.id === value.model) || provider.models[0];
+  const selectedModelId = value.provider === provider.id && value.model ? value.model : provider.models[0].id;
+  const listedModel = provider.models.find((m) => m.id === selectedModelId);
+  const model = listedModel || { id: selectedModelId, label: `Current: ${selectedModelId}`, note: "Saved/newer model ID" };
+  const modelOptions = listedModel ? provider.models : [model, ...provider.models];
   return (
     <div className="section-panel p-3">
       <div className="text-xs font-semibold text-[var(--muted)] mb-2">{label}</div>
@@ -1722,7 +1729,7 @@ function ModelSelector({
           onChange={(e) => onChange({ provider: provider.id, model: e.target.value })}
           className="input"
         >
-          {provider.models.map((m) => (
+          {modelOptions.map((m) => (
             <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
