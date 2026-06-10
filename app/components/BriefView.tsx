@@ -144,8 +144,11 @@ export function BriefView({
       <Card title="Creative direction" defaultOpen={false}>
         {editable ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+            <EditField label="Branch" value={cd.branch} onChange={(v) => patchDirection({ branch: v })} />
+            <EditField label="Brief route" value={cd.brief_route} onChange={(v) => patchDirection({ brief_route: v })} />
             <EditField label="Angle" value={cd.angle} onChange={(v) => patchDirection({ angle: v })} />
             <EditField label="Framework" value={cd.framework} onChange={(v) => patchDirection({ framework: v })} />
+            <EditArea label="Source pattern" value={cd.source_pattern} onChange={(v) => patchDirection({ source_pattern: v })} />
             <EditArea label="Flow" value={cd.flow} onChange={(v) => patchDirection({ flow: v })} />
             <EditArea label="Differentiator" value={cd.differentiator} onChange={(v) => patchDirection({ differentiator: v })} />
             {brief.body_variety && (
@@ -160,9 +163,12 @@ export function BriefView({
         ) : (
           <>
             <div className="flex flex-wrap gap-2 mb-2">
+              <Tag label={`Branch: ${cd.branch || "—"}`} />
+              <Tag label={`Route: ${cd.brief_route || "—"}`} />
               <Tag label={`Angle: ${cd.angle || "—"}`} />
               <Tag label={`Framework: ${cd.framework || "—"}`} />
             </div>
+            <Row k="Source pattern" v={cd.source_pattern} />
             <Row k="Flow" v={cd.flow} />
             <Row k="Differentiator" v={cd.differentiator} />
             {brief.body_variety && (
@@ -653,6 +659,9 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
     `# Designer Brief — ${title}`,
     ``,
     `## Creative Direction`,
+    `- Branch: ${cd.branch || ""}`,
+    `- Brief route: ${cd.brief_route || ""}`,
+    `- Source pattern: ${cd.source_pattern || ""}`,
     `- Angle: ${cd.angle || ""}`,
     `- Framework: ${cd.framework || ""}`,
     `- Flow: ${cd.flow || ""}`,

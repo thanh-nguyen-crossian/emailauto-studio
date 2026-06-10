@@ -27,6 +27,8 @@ import {
 import {
   buildSystemPrompt,
   buildUserPrompt,
+  flagTier,
+  flagTierCounts,
   segJsonKey,
   selectVarietyProfile,
   type GenBrief,
@@ -564,8 +566,12 @@ export default function Studio() {
   function useQaFlagsAsFeedback() {
     const flags = activeBrief?._flags || [];
     if (!flags.length) return;
-    const lines = flags.map((f) => `- ${f.type.toUpperCase()}: ${f.msg}`).join("\n");
-    setRevisionFeedback((prev) => [prev.trim(), "Fix these QA/playbook issues:", lines].filter(Boolean).join("\n\n"));
+    const priority = (f: NonNullable<GenBrief["_flags"]>[number]) =>
+      f.type === "error" ? 0 : flagTier(f.msg) === "serious" ? 1 : flagTier(f.msg) === "structural" ? 2 : 3;
+    const ordered = [...flags].sort((a, b) => priority(a) - priority(b)).slice(0, 12);
+    const lines = ordered.map((f) => `- ${f.type === "error" ? "ERROR" : flagTier(f.msg).toUpperCase()}: ${f.msg}`).join("\n");
+    const suffix = flags.length > ordered.length ? `\n- Also preserve existing polish checks where possible (${flags.length - ordered.length} lower-priority notes omitted).` : "";
+    setRevisionFeedback((prev) => [prev.trim(), "Fix these QA/playbook issues first:", lines + suffix].filter(Boolean).join("\n\n"));
   }
 
   const activeBrief = options[activeOption];
@@ -598,6 +604,17 @@ export default function Studio() {
     const key = segJsonKey(seg);
     return !b.subject_lines?.[key]?.subject?.trim() || !b.body?.[key]?.trim();
   }
+  const incompleteOutputLabels = useMemo(() => {
+    const labels: string[] = [];
+    (["a", "b"] as OptKey[]).forEach((opt) => {
+      if (!options[opt]) return;
+      segments.forEach((seg) => {
+        if (segmentIncomplete(opt, seg)) labels.push(`${opt.toUpperCase()} ${seg}`);
+      });
+    });
+    return labels;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options, segments]);
   function useSubjectOption(subject: string, preheader: string, style?: string, modelHint?: string, sharedThread?: string) {
     if (!activeBrief || !activeSegment) return;
     const key = segJsonKey(activeSegment);
@@ -641,6 +658,7 @@ export default function Studio() {
 
   async function exportExcel() {
     if (!options.a && !options.b) return;
+    if (incompleteOutputLabels.length && !window.confirm(`Export with incomplete segment copy? Missing: ${incompleteOutputLabels.slice(0, 8).join(", ")}${incompleteOutputLabels.length > 8 ? "…" : ""}`)) return;
     const { exportBriefsToExcel } = await import("@/lib/exportExcel");
     await exportBriefsToExcel(options, brand.name, dateToken(sendDate));
   }
@@ -800,6 +818,7 @@ export default function Studio() {
   }
 
   async function downloadAll() {
+    if (incompleteOutputLabels.length && !window.confirm(`Download with incomplete segment copy? Missing: ${incompleteOutputLabels.slice(0, 8).join(", ")}${incompleteOutputLabels.length > 8 ? "…" : ""}`)) return;
     const { default: JSZip } = await import("jszip");
     const zip = new JSZip();
     (["a", "b"] as OptKey[]).forEach((opt) => {
@@ -1220,7 +1239,7 @@ export default function Studio() {
           </div>
 
           <p className="text-sm text-[var(--muted)]">
-            One generation run produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server requests A and B in parallel, batches large segment sets when using default prompts, and only retries B if it overlaps A&apos;s angle/framework.
+            One generation run produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server requests A and B in parallel, batches large segment sets when using default prompts, and retries B if route/body/banner/product-copy contrast collapses.
           </p>
           {autoSegmentBatching && (
             <Banner level="warn">
@@ -1312,9 +1331,16 @@ export default function Studio() {
               </div>
 
               {genWarning && <Banner level="warn">{genWarning}</Banner>}
+              {incompleteOutputLabels.length > 0 && (
+                <Banner level="fail">
+                  Incomplete generated coverage: {incompleteOutputLabels.slice(0, 8).join(", ")}
+                  {incompleteOutputLabels.length > 8 ? `, +${incompleteOutputLabels.length - 8} more` : ""}. Export and SendGrid sync will ask for confirmation or stay blocked on affected segments.
+                </Banner>
+              )}
               {generating && <GenerationProgress elapsedSec={elapsedSec} onCancel={cancelGenerate} />}
 
               {activeBrief && <FormatCoverage brief={activeBrief} />}
+              {options.a && options.b && <ABContrastPanel a={options.a} b={options.b} />}
 
               <div className="section-panel">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -1480,6 +1506,7 @@ export default function Studio() {
                       const sync = syncResults[key];
                       const tpl = tplResults[key];
                       const html = htmlFor(opt, seg);
+                      const incomplete = segmentIncomplete(opt, seg);
                       return (
                         <div key={key} className="flex flex-col gap-2 p-3 rounded-lg border border-[var(--border)]">
                           <div className="flex items-center justify-between gap-2">
@@ -1487,10 +1514,11 @@ export default function Studio() {
                             <div className="flex gap-2">
                               <CopyButton text={html} />
                               <button onClick={() => download(`${templateName(opt, seg)}.html`, html)} className="btn-ghost">.html</button>
-                              <button disabled={syncingKey === key} onClick={() => syncDesign(opt, seg)} className="btn-ghost">{syncingKey === key ? "…" : "Design"}</button>
-                              <button disabled={tplKey === key} onClick={() => syncTemplate(opt, seg)} className="btn-ghost">{tplKey === key ? "Cleaning…" : "Template"}</button>
+                              <button disabled={syncingKey === key || incomplete} onClick={() => syncDesign(opt, seg)} className="btn-ghost" title={incomplete ? "Complete this segment before pushing to SendGrid Design" : undefined}>{syncingKey === key ? "…" : "Design"}</button>
+                              <button disabled={tplKey === key || incomplete} onClick={() => syncTemplate(opt, seg)} className="btn-ghost" title={incomplete ? "Complete this segment before creating a SendGrid template" : undefined}>{tplKey === key ? "Cleaning…" : "Template"}</button>
                             </div>
                           </div>
+                          {incomplete && <div className="text-xs text-[var(--bad)]">Blocked for SendGrid: missing generated subject/body for this segment.</div>}
                           {sync?.id && <div className="text-xs text-[var(--ok)]">Design {sync.id} — <a href={sync.editorUrl} target="_blank" rel="noreferrer" className="underline">open</a></div>}
                           {sync?.error && <div className="text-xs text-[var(--bad)]">Error: {sync.error}</div>}
                           {tpl?.templateId && (
@@ -1778,6 +1806,90 @@ function FormatCoverage({ brief }: { brief: GenBrief }) {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
+  const aCd = a.creative_direction || {};
+  const bCd = b.creative_direction || {};
+  const aCounts = flagTierCounts(a._flags);
+  const bCounts = flagTierCounts(b._flags);
+  const sameRoute = routeText(aCd) && routeText(aCd) === routeText(bCd);
+  const sameAngle = aCd.angle && aCd.angle === bCd.angle;
+  const sameFramework = aCd.framework && aCd.framework === bCd.framework;
+  const risk = sameRoute || sameAngle || sameFramework;
+  return (
+    <div className="section-panel p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div>
+          <h3 className="text-sm font-semibold">A/B contrast snapshot</h3>
+          <p className="text-xs text-[var(--muted)]">Checks whether the test is a real challenger, not a synonym swap.</p>
+        </div>
+        <span className="status-pill" style={{ color: risk ? "var(--warn)" : "var(--ok)" }}>
+          {risk ? "Review contrast" : "Distinct routes"}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <ContrastCard
+          label="Option A"
+          route={routeText(aCd) || "No route"}
+          angle={aCd.angle || "No angle"}
+          framework={aCd.framework || "No framework"}
+          model={[a._provider, a._model].filter(Boolean).join(" · ") || "AI"}
+          score={a._score}
+          issues={`${aCounts.errors} err · ${aCounts.serious} serious · ${aCounts.structural} structural`}
+        />
+        <ContrastCard
+          label="Option B"
+          route={routeText(bCd) || "No route"}
+          angle={bCd.angle || "No angle"}
+          framework={bCd.framework || "No framework"}
+          model={[b._provider, b._model].filter(Boolean).join(" · ") || "AI"}
+          score={b._score}
+          issues={`${bCounts.errors} err · ${bCounts.serious} serious · ${bCounts.structural} structural`}
+        />
+      </div>
+      {risk && (
+        <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
+          Same-field risk: {[sameRoute && "route", sameAngle && "angle", sameFramework && "framework"].filter(Boolean).join(", ")}. Add this to feedback if the options feel too close.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function routeText(cd: GenBrief["creative_direction"] | Record<string, unknown>): string {
+  return [cd.branch, cd.brief_route].filter(Boolean).join(" · ");
+}
+
+function ContrastCard({
+  label,
+  route,
+  angle,
+  framework,
+  model,
+  score,
+  issues,
+}: {
+  label: string;
+  route: string;
+  angle: string;
+  framework: string;
+  model: string;
+  score?: number;
+  issues: string;
+}) {
+  return (
+    <div className="summary-tile">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold">{label}</div>
+        <div className="text-xs font-bold" style={{ color: scoreColor(score) }}>{typeof score === "number" ? `${score}/100` : "—"}</div>
+      </div>
+      <div className="text-sm font-semibold mt-1 truncate" title={route}>{route}</div>
+      <div className="text-xs text-[var(--muted)] mt-1">{angle} · {framework}</div>
+      <div className="text-[11px] mono text-[var(--muted)] mt-1 truncate" title={model}>{model}</div>
+      <div className="text-[11px] text-[var(--muted)] mt-1">{issues}</div>
     </div>
   );
 }

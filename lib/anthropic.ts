@@ -232,6 +232,19 @@ function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Generation failed";
 }
 
+function bestFailureMessage(reasons: unknown[]): string {
+  const messages = reasons.map(errMessage).filter(Boolean);
+  return messages.sort((a, b) => failurePriority(b) - failurePriority(a))[0] || "Generation failed";
+}
+
+function failurePriority(message: string): number {
+  if (/not configured|API_KEY|not set/i.test(message)) return 5;
+  if (/timed out|timeout/i.test(message)) return 4;
+  if (/token limit|max_output|max tokens|MAX_TOKENS/i.test(message)) return 3;
+  if (/parse|JSON|No JSON/i.test(message)) return 2;
+  return 1;
+}
+
 /** Optional user-edited prompts from the review step (what-you-see-is-what's-sent). */
 export interface PromptOverrides {
   system?: string;
@@ -527,7 +540,7 @@ async function generateOptionsSingle(
     ]);
     if (aSettled.status === "rejected" && bSettled.status === "rejected") {
       // Surface the more informative of the two errors (truncation/timeout beats a generic parse note).
-      return { error: errMessage(aSettled.reason) };
+      return { error: bestFailureMessage([aSettled.reason, bSettled.reason]) };
     }
 
     let a = aSettled.status === "fulfilled" ? validateBrief(aSettled.value as unknown as GenBrief, campaign, products) : undefined;
@@ -596,7 +609,7 @@ async function generateOptionsBatched(
       revision,
       { index: 1, total, allSegments: campaign.segments }
     );
-    if (first.error || !first.a || !first.b) return first.error ? first : { error: "First segment batch did not return both A/B options" };
+    if (first.error && !first.a && !first.b) return first;
 
     const remainingChunks = chunks.slice(1);
     const remaining = await mapWithConcurrency(
@@ -619,17 +632,36 @@ async function generateOptionsBatched(
         )
     );
 
-    const failed = remaining.find((result) => result.error || !result.a || !result.b);
-    if (failed) return failed.error ? failed : { error: "A segment batch did not return both A/B options" };
+    const batchResults = [first, ...remaining];
+    const warnings: string[] = [];
+    batchResults.forEach((result, index) => {
+      const label = `batch ${index + 1}/${total}`;
+      if (result.error) warnings.push(`${label}: ${result.error}`);
+      if (result.warning) warnings.push(`${label}: ${result.warning}`);
+      if (!result.a) warnings.push(`${label}: missing Option A`);
+      if (!result.b) warnings.push(`${label}: missing Option B`);
+    });
 
-    const aBatches = [first.a, ...remaining.map((result) => result.a as GenBrief)];
-    const bBatches = [first.b, ...remaining.map((result) => result.b as GenBrief)];
-    const a = mergeOptionBatches(campaign, products, aBatches, first.a._provider, first.a._model);
-    const b = mergeOptionBatches(campaign, products, bBatches, first.b._provider, first.b._model);
-    const [validatedA, validatedB] = validateBriefPair(a, b);
+    const aBatches = batchResults.map((result) => result.a).filter((brief): brief is GenBrief => !!brief);
+    const bBatches = batchResults.map((result) => result.b).filter((brief): brief is GenBrief => !!brief);
+    if (!aBatches.length && !bBatches.length) {
+      return { error: warnings[0] || "No segment batch returned usable output" };
+    }
+
+    let a = aBatches.length
+      ? mergeOptionBatches(campaign, products, aBatches, aBatches[0]._provider, aBatches[0]._model)
+      : undefined;
+    let b = bBatches.length
+      ? mergeOptionBatches(campaign, products, bBatches, bBatches[0]._provider, bBatches[0]._model)
+      : undefined;
+    if (a && b) [a, b] = validateBriefPair(a, b);
+
+    const warning = warnings.length
+      ? `Some segment batches were incomplete: ${warnings.slice(0, 6).join(" · ")}${warnings.length > 6 ? ` · +${warnings.length - 6} more` : ""}. Generated all usable copy; missing segments are flagged in Output.`
+      : undefined;
 
     console.info(`[generate-copy] completed batched A/B in ${Math.round((Date.now() - startedAt) / 1000)}s across ${total} batches`);
-    return { a: validatedA, b: validatedB };
+    return { a, b, warning };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Batched generation failed" };
   }

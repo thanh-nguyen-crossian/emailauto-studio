@@ -208,6 +208,11 @@ const BRAND_PERSONA_NAMES: Record<string, string> = {
 };
 const OPTOUT_RISK = ["for older women", "hide your", "fix your body", "anti aging", "look younger", "flaws"];
 const UNSUPPLIED_PROOF = ["clinically proven", "doctor recommended", "medically proven", "guaranteed results", "thousands of customers", "rated #1", "scientifically proven"];
+const UNSUPPLIED_PROOF_PATTERNS: { label: string; pattern: RegExp }[] = [
+  { label: "unsupplied 5-star count", pattern: /\b(?:over\s+)?\d{2,}[\w+ -]*(?:5[- ]?star|five[- ]?star|ratings?|reviews?)\b/i },
+  { label: "unsupplied audience count", pattern: /\b(?:loved by|trusted by|chosen by|worn by)\s+(?:over\s+)?\d{2,}[\w+ -]*(?:women|men|customers|shoppers|buyers)\b/i },
+  { label: "unsupplied sold/customer scale", pattern: /\b\d{3,}\+?\s+(?:sold|customers|shoppers|buyers|reviews|ratings)\b/i },
+];
 const WEAK_CTA = ["click here", "learn more", "shop now", "discover more", "see more"];
 const HOOK_STACK = ["birthday", "anniversary", "spring", "summer", "mother", "review", "thank", "countdown", "last chance", "ending", "comfort", "sale", "gift", "free shipping"];
 const BULLET_OPENER = /^\s*(?:[•*-]|✅|✓|✔|\d+\.)\s+/;
@@ -216,6 +221,7 @@ const MARKDOWN_ANY_LINK = /\[[^\]]+\]\((?:slug:[a-z0-9_-]+|home)\)/i;
 const ACCENT_MARKER = /==[^=]+==/g;
 const BOLD_MARKER = /\*\*[^*]+\*\*/g;
 const THEME_STOPWORDS = new Set(["sale", "email", "campaign", "offer", "promo", "spring", "summer", "winter", "fall", "thank", "thanks"]);
+const HARD_SELL_COMMANDS = new Set(["act now", "hurry", "claim now", "grab now", "rush"]);
 
 // ---- body variety system ----
 function hashSeed(s: string): number {
@@ -1106,10 +1112,10 @@ function addFlag(b: GenBrief, type: Flag["type"], msg: string) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|first product block should|missing required field|missing subject\/preheader/i;
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|first product block should|missing required field|missing subject\/preheader/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
-  /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should/i;
+  /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should/i;
 
 export function flagTier(msg: string): FlagTier {
   if (SERIOUS_FLAG.test(msg)) return "serious";
@@ -1218,6 +1224,9 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   WEAK_COPY.forEach((w) => full.includes(w) && addFlag(brief, "warn", `Weak/generic copy: "${w}"`));
   OPTOUT_RISK.forEach((w) => full.includes(w) && addFlag(brief, "warn", `Opt-out risk wording: "${w}"`));
   UNSUPPLIED_PROOF.forEach((w) => full.includes(w) && addFlag(brief, "warn", `Possibly invented proof: "${w}"`));
+  UNSUPPLIED_PROOF_PATTERNS.forEach(({ label, pattern }) => {
+    if (pattern.test(full)) addFlag(brief, "warn", `Possibly invented proof: ${label}`);
+  });
   const intel = getBrandIntelligence(campaign.brandId);
   intel?.avoid.forEach((pat) => {
     const scan = pat.replace(/^hyperbole like\s+/i, "").toLowerCase();
@@ -1227,6 +1236,9 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const cd = brief.creative_direction || ({} as GenCreativeDirection);
   if (cd.angle && !PLAYBOOK_ANGLES.includes(cd.angle)) addFlag(brief, "warn", "Non-playbook angle: " + cd.angle);
   if (cd.framework && !PLAYBOOK_FRAMEWORKS.includes(cd.framework)) addFlag(brief, "warn", "Non-playbook framework: " + cd.framework);
+  if (!cd.branch) addFlag(brief, "warn", "Creative direction missing production branch");
+  if (!cd.brief_route) addFlag(brief, "warn", "Creative direction missing brief route");
+  if (!cd.source_pattern) addFlag(brief, "warn", "Creative direction missing source pattern");
   const hc = cd.hook_contract || ({} as GenHookContract);
   (["segment_insight", "emotion", "hero_product", "proof_or_price", "urgency", "avoid_rule"] as const).forEach((f) => {
     if (!hc[f]) addFlag(brief, "warn", "Hook contract missing: " + f);
@@ -1308,7 +1320,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       addFlag(brief, "warn", `${seg} body needs visible price/offer or shipping threshold`);
     }
     const hardSell = hardSellHits(String(text || ""));
-    if (hardSell.length > 1) {
+    const hardCommand = hardSell.find((label) => HARD_SELL_COMMANDS.has(label));
+    if (hardCommand) {
+      addFlag(brief, "warn", `${seg} body uses a hard-sell command (${hardCommand}); keep the body personal-note first and move action pressure to CTA/offer context`);
+    } else if (hardSell.length > 1) {
       addFlag(brief, "warn", `${seg} body sounds too salesy (${[...new Set(hardSell)].slice(0, 3).join(", ")}); make the offer a helpful detail, not a command stack`);
     }
     if (text && heroProductName && !containsSignificantReference(firstTwoParas, heroProductName)) {

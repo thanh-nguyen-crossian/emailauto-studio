@@ -1,7 +1,7 @@
 "use client";
 
 import type { Flag } from "@/lib/briefgen";
-import { flagTierCounts } from "@/lib/briefgen";
+import { flagTier, flagTierCounts } from "@/lib/briefgen";
 import type { BodyVarietyProfile } from "@/lib/config/types";
 
 const CATEGORIES = [
@@ -162,7 +162,7 @@ export function PreflightPanel({ flags, score, variety }: { flags?: Flag[]; scor
                           color: f.type === "error" ? "var(--bad)" : "var(--warn)",
                         }}
                       >
-                        {f.type === "error" ? "Error" : "Warn"}
+                        {f.type === "error" ? "Error" : flagTier(f.msg)}
                       </span>
                       <span
                         className="text-xs leading-relaxed"

@@ -79,9 +79,14 @@ export function normalizeModelSelection(
   selection: Partial<AIModelSelection> | undefined,
   fallback: AIModelSelection
 ): AIModelSelection {
-  const provider = AI_PROVIDERS.find((p) => p.id === selection?.provider) || AI_PROVIDERS.find((p) => p.id === fallback.provider) || AI_PROVIDERS[0];
-  const requestedModel = selection?.model || fallback.model;
-  const model = provider.models.find((m) => m.id === requestedModel)?.id || provider.models[0].id;
+  const requestedProvider = AI_PROVIDERS.find((p) => p.id === selection?.provider);
+  const provider = requestedProvider || AI_PROVIDERS.find((p) => p.id === fallback.provider) || AI_PROVIDERS[0];
+  const selectedModel = typeof selection?.model === "string" ? selection.model.trim() : "";
+  const fallbackModel = provider.id === fallback.provider ? fallback.model.trim() : "";
+  // Preserve the exact model chosen by the user for a valid provider, including newly
+  // released aliases that are not in this UI list yet. Silent first-model fallback
+  // makes audits impossible and can route content to the wrong model.
+  const model = requestedProvider && selectedModel ? selectedModel : fallbackModel || provider.models[0].id;
   return { provider: provider.id, model };
 }
 

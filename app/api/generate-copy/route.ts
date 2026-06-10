@@ -12,7 +12,7 @@ const MAX_TEXT = 1200;
 const MAX_LONG_TEXT = 9000;
 
 export const runtime = "nodejs";
-// A/B generations run in parallel, then B only retries if its angle/framework overlaps A.
+// A/B generations run in parallel; B retries only when contrast collapses across route/copy shape.
 // Keep a generous route ceiling for high-segment briefs and slower frontier models.
 export const maxDuration = 300;
 
