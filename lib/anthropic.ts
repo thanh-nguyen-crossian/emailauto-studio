@@ -6,6 +6,7 @@ import {
   buildSystemPrompt,
   buildUserPrompt,
   contrastInstruction,
+  isHighImpactFlag,
   validateBrief,
   validateBriefPair,
   type GenBrief,
@@ -419,31 +420,29 @@ function qualityRepairEnabled(): boolean {
   return !/^(0|false|off|no)$/i.test(process.env.AI_QUALITY_REPAIR || "");
 }
 
-function isRepairablePlaybookFlag(message: string): boolean {
-  return /missing|required|subject|preheader|shared thread|spam|weak|generic|opt-out|invented|proof|brand avoid|hook contract|banner|cta|body|opener|persona|formatting|hyperlink|offer|price|theme|similar|p\.s\.|product|review|image brief|quality check|a\/b|brief route|production branch|route/i.test(message);
-}
-
-function isHighImpactPlaybookFlag(message: string): boolean {
-  return /missing required field|missing subject\/preheader|subject over hard cap|repeats \{\{first_name\}\}|subject and preheader too similar|needs 3\+ subject|spam word|weak\/generic|opt-out risk|invented proof|brand avoid|hook contract missing|hero banner should|structured hero banner missing|weak banner cta|body opens|body sounds too salesy|same body structure|missing persona|formatting beats|renderer-safe hyperlink|body over 150|body too short|missing product-name markdown link|visible price\/offer|hero, and body need|body opener should|body variants are too similar|missing p\.s\.|p\.s\. should|product .*main text|product .*usp|product .*weak cta|product .*cta should|review looks invented|image brief missing|quality check missing|a\/b|brief routes|production branch|creative direction text|product block copy is too similar|banner copy\/layout direction is too similar/i.test(message);
-}
-
 function repairFlagsFor(brief: GenBrief): string[] {
-  const flags = brief._flags || [];
-  const repairable = flags
-    .map((flag) => flag.msg)
-    .filter(isRepairablePlaybookFlag);
-  const highImpact = repairable.filter(isHighImpactPlaybookFlag);
+  // Severity is classified by briefgen's flagTier — the single source of truth co-located with the
+  // flag wording — so this gating can no longer silently desync from validateBrief's messages.
+  const warnMsgs = (brief._flags || []).filter((f) => f.type === "warn").map((f) => f.msg);
+  const highImpact = warnMsgs.filter(isHighImpactFlag);
   const lowScore = typeof brief._score === "number" && brief._score < QUALITY_REPAIR_THRESHOLD;
-  if (!highImpact.length && (!lowScore || repairable.length < 3)) return [];
-  return (highImpact.length ? highImpact : repairable).slice(0, QUALITY_REPAIR_MAX_FLAGS);
+  if (!highImpact.length && (!lowScore || warnMsgs.length < 3)) return [];
+  return (highImpact.length ? highImpact : warnMsgs).slice(0, QUALITY_REPAIR_MAX_FLAGS);
 }
 
+function countHighImpact(brief: GenBrief): number {
+  return (brief._flags || []).filter((f) => f.type === "warn" && isHighImpactFlag(f.msg)).length;
+}
+
+// Lexicographic: prefer fewer errors, then fewer serious/structural warnings, then higher score.
+// Stops a repair that removes a compliance flag from being discarded for adding cosmetic ones.
 function shouldKeepRepair(original: GenBrief, repaired: GenBrief): boolean {
-  const originalFlags = original._flags?.length ?? 0;
-  const repairedFlags = repaired._flags?.length ?? 0;
-  const originalScore = original._score ?? 0;
-  const repairedScore = repaired._score ?? 0;
-  return repairedScore > originalScore || (repairedScore === originalScore && repairedFlags < originalFlags);
+  const oErr = (original._flags || []).filter((f) => f.type === "error").length;
+  const rErr = (repaired._flags || []).filter((f) => f.type === "error").length;
+  if (rErr !== oErr) return rErr < oErr;
+  const hi = countHighImpact(repaired) - countHighImpact(original);
+  if (hi !== 0) return hi < 0;
+  return (repaired._score ?? 0) >= (original._score ?? 0);
 }
 
 function buildQualityRepairPrompt(optionLabel: "A" | "B", brief: GenBrief, flags: string[]): string {

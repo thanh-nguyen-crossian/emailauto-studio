@@ -1591,7 +1591,7 @@ function GenerationProgress({ elapsedSec, onCancel }: { elapsedSec: number; onCa
 
 function scoreColor(s?: number): string {
   const v = typeof s === "number" ? s : 100;
-  return v >= 85 ? "var(--ok)" : v >= 60 ? "var(--warn)" : "var(--bad)";
+  return v >= 80 ? "var(--ok)" : v >= 55 ? "var(--warn)" : "var(--bad)";
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

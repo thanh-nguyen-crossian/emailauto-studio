@@ -1100,6 +1100,59 @@ function addFlag(b: GenBrief, type: Flag["type"], msg: string) {
   (b._flags ||= []).push({ type, msg });
 }
 
+// Single source of truth for flag severity, co-located with the messages addFlag emits so the
+// classifier can't silently desync from the wording. Consumed by the tiered score below, by the
+// quality-repair gating in lib/anthropic.ts (which imports isHighImpactFlag), and by the UI.
+export type FlagTier = "serious" | "structural" | "cosmetic";
+// SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
+const SERIOUS_FLAG =
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|first product block should|missing required field|missing subject\/preheader/i;
+// STRUCTURAL: weakens the test or coherence but is still sendable.
+const STRUCTURAL_FLAG =
+  /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should/i;
+
+export function flagTier(msg: string): FlagTier {
+  if (SERIOUS_FLAG.test(msg)) return "serious";
+  if (STRUCTURAL_FLAG.test(msg)) return "structural";
+  return "cosmetic";
+}
+/** True for serious/structural warnings — used to gate the targeted quality-repair pass. */
+export function isHighImpactFlag(msg: string): boolean {
+  return flagTier(msg) !== "cosmetic";
+}
+
+const FLAG_TIER_WEIGHT: Record<FlagTier, number> = { serious: 10, structural: 5, cosmetic: 2 };
+const COSMETIC_WEIGHT_CAP = 16; // all cosmetic warnings together cost at most this much
+
+/**
+ * Tiered 0-100 score. The old flat `warnings*6` drove a perfectly sendable brief to 0 on ~17
+ * cosmetic warnings (length nudges, optional banner fields), making PASS/REVIEW/FIX meaningless.
+ * Now each error costs 25, each warning is weighted by tier, and the cosmetic pile is capped so
+ * polish noise can't masquerade as a failing brief.
+ */
+export function scoreBrief(flags: Flag[] = []): number {
+  let penalty = 0;
+  let cosmetic = 0;
+  for (const f of flags) {
+    if (f.type === "error") { penalty += 25; continue; }
+    const tier = flagTier(f.msg);
+    if (tier === "cosmetic") cosmetic += FLAG_TIER_WEIGHT.cosmetic;
+    else penalty += FLAG_TIER_WEIGHT[tier];
+  }
+  penalty += Math.min(cosmetic, COSMETIC_WEIGHT_CAP);
+  return Math.max(0, 100 - penalty);
+}
+
+/** Tier counts for UI ("serious vs polish") — lets REVIEW distinguish real risk from cosmetics. */
+export function flagTierCounts(flags: Flag[] = []): { serious: number; structural: number; cosmetic: number; errors: number } {
+  const counts = { serious: 0, structural: 0, cosmetic: 0, errors: 0 };
+  for (const f of flags) {
+    if (f.type === "error") counts.errors++;
+    else counts[flagTier(f.msg)]++;
+  }
+  return counts;
+}
+
 export function validateBrief(brief: GenBrief, campaign: Campaign, products: Product[] = []): GenBrief {
   brief._flags = [];
   const subjectMax = BRANDS[campaign.brandId]?.subjectMax || 58;
@@ -1358,17 +1411,12 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (!qc[f as keyof GenQualityChecks]) addFlag(brief, "warn", "Quality check missing: " + f);
   });
 
-  const errors = brief._flags.filter((f) => f.type === "error").length;
-  const warnings = brief._flags.length - errors;
-  brief._score = Math.max(0, 100 - errors * 25 - warnings * 6);
+  brief._score = scoreBrief(brief._flags);
   return brief;
 }
 
 function rescoreBrief(brief: GenBrief): GenBrief {
-  const flags = brief._flags || [];
-  const errors = flags.filter((f) => f.type === "error").length;
-  const warnings = flags.length - errors;
-  brief._score = Math.max(0, 100 - errors * 25 - warnings * 6);
+  brief._score = scoreBrief(brief._flags || []);
   return brief;
 }
 

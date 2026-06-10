@@ -1,6 +1,7 @@
 "use client";
 
 import type { Flag } from "@/lib/briefgen";
+import { flagTierCounts } from "@/lib/briefgen";
 import type { BodyVarietyProfile } from "@/lib/config/types";
 
 const CATEGORIES = [
@@ -43,14 +44,16 @@ export function PreflightPanel({ flags, score, variety }: { flags?: Flag[]; scor
   const errors = list.filter((f) => f.type === "error");
   const warns = list.filter((f) => f.type === "warn");
   const s = typeof score === "number" ? score : 100;
-  const scoreColor = s >= 85 ? "var(--ok)" : s >= 60 ? "var(--warn)" : "var(--bad)";
-  const status = s >= 85 ? "PASS" : s >= 60 ? "REVIEW" : "FIX ERRORS";
+  const tiers = flagTierCounts(list);
+  const seriousCount = tiers.errors + tiers.serious;
+  const scoreColor = s >= 80 ? "var(--ok)" : s >= 55 ? "var(--warn)" : "var(--bad)";
+  const status = s >= 80 ? "PASS" : s >= 55 ? "REVIEW" : "FIX ERRORS";
   const statusDesc =
-    s >= 85
-      ? "Ready to export"
-      : s >= 60
-      ? "Minor issues — review before sending"
-      : "Fix errors before sending";
+    seriousCount === 0
+      ? s >= 80
+        ? "Ready to export"
+        : "Only polish/structural notes — review and send"
+      : `${seriousCount} serious issue${seriousCount !== 1 ? "s" : ""} to resolve before sending`;
 
   const grouped = CATEGORIES.map((cat, i) => ({
     label: cat.label,
@@ -105,6 +108,11 @@ export function PreflightPanel({ flags, score, variety }: { flags?: Flag[]; scor
             {status}
           </span>
           <span className="text-[10px] text-[var(--muted)] mt-0.5">{statusDesc}</span>
+          {list.length > 0 && (
+            <span className="text-[10px] text-[var(--muted)]">
+              {tiers.errors > 0 ? `${tiers.errors} err · ` : ""}{tiers.serious} serious · {tiers.structural} structural · {tiers.cosmetic} polish
+            </span>
+          )}
         </div>
       </div>
 
