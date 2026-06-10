@@ -1,7 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIModelPair, AIModelSelection, Campaign, Product } from "./config/types";
 import { normalizeModelPair, providerLabel } from "./config/aiModels";
-import { buildSystemPrompt, buildUserPrompt, contrastInstruction, validateBrief, type GenBrief } from "./briefgen";
+import {
+  briefContrastIssues,
+  buildSystemPrompt,
+  buildUserPrompt,
+  contrastInstruction,
+  validateBrief,
+  validateBriefPair,
+  type GenBrief,
+} from "./briefgen";
 
 // Generation engine wiring. Produces two contrasting options (A/B) — each a combined
 // content + design brief — using the ported brief-generator prompt, with parse-retry and
@@ -41,8 +49,37 @@ const SEGMENT_BATCH_THRESHOLD = Math.max(2, Number(process.env.AI_SEGMENT_BATCH_
 const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 2));
 const SEGMENT_BATCH_CONCURRENCY = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY || 2));
 
+const MAX_OUTPUT_TOKENS = 16000;
+
+const PROVIDER_ENV: Record<string, string> = {
+  claude: "ANTHROPIC_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  openai: "OPENAI_API_KEY",
+};
+
+/**
+ * Fail-fast check: if a selected provider's key isn't configured on this server, return a
+ * user-facing, provider-specific message (never the raw env-var name) before the long generation
+ * call — so the marketer can just switch providers in the model picker instead of waiting for a 500.
+ */
+export function providerConfigError(models: AIModelPair): string | null {
+  const missing = new Set<string>();
+  [models.a, models.b].forEach((m) => {
+    const envKey = PROVIDER_ENV[m.provider];
+    if (!envKey || !process.env[envKey]) missing.add(providerLabel(m.provider));
+  });
+  if (!missing.size) return null;
+  const names = [...missing].join(" and ");
+  const plural = missing.size > 1;
+  return `The ${names} provider${plural ? "s aren't" : " isn't"} configured on this server. Switch the affected option to a configured provider in the model picker, then generate again.`;
+}
+
 function timeoutMessage(provider: string, model: string): string {
   return `${provider} ${model} timed out after ${Math.round(PROVIDER_TIMEOUT_MS / 1000)} seconds. Try a faster model such as Claude Haiku, Gemini Flash/Lite, or a GPT mini/nano model, or reduce segments/products.`;
+}
+
+function truncatedMessage(provider: string, model: string): string {
+  return `${provider} ${model} hit the ${Math.round(MAX_OUTPUT_TOKENS / 1000)}k output-token limit before finishing the JSON — reduce segments/products (or lower the subject-option count), or let large segment sets auto-batch.`;
 }
 
 async function fetchJsonWithTimeout<T>(
@@ -97,7 +134,7 @@ async function callClaude(system: string, user: string, model: string): Promise<
     resp = await getClient().messages.create(
       {
         model,
-        max_tokens: 16000,
+        max_tokens: MAX_OUTPUT_TOKENS,
         temperature: 0.65,
         system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: user }],
@@ -110,6 +147,7 @@ async function callClaude(system: string, user: string, model: string): Promise<
     }
     throw err;
   }
+  if (resp.stop_reason === "max_tokens") throw new Error(truncatedMessage("Claude", model));
   const textPart = resp.content.find((c) => c.type === "text");
   return textPart && textPart.type === "text" ? textPart.text : "";
 }
@@ -118,7 +156,7 @@ async function callGemini(system: string, user: string, model: string): Promise<
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
   const { res, data } = await fetchJsonWithTimeout<{
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
     error?: { message?: string };
   }>("Gemini", model, `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
@@ -131,12 +169,13 @@ async function callGemini(system: string, user: string, model: string): Promise<
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
         temperature: 0.65,
-        maxOutputTokens: 16000,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
         responseMimeType: "application/json",
       },
     }),
   });
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${data.error?.message || "request failed"}`);
+  if (data.candidates?.[0]?.finishReason === "MAX_TOKENS") throw new Error(truncatedMessage("Gemini", model));
   return data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
 }
 
@@ -149,7 +188,7 @@ async function callOpenAI(system: string, user: string, model: string): Promise<
       { role: "system", content: [{ type: "input_text", text: system }] },
       { role: "user", content: [{ type: "input_text", text: user }] },
     ],
-    max_output_tokens: 16000,
+    max_output_tokens: MAX_OUTPUT_TOKENS,
     text: { format: { type: "json_object" }, verbosity: "low" },
   };
   if (/^gpt-5/i.test(model)) payload.reasoning = { effort: "low" };
@@ -157,7 +196,9 @@ async function callOpenAI(system: string, user: string, model: string): Promise<
   const { res, data } = await fetchJsonWithTimeout<{
     output_text?: string;
     output?: { content?: { text?: string; type?: string; output_text?: string }[] }[];
-    choices?: { message?: { content?: string } }[];
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
+    status?: string;
+    incomplete_details?: { reason?: string };
     error?: { message?: string };
   }>("OpenAI", model, "https://api.openai.com/v1/responses", {
     method: "POST",
@@ -168,6 +209,9 @@ async function callOpenAI(system: string, user: string, model: string): Promise<
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${data.error?.message || "request failed"}`);
+  if (data.status === "incomplete" && data.incomplete_details?.reason === "max_output_tokens") {
+    throw new Error(truncatedMessage("OpenAI", model));
+  }
   if (data.output_text) return data.output_text;
   const outputText = data.output?.flatMap((item) => item.content || [])
     .map((part) => part.text || part.output_text || "")
@@ -179,6 +223,12 @@ export interface GenerationResult {
   a?: GenBrief;
   b?: GenBrief;
   error?: string;
+  /** Non-fatal note when one option (or a recoverable step) failed but a usable result remains. */
+  warning?: string;
+}
+
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Generation failed";
 }
 
 /** Optional user-edited prompts from the review step (what-you-see-is-what's-sent). */
@@ -239,6 +289,28 @@ CURRENT GENERATED OPTIONS CONTEXT:
 ${current}
 
 Regenerate complete updated briefs in the same JSON schema. Preserve what still works, fix the feedback directly, keep A/B angle + framework contrast, and re-check every email-campaign-playbook rule before returning JSON.`;
+}
+
+function modelExecutionStyle(selection: AIModelSelection): string {
+  const label = `${providerLabel(selection.provider)} ${selection.model}`;
+  if (selection.provider === "claude") {
+    return `${label}: use a disciplined strategist lens. Prioritize playbook compliance, precise segment reasoning, clean proof logic, and restrained body copy. Avoid generic urgency and keep every claim tied to supplied inputs.`;
+  }
+  if (selection.provider === "gemini") {
+    return `${label}: use a visual-curiosity lens. Make the banner/image brief more scene-specific, vary sensory language and subject curiosity, and keep factual claims strictly supplied. Avoid decorative-only visuals.`;
+  }
+  if (selection.provider === "openai") {
+    return `${label}: use a direct-response editor lens. Make the offer path, CTA logic, and product block hierarchy sharper, but keep the tone personal-note first rather than hype or hard sell.`;
+  }
+  return `${label}: use the provider's strengths while preserving the required route, playbook, proof, and JSON contracts.`;
+}
+
+function appendModelExecutionStyle(user: string, optionLabel: "A" | "B", selection: AIModelSelection): string {
+  return `${user}
+
+MODEL EXECUTION LENS FOR OPTION ${optionLabel}:
+${modelExecutionStyle(selection)}
+This lens should change reasoning, sentence architecture, subject style, visual detail, and proof path. Do not expose provider/model names as recipient-facing copy.`;
 }
 
 interface SegmentBatchContext {
@@ -348,11 +420,11 @@ function qualityRepairEnabled(): boolean {
 }
 
 function isRepairablePlaybookFlag(message: string): boolean {
-  return /missing|required|subject|preheader|shared thread|spam|weak|generic|opt-out|invented|proof|brand avoid|hook contract|banner|cta|body|opener|persona|formatting|hyperlink|offer|price|theme|similar|p\.s\.|product|review|image brief|quality check/i.test(message);
+  return /missing|required|subject|preheader|shared thread|spam|weak|generic|opt-out|invented|proof|brand avoid|hook contract|banner|cta|body|opener|persona|formatting|hyperlink|offer|price|theme|similar|p\.s\.|product|review|image brief|quality check|a\/b|brief route|production branch|route/i.test(message);
 }
 
 function isHighImpactPlaybookFlag(message: string): boolean {
-  return /missing required field|missing subject\/preheader|subject over hard cap|repeats \{\{first_name\}\}|subject and preheader too similar|needs 3\+ subject|spam word|weak\/generic|opt-out risk|invented proof|brand avoid|hook contract missing|hero banner should|structured hero banner missing|weak banner cta|body opens|body sounds too salesy|same body structure|missing persona|formatting beats|renderer-safe hyperlink|body over 150|body too short|missing product-name markdown link|visible price\/offer|hero, and body need|body opener should|body variants are too similar|missing p\.s\.|p\.s\. should|product .*main text|product .*usp|product .*weak cta|product .*cta should|review looks invented|image brief missing|quality check missing/i.test(message);
+  return /missing required field|missing subject\/preheader|subject over hard cap|repeats \{\{first_name\}\}|subject and preheader too similar|needs 3\+ subject|spam word|weak\/generic|opt-out risk|invented proof|brand avoid|hook contract missing|hero banner should|structured hero banner missing|weak banner cta|body opens|body sounds too salesy|same body structure|missing persona|formatting beats|renderer-safe hyperlink|body over 150|body too short|missing product-name markdown link|visible price\/offer|hero, and body need|body opener should|body variants are too similar|missing p\.s\.|p\.s\. should|product .*main text|product .*usp|product .*weak cta|product .*cta should|review looks invented|image brief missing|quality check missing|a\/b|brief routes|production branch|creative direction text|product block copy is too similar|banner copy\/layout direction is too similar/i.test(message);
 }
 
 function repairFlagsFor(brief: GenBrief): string[] {
@@ -436,11 +508,8 @@ async function generateOptionsSingle(
   try {
     const models = normalizeModelPair(modelInput);
     const sysA = overrides?.system?.trim() || buildSystemPrompt(campaign, products, false);
-    const usrA = appendSegmentBatchContext(
-      appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaign, false), revision),
-      "A",
-      batchContext
-    );
+    const usrABase = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaign, false), revision);
+    const usrA = appendSegmentBatchContext(appendModelExecutionStyle(usrABase, "A", models.a), "A", batchContext);
 
     const sysBInitial = overrides?.system?.trim()
       ? overrides.system.trim() + OPTION_B_INITIAL_CONTRAST
@@ -448,40 +517,57 @@ async function generateOptionsSingle(
     const usrBBase = overrides?.user?.trim()
       ? overrides.user.trim() + "\n\nGenerate Option B now — make it a clearly different challenger from Option A."
       : buildUserPrompt(campaign, true);
-    const usrB = appendSegmentBatchContext(appendRevisionFeedback(usrBBase, revision), "B", batchContext);
+    const usrB = appendSegmentBatchContext(appendModelExecutionStyle(appendRevisionFeedback(usrBBase, revision), "B", models.b), "B", batchContext);
 
     const startedAt = Date.now();
-    const [aRaw, bRaw] = await Promise.all([
+    // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa) — the
+    // marketer waited minutes and one usable option beats zero. Only a both-failed run is fatal.
+    const [aSettled, bSettled] = await Promise.allSettled([
       createAndParseWithModel(sysA, usrA, models.a),
       createAndParseWithModel(sysBInitial, usrB, models.b),
     ]);
+    if (aSettled.status === "rejected" && bSettled.status === "rejected") {
+      // Surface the more informative of the two errors (truncation/timeout beats a generic parse note).
+      return { error: errMessage(aSettled.reason) };
+    }
 
-    let a = validateBrief(aRaw as unknown as GenBrief, campaign, products);
-    let b = validateBrief(bRaw as unknown as GenBrief, campaign, products);
+    let a = aSettled.status === "fulfilled" ? validateBrief(aSettled.value as unknown as GenBrief, campaign, products) : undefined;
+    let b = bSettled.status === "fulfilled" ? validateBrief(bSettled.value as unknown as GenBrief, campaign, products) : undefined;
     [a, b] = await Promise.all([
-      repairBriefIfNeeded("A", a, campaign, products, sysA, models.a),
-      repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b),
+      a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
+      b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
     ]);
-    a._provider = providerLabel(models.a.provider);
-    a._model = models.a.model;
+    if (a) { a._provider = providerLabel(models.a.provider); a._model = models.a.model; }
+    if (b) { b._provider = providerLabel(models.b.provider); b._model = models.b.model; }
 
-    b._provider = providerLabel(models.b.provider);
-    b._model = models.b.model;
+    // One option failed — return the survivor with a non-fatal warning the UI can show.
+    if (!a || !b) {
+      const failedLabel = a ? "B" : "A";
+      const reason = a ? bSettled : aSettled;
+      const why = reason.status === "rejected" ? errMessage(reason.reason) : "no usable output";
+      console.warn(`[generate-copy] option ${failedLabel} failed, returning the other: ${why}`);
+      return { a, b, warning: `Option ${failedLabel} failed (${why}). Generated the other option only — regenerate to retry the missing one.` };
+    }
 
-    // Auto-retry once if B reused A's angle or framework.
-    if (
-      b.creative_direction?.angle === a.creative_direction?.angle ||
-      b.creative_direction?.framework === a.creative_direction?.framework
-    ) {
+    // Auto-retry once if B collapses into A's strategy, route, body, banner, or product-copy shape.
+    const contrastProblems = briefContrastIssues(a, b);
+    if (contrastProblems.length > 0) {
       const sysB = overrides?.system?.trim()
         ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
         : buildSystemPrompt(campaign, products, true, a.creative_direction);
-      const retry = usrB + "\n\nWARNING: your previous attempt reused Option A's direction. You MUST choose a different angle AND a different framework.";
+      const retry = `${usrB}
+
+WARNING: A/B contrast failed:
+${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
+
+Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
       b = validateBrief((await createAndParseWithModel(sysB, retry, models.b)) as unknown as GenBrief, campaign, products);
       b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
       b._provider = providerLabel(models.b.provider);
       b._model = models.b.model;
     }
+
+    [a, b] = validateBriefPair(a, b);
 
     console.info(`[generate-copy] completed A/B${batchContext ? ` batch ${batchContext.index}/${batchContext.total}` : ""} in ${Math.round((Date.now() - startedAt) / 1000)}s using ${models.a.provider}:${models.a.model} + ${models.b.provider}:${models.b.model}`);
     return { a, b };
@@ -541,9 +627,10 @@ async function generateOptionsBatched(
     const bBatches = [first.b, ...remaining.map((result) => result.b as GenBrief)];
     const a = mergeOptionBatches(campaign, products, aBatches, first.a._provider, first.a._model);
     const b = mergeOptionBatches(campaign, products, bBatches, first.b._provider, first.b._model);
+    const [validatedA, validatedB] = validateBriefPair(a, b);
 
     console.info(`[generate-copy] completed batched A/B in ${Math.round((Date.now() - startedAt) / 1000)}s across ${total} batches`);
-    return { a, b };
+    return { a: validatedA, b: validatedB };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Batched generation failed" };
   }

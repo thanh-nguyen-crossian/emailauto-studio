@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateOptions } from "@/lib/anthropic";
+import { generateOptions, providerConfigError } from "@/lib/anthropic";
 import { selectVarietyProfile, type GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
@@ -119,6 +119,9 @@ export async function POST(req: NextRequest) {
   const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;
   const overrides = po && (po.system || po.user) ? { system: po.system, user: po.user } : undefined;
   const models = normalizeModelPair((body as { models?: Parameters<typeof normalizeModelPair>[0] }).models);
+  // Fail fast (before the multi-minute call) if a selected provider has no key configured.
+  const keyError = providerConfigError(models);
+  if (keyError) return NextResponse.json({ error: keyError }, { status: 400 });
   const revisionBody = body as { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } };
   const revision = revisionBody.feedback?.trim()
     ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
@@ -130,5 +133,5 @@ export async function POST(req: NextRequest) {
   }
   if (result.a) result.a.body_variety = cleanVariety;
   if (result.b) result.b.body_variety = cleanVariety;
-  return NextResponse.json({ a: result.a, b: result.b });
+  return NextResponse.json({ a: result.a, b: result.b, warning: result.warning });
 }

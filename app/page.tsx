@@ -116,6 +116,7 @@ export default function Studio() {
   const [revisionFeedback, setRevisionFeedback] = useState("");
 
   const [apiError, setApiError] = useState<string | null>(null);
+  const [genWarning, setGenWarning] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
   // sync state keyed by `${opt}:${segment}`
@@ -364,6 +365,7 @@ export default function Studio() {
   async function generate(feedback?: string) {
     setGenerating(true);
     setApiError(null);
+    setGenWarning(null);
     setSaveState("idle");
     setSyncResults({});
     setTplResults({});
@@ -389,7 +391,7 @@ export default function Studio() {
       });
       // Read as text first: a serverless timeout/crash returns a plain-text error page, not JSON.
       const raw = await res.text();
-      let data: { a?: GenBrief; b?: GenBrief; error?: string };
+      let data: { a?: GenBrief; b?: GenBrief; error?: string; warning?: string };
       try {
         data = JSON.parse(raw);
       } catch {
@@ -405,6 +407,7 @@ export default function Studio() {
         return;
       }
       setOptions({ a: data.a, b: data.b });
+      setGenWarning(data.warning || null);
       const usedVariety = data.a?.body_variety || data.b?.body_variety;
       if (usedVariety) {
         setLastOpenerMechanic(usedVariety.openerMechanic);
@@ -1152,6 +1155,8 @@ export default function Studio() {
                 <div className="flex-1" />
                 <button onClick={() => generate()} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "Regenerate A + B"}</button>
               </div>
+
+              {genWarning && <Banner level="warn">{genWarning}</Banner>}
 
               {activeBrief && <FormatCoverage brief={activeBrief} />}
 
