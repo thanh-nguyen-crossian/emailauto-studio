@@ -17,6 +17,9 @@ export interface GenHookContract {
 export interface GenCreativeDirection {
   angle: string;
   framework: string;
+  branch?: string;
+  brief_route?: string;
+  source_pattern?: string;
   hook_contract: GenHookContract;
   flow: string;
   differentiator: string;
@@ -671,6 +674,108 @@ const SEGMENT_SOFT_SELL_MODES = [
   "Let product proof do the selling; the discount should not carry the paragraph.",
 ] as const;
 
+type CreativeRouteProfile = {
+  branch: string;
+  route: string;
+  sourcePattern: string;
+  angleBias: string;
+  frameworkBias: string;
+  subjectFamily: string;
+  bannerPattern: string;
+  bodyArchitecture: string;
+  productPattern: string;
+  visualPattern: string;
+  proofTexture: string;
+  avoid: string;
+};
+
+const CREATIVE_ROUTE_BANK: CreativeRouteProfile[] = [
+  {
+    branch: "AB",
+    route: "Segment Reward / Thank-You Utility",
+    sourcePattern: "Excel rows: Subject 21/22 + Body Part 1A + Product 1/3/5",
+    angleBias: "recognition, useful next step, and exact offer value",
+    frameworkBias: "BAB or Short Sale",
+    subjectFamily: "warm personal note or soft curiosity, offer revealed second",
+    bannerPattern: "single hero-product reward banner with price/offer badge above fold",
+    bodyArchitecture: "recognition opener -> product fit -> offer detail -> soft CTA",
+    productPattern: "headline-led 2-up grid; product 1 is the obvious hero, support products solve adjacent pains",
+    visualPattern: "clean product-forward hero plus one lifestyle/detail support image",
+    proofTexture: "supplied review or price proof only; no invented review counts",
+    avoid: "generic gratitude opener, countdown panic, repeated 'thank you + sale' body skeleton",
+  },
+  {
+    branch: "CD",
+    route: "Curiosity / Suspended Loop",
+    sourcePattern: "Excel rows: Subject CD + PreHeader CD + Banner A alternate",
+    angleBias: "unresolved situation, missing item, or private reveal",
+    frameworkBias: "Suspended Loop or PAS",
+    subjectFamily: "curiosity gap with one concrete product/price clue",
+    bannerPattern: "unresolved headline, product close-up, and a small reluctant-deadline badge",
+    bodyArchitecture: "open loop -> tactile/product reveal -> proof/risk reducer -> click to resolve",
+    productPattern: "hero pair or duo-first grid; support products act as answers to the open loop",
+    visualPattern: "cropped detail, arrow/handwritten cue, or product transition/GIF note",
+    proofTexture: "material/feature proof first, offer second",
+    avoid: "solving the loop before the CTA, cheerful generic promo tone",
+  },
+  {
+    branch: "EF",
+    route: "Mechanism / Product Truth",
+    sourcePattern: "Excel rows: product-image overlay notes + mechanism popouts",
+    angleBias: "what the product does differently",
+    frameworkBias: "Mechanism or Proof Ladder",
+    subjectFamily: "specific mechanism or sensory comparison with price anchor",
+    bannerPattern: "mechanism visual: stretch/cooling/closure/personalization detail with arrows or close crop",
+    bodyArchitecture: "source-backed product truth -> pain relief -> price/offer -> CTA",
+    productPattern: "every product row gets a different mechanism headline and tiny USP pair",
+    visualPattern: "detail image, fabric/closure/engraving/pocket close-up, motion cue",
+    proofTexture: "USPs and supplied reviews; no generic bestseller/rating claims",
+    avoid: "catalog feature paragraphs, repeated 5-star badges without source",
+  },
+  {
+    branch: "GH",
+    route: "Occasion / Gift Guide",
+    sourcePattern: "Excel rows: Theme + Banner + Products with seasonal designer notes",
+    angleBias: "seasonal timing, gift/use occasion, and readiness",
+    frameworkBias: "Occasion/Gift or BAB",
+    subjectFamily: "occasion cue plus price/proof, not a stack of holidays",
+    bannerPattern: "seasonal hero scene with restrained theme elements and clear CTA path",
+    bodyArchitecture: "occasion moment -> product recommendation -> practical tip -> deadline",
+    productPattern: "guide-like product order; each block has a different recipient/use case",
+    visualPattern: "lifestyle scene plus product cutout; theme elements are secondary",
+    proofTexture: "occasion-fit benefit language plus supplied product facts",
+    avoid: "holiday pileups, decorative-only image guidance, off-brand palette drift",
+  },
+  {
+    branch: "IJ",
+    route: "Reactivation / Low-Risk Return",
+    sourcePattern: "Excel rows: long-time-no-see body versions and segment variants",
+    angleBias: "gentle return reason, risk removal, and a clear first product",
+    frameworkBias: "Reactivation or PAS",
+    subjectFamily: "restrained comeback note with one concrete reason to reopen",
+    bannerPattern: "welcome-back product hero with softer urgency and friction reducer",
+    bodyArchitecture: "acknowledge silence -> low-risk reason -> product link -> offer as courtesy",
+    productPattern: "hero first, then easiest add-ons; CTAs sound helpful rather than aggressive",
+    visualPattern: "simple, calm layout; no crowded collage; clear product and button path",
+    proofTexture: "fit/material/shipping/return facts when supplied",
+    avoid: "we missed you cliches, guilt pressure, hard 'claim/grab' commands",
+  },
+  {
+    branch: "KL",
+    route: "Proof / Review Ladder",
+    sourcePattern: "Excel rows: Review + Featured Product proof copy",
+    angleBias: "one supplied quote or product fact builds belief before offer",
+    frameworkBias: "Proof Ladder or Mechanism",
+    subjectFamily: "plainspoken proof question or quote-fragment with offer in preheader",
+    bannerPattern: "review/proof chip, hero product, and one outcome line",
+    bodyArchitecture: "named/supplied proof -> why it matters -> product fit -> CTA",
+    productPattern: "proof badges only when supplied; otherwise use unattributed benefit chips",
+    visualPattern: "review card or handwritten proof note near product, not a fake rating wall",
+    proofTexture: "strictly supplied review text, price, USP, or qualitative benefit",
+    avoid: "invented counts, fake 4.9/5 claims, unsupported '1M sold' badges",
+  },
+];
+
 export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
   const seed = hashSeed([
     campaign.brandId,
@@ -716,6 +821,40 @@ export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
     _openerDirective: mechanic.directive(char.name, char.role, pain, persona),
     _arcDirective: arc.directive,
   } as BodyVarietyProfile & { _openerDirective: string; _arcDirective: string };
+}
+
+function selectCreativeRoute(campaign: Campaign, isOptionB: boolean): CreativeRouteProfile {
+  const seed = hashSeed([
+    campaign.brandId,
+    campaign.sendDate,
+    campaign.theme,
+    campaign.offerValue,
+    campaign.offerShipping,
+    campaign.segments.join("|"),
+    campaign.lastSend?.angle || "",
+  ].join("::"));
+  const aIndex = seed % CREATIVE_ROUTE_BANK.length;
+  if (!isOptionB) return CREATIVE_ROUTE_BANK[aIndex];
+  const offset = 2 + (seed % Math.max(1, CREATIVE_ROUTE_BANK.length - 2));
+  return CREATIVE_ROUTE_BANK[(aIndex + offset) % CREATIVE_ROUTE_BANK.length];
+}
+
+function creativeRoutePrompt(campaign: Campaign, isOptionB: boolean): string {
+  const route = selectCreativeRoute(campaign, isOptionB);
+  return `Excel-style production branch for Option ${isOptionB ? "B" : "A"}:
+• Branch: ${route.branch}
+• Brief route: ${route.route}
+• Source pattern to emulate: ${route.sourcePattern}
+• Angle bias: ${route.angleBias}
+• Preferred framework: ${route.frameworkBias}
+• Subject/preheader family: ${route.subjectFamily}
+• Banner pattern: ${route.bannerPattern}
+• Body architecture: ${route.bodyArchitecture}
+• Product-grid pattern: ${route.productPattern}
+• Visual pattern: ${route.visualPattern}
+• Proof texture: ${route.proofTexture}
+• Avoid: ${route.avoid}
+Write creative_direction.branch="${route.branch}", creative_direction.brief_route="${route.route}", and creative_direction.source_pattern="${route.sourcePattern}". This route is a hard A/B separation control, not a decorative label.`;
 }
 
 // ---- helpers ----
@@ -854,10 +993,14 @@ function sharesContentThread(subjectish: string, bodyish: string, products: Prod
 function hasOfferSignal(text: string, campaign: Campaign): boolean {
   const promo = promoLine(campaign);
   if (/^No promo/i.test(promo)) return true;
+  const raw = String(text || "");
   const target = norm(text);
   const numbers = promo.match(/\d+(?:\.\d+)?/g) || [];
   if (numbers.some((n) => target.includes(n))) return true;
-  return /free shipping|shipping|ship|saving|o f f|off/.test(target);
+  // Promo glyph / percent signals.
+  if (/💲|\d+\s*%/.test(raw)) return true;
+  // Word-boundary keyword fallback — avoid matching 'off' inside offer/effort/comfortable/coffee.
+  return /free shipping|\bship(?:ping)?\b|\bsav(?:e|ing|ings)\b|o\.f\.f|\bo\s+f\s+f\b|\boff\b/i.test(raw);
 }
 function hasAttributedReview(text: string): boolean {
   return /["“”']/.test(text) && /(?:—|-)\s*[A-Z][a-z]+(?:\s+[A-Z]\.?)?/.test(text);
@@ -865,7 +1008,14 @@ function hasAttributedReview(text: string): boolean {
 function matchesSuppliedReview(text: string, source?: string): boolean {
   if (!text.trim()) return true;
   if (!hasAttributedReview(text)) return true;
-  return !!source && norm(text) === norm(source);
+  if (!source) return false;
+  const t = norm(text);
+  const s = norm(source);
+  if (!s) return false;
+  // The email may quote one sentence of a longer supplied review (with its real attribution),
+  // or restate it — accept containment in either direction after stripping the attribution tail.
+  const tNoAttr = norm(text.replace(/\s*[—-]\s*[A-Za-z.][A-Za-z. ]*$/, ""));
+  return t.includes(s) || s.includes(t) || (!!tNoAttr && s.includes(tNoAttr));
 }
 function truncateForPrompt(text: string, max = 1200): string {
   const clean = String(text || "").trim();
@@ -908,10 +1058,17 @@ const PERFORMANCE_PROMPT_LAYER = `Pages are generally converting; assume email i
 Access/Delivered drop -> improve hero/body/CTA path. PO/View drop -> improve product order, price clarity, fit proof, page-product match. Optout/spam risk -> softer urgency and narrower list.
 Prioritize proven heroes: BG Daisy/Posy/ZipLacy; GL JettJeans/FlexCamo/Icy; LF StretchActive/Icy; SF Pouchic/TimelessMark.`;
 
+const EXCEL_BRIEF_REFERENCE_LAYER = `Email Content.xlsx production-brief shape:
+- Keep the output organized like the real brief rows: segment Subject/PreHeader, Theme, Banner, Body Part/Body, Products, Featured Product 1/3/5, and designer notes.
+- Variation in those files comes from branch-level changes: AB/CD subject families, banner layout references, product order/overlay copy, body architecture, and proof texture. Do not treat A/B as synonym swaps.
+- Product rows should read like image-overlay instructions: product image, main text, sub text/review/proof, popout/badge, CTA, and visual note. Keep HTML output structure unchanged; this is copy/image-brief guidance, not raw HTML.
+- When proof such as 5-star counts, units sold, stock, or ratings is not supplied by the selected products/pages, write qualitative proof instead.`;
+
 // ---- prompt builders ----
 /** The clause appended to Option B's system prompt forcing a different angle + framework than A. */
 export function contrastInstruction(optionADirection: GenCreativeDirection): string {
-  return `\nCRITICAL CONTRAST REQUIREMENT:\nOption A used Angle: ${optionADirection.angle}, Framework: ${optionADirection.framework}.\nYou MUST choose a DIFFERENT angle AND a DIFFERENT framework for Option B. State them in creative_direction BEFORE writing copy. Reusing either is INVALID.`;
+  const route = optionADirection.brief_route || optionADirection.branch || optionADirection.differentiator || "?";
+  return `\nCRITICAL CONTRAST REQUIREMENT:\nOption A used Angle: ${optionADirection.angle}, Framework: ${optionADirection.framework}, Route: ${route}.\nYou MUST choose a DIFFERENT angle, framework, brief_route/branch, body architecture, banner pattern, subject family, and product-grid emphasis for Option B. State them in creative_direction BEFORE writing copy. Reusing the same route or skeleton is INVALID.`;
 }
 
 export function buildSystemPrompt(
@@ -962,6 +1119,9 @@ export function buildSystemPrompt(
   "creative_direction": {
     "angle": "<${PLAYBOOK_ANGLES.join("|")}>",
     "framework": "<${PLAYBOOK_FRAMEWORKS.join("|")}>",
+    "branch": "",
+    "brief_route": "",
+    "source_pattern": "",
     "hook_contract": { "segment_insight": "", "emotion": "", "hero_product": "", "proof_or_price": "", "urgency": "", "avoid_rule": "" },
     "flow": "<one sentence: banner to CTA journey>",
     "differentiator": "<what makes this option distinct>"
@@ -1001,8 +1161,10 @@ export function buildSystemPrompt(
     },
     { title: "Core Rules", body: CORE_PROMPT_LAYER },
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
+    { title: "Production Brief Pattern", body: creativeRoutePrompt(campaign, isOptionB) },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
     { title: "SendGrid HTML Fit", body: SENDGRID_HTML_PROMPT_LAYER },
+    { title: "Email Content XLSX Reference", body: EXCEL_BRIEF_REFERENCE_LAYER },
     { title: "Brand Rules", body: BRAND_PLAYBOOK_RULES[campaign.brandId] || "" },
     { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
     { title: "Option Contrast", body: contrast },
@@ -1203,8 +1365,13 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     addFlag(brief, "warn", "Body opener looks like a product introduction ('Meet X / Introducing X') — use the selected opener mechanic instead");
   }
   const personaName = BRAND_PERSONA_NAMES[campaign.brandId];
-  if (personaName && !full.includes(personaName.toLowerCase())) {
-    addFlag(brief, "warn", `Body copy missing persona sign-off — "${personaName}" should appear in the body or P.S.`);
+  if (personaName) {
+    // Scope the sign-off check to where a sign-off legitimately lives (body + P.S.), with a word
+    // boundary — not a substring scan of the whole JSON (which false-passes on names in product/image fields).
+    const signOffSurface = `${briefBodyText(brief)} ${brief.ps || ""}`.toLowerCase();
+    if (!new RegExp(`\\b${personaName.toLowerCase()}\\b`).test(signOffSurface)) {
+      addFlag(brief, "warn", `Body copy missing persona sign-off — "${personaName}" should appear in the body or P.S.`);
+    }
   }
   if (richText && accentMarks + boldMarks < 2) {
     addFlag(brief, "warn", "Final output needs 2+ bold/accent formatting beats from WinEmailTemps patterns");
@@ -1237,12 +1404,15 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     const isContinuous = campaign.bodyLayout !== "interspersed" && campaign.bodyLayout !== "custom";
     if (isContinuous && text && paras.length < 3) addFlag(brief, "warn", `${seg} body below 3-paragraph win-template rhythm`);
     if (isContinuous && text && paras.length > 6) addFlag(brief, "warn", `${seg} body above 5-paragraph win-template rhythm`);
-    const themeWords = significantWords(campaign.theme);
-    const themeHits = themeWords.filter((w) => norm(text).includes(w)).length;
-    if (themeWords.length && themeHits === 0) addFlag(brief, "warn", `${seg} body may miss campaign theme cues`);
     const subjectish = `${sl[seg]?.subject || ""} ${sl[seg]?.preheader || ""}`;
     const bodyish = `${bannerMain} ${bannerSub} ${text}`;
-    if (subjectish && bodyish && !sharesContentThread(subjectish, bodyish, products, campaign)) {
+    const sharedThreadOk = !subjectish.trim() || !bodyish.trim() || sharesContentThread(subjectish, bodyish, products, campaign);
+    const themeWords = significantWords(campaign.theme);
+    const themeHits = themeWords.filter((w) => norm(text).includes(w)).length;
+    // Only flag off-theme when the body ALSO fails to share a thread with subject/hero/offer. A body
+    // that connects via synonym/paraphrase shouldn't be forced to literally keyword-stuff the theme word.
+    if (themeWords.length && themeHits === 0 && !sharedThreadOk) addFlag(brief, "warn", `${seg} body may miss campaign theme cues`);
+    if (!sharedThreadOk) {
       addFlag(brief, "warn", `${seg} subject, hero, and body need a clearer shared thread`);
     }
     (sl[seg]?.options || []).forEach((option, i) => {
@@ -1263,9 +1433,15 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       const leftOpeningStart = openingStart(String(leftText));
       const rightOpeningStart = openingStart(String(rightText));
       const sameOpeningStart = !!leftOpeningStart && leftOpeningStart === rightOpeningStart;
+      // Multi-segment sends intentionally share ONE Hook Contract, so an identical first-8-words is
+      // expected — require a secondary signal before calling it a cloned structure.
+      const structureDup =
+        openerSimilarity > 0.68 ||
+        sharedPhraseOverlap > 0.28 ||
+        (sameOpeningStart && (openerSimilarity > 0.5 || sharedPhraseOverlap > 0.15));
       if (fullSimilarity > 0.74) {
         addFlag(brief, "warn", `${leftKey} and ${rightKey} body variants are too similar; adapt motivation/risk reducer by segment`);
-      } else if (openerSimilarity > 0.68 || sharedPhraseOverlap > 0.28 || sameOpeningStart) {
+      } else if (structureDup) {
         addFlag(brief, "warn", `${leftKey} and ${rightKey} share the same body structure; change the opener, proof/risk reducer, bridge, and final CTA sentence`);
       }
     }
@@ -1326,4 +1502,97 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const warnings = brief._flags.length - errors;
   brief._score = Math.max(0, 100 - errors * 25 - warnings * 6);
   return brief;
+}
+
+function rescoreBrief(brief: GenBrief): GenBrief {
+  const flags = brief._flags || [];
+  const errors = flags.filter((f) => f.type === "error").length;
+  const warnings = flags.length - errors;
+  brief._score = Math.max(0, 100 - errors * 25 - warnings * 6);
+  return brief;
+}
+
+function briefBodyText(brief: GenBrief): string {
+  return Object.entries(brief.body || {})
+    .filter(([key]) => key !== "base")
+    .map(([, value]) => value)
+    .join("\n\n");
+}
+
+function briefBannerText(brief: GenBrief): string {
+  const b = brief.banner || ({} as GenBanner);
+  return [
+    b.main_text,
+    b.sub_text,
+    b.main_text_1,
+    b.main_text_2,
+    b.main_text_3,
+    b.sub_text_1,
+    b.sub_text_2,
+    b.sub_text_3,
+    b.cta,
+    b.main_image,
+    b.sub_image,
+    b.image_guidance,
+  ].filter(Boolean).join("\n");
+}
+
+function briefProductCopyText(brief: GenBrief): string {
+  return (brief.products || [])
+    .map((p) => [p.main_text, p.sub_text, p.popup_badge, p.cta, ...(p.usps || [])].filter(Boolean).join(" "))
+    .join("\n");
+}
+
+function routeName(brief: GenBrief): string {
+  const cd = brief.creative_direction || ({} as GenCreativeDirection);
+  return norm([cd.branch, cd.brief_route].filter(Boolean).join(" "));
+}
+
+export function briefContrastIssues(a: GenBrief, b: GenBrief): string[] {
+  const issues: string[] = [];
+  const aCd = a.creative_direction || ({} as GenCreativeDirection);
+  const bCd = b.creative_direction || ({} as GenCreativeDirection);
+  const aRoute = routeName(a);
+  const bRoute = routeName(b);
+  if (!aRoute || !bRoute) {
+    issues.push("A/B creative_direction must include different branch and brief_route values from the production route controls");
+  } else if (aRoute === bRoute) {
+    issues.push("A/B brief routes are the same; use different production branches, subject families, banner patterns, and body architectures");
+  }
+  if (aCd.angle && bCd.angle && aCd.angle === bCd.angle) {
+    issues.push("A/B angles are the same");
+  }
+  if (aCd.framework && bCd.framework && aCd.framework === bCd.framework) {
+    issues.push("A/B frameworks are the same");
+  }
+  const directionTextA = [aCd.flow, aCd.differentiator, aCd.source_pattern].filter(Boolean).join(" ");
+  const directionTextB = [bCd.flow, bCd.differentiator, bCd.source_pattern].filter(Boolean).join(" ");
+  if (directionTextA && directionTextB && similarity(directionTextA, directionTextB) > 0.7) {
+    issues.push("A/B creative direction text is too similar; make the test hypothesis and route visibly different");
+  }
+  const bodyA = briefBodyText(a);
+  const bodyB = briefBodyText(b);
+  if (bodyA && bodyB && (similarity(bodyA, bodyB) > 0.62 || phraseOverlap(bodyA, bodyB) > 0.18)) {
+    issues.push("A/B body copy shares too much structure; change opener family, proof path, bridge, and CTA rhythm");
+  }
+  const bannerA = briefBannerText(a);
+  const bannerB = briefBannerText(b);
+  if (bannerA && bannerB && similarity(bannerA, bannerB) > 0.68) {
+    issues.push("A/B banner copy/layout direction is too similar; change headline route, visual composition, and proof placement");
+  }
+  const productA = briefProductCopyText(a);
+  const productB = briefProductCopyText(b);
+  if (productA && productB && similarity(productA, productB) > 0.72) {
+    issues.push("A/B product block copy is too similar; change overlay headline pattern, badges, and CTA language");
+  }
+  return issues;
+}
+
+export function validateBriefPair(a: GenBrief, b: GenBrief): [GenBrief, GenBrief] {
+  const issues = briefContrastIssues(a, b);
+  issues.forEach((issue) => {
+    addFlag(a, "warn", issue);
+    addFlag(b, "warn", issue);
+  });
+  return [rescoreBrief(a), rescoreBrief(b)];
 }
