@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { accessToken, type Profile } from "@/lib/profile";
 import { BriefView, briefToMarkdown } from "./components/BriefView";
@@ -42,6 +42,24 @@ type View = "build" | "review" | "output";
 type OptKey = "a" | "b";
 /** A product slot: a chosen catalog product + per-send URL override + the USPs selected for copy. */
 type Slot = { slug: string; url: string; usps: string[]; scrapedUsps?: string[] };
+
+const DRAFT_KEY = "emailstudio:draft:v1";
+interface Draft {
+  v: 1;
+  savedAt: number;
+  campaign: Campaign;
+  slots: Slot[];
+  images: ImageOverrides;
+  includeLogo: boolean;
+  productLayout: ProductLayout;
+  modelA: AIModelSelection;
+  modelB: AIModelSelection;
+  options: { a?: GenBrief; b?: GenBrief };
+  htmlOverrides: Record<string, string>;
+  activeOption: OptKey;
+  activeSegment: string;
+  view: View;
+}
 const MAX_SLOTS = 8;
 
 /** Build the initial slots for a brand: slot 0 = hero (URL + all USPs preselected). */
@@ -118,6 +136,11 @@ export default function Studio() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [genWarning, setGenWarning] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<Draft | null>(null);
+  const hydratedRef = useRef(false);
 
   // sync state keyed by `${opt}:${segment}`
   const [syncResults, setSyncResults] = useState<Record<string, { id?: string; editorUrl?: string; error?: string }>>({});
@@ -362,19 +385,31 @@ export default function Studio() {
   const promptOverridesActive = systemOverride !== null || userOverride !== null;
   const autoSegmentBatching = segments.length > 3 && !promptOverridesActive;
 
+  function stopGenTimer() {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }
+  function cancelGenerate() {
+    abortRef.current?.abort();
+  }
+
   async function generate(feedback?: string) {
+    // Do NOT clear edited HTML / sync results here — only on a SUCCESSFUL result. A failed regen
+    // must leave the prior options + manual edits intact (the user gains nothing from losing both).
     setGenerating(true);
     setApiError(null);
     setGenWarning(null);
     setSaveState("idle");
-    setSyncResults({});
-    setTplResults({});
-    setHtmlOverrides({});
-    setEditingHtml(false);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const startedAt = Date.now();
+    setElapsedSec(0);
+    stopGenTimer();
+    timerRef.current = setInterval(() => setElapsedSec(Math.round((Date.now() - startedAt) / 1000)), 1000);
     try {
       const res = await fetch("/api/generate-copy", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        signal: controller.signal,
         body: JSON.stringify({
           ...campaign,
           products: selectedProducts.map((p) => ({
@@ -406,6 +441,11 @@ export default function Studio() {
         setApiError(data.error || "Generation failed");
         return;
       }
+      // Success — now it is safe to drop the previous generation's edits/sync state.
+      setSyncResults({});
+      setTplResults({});
+      setHtmlOverrides({});
+      setEditingHtml(false);
       setOptions({ a: data.a, b: data.b });
       setGenWarning(data.warning || null);
       const usedVariety = data.a?.body_variety || data.b?.body_variety;
@@ -419,10 +459,96 @@ export default function Studio() {
       setView("output");
       if (feedback?.trim()) setRevisionFeedback("");
     } catch (e) {
+      // A user-initiated cancel is not an error — leave existing output (if any) untouched.
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setApiError(e instanceof Error ? e.message : "Network error");
     } finally {
       setGenerating(false);
+      stopGenTimer();
+      abortRef.current = null;
     }
+  }
+
+  // Clear any running generation timer if the component unmounts mid-flight.
+  useEffect(() => () => stopGenTimer(), []);
+
+  // ---- draft persistence (so a refresh / crash / accidental nav never loses a multi-minute run) ----
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+    setPendingRestore(null);
+  }
+  // On first mount, offer to restore a previous draft that contained generated output.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw) as Draft;
+        if (d && d.v === 1 && (d.options?.a || d.options?.b)) setPendingRestore(d);
+      }
+    } catch {}
+    hydratedRef.current = true;
+  }, []);
+  // Debounced autosave of the working state.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const id = setTimeout(() => {
+      try {
+        const draft: Draft = {
+          v: 1, savedAt: Date.now(), campaign, slots, images, includeLogo, productLayout,
+          modelA, modelB, options, htmlOverrides, activeOption, activeSegment, view,
+        };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        /* quota / serialization — drafts are best-effort */
+      }
+    }, 600);
+    return () => clearTimeout(id);
+  }, [campaign, slots, images, includeLogo, productLayout, modelA, modelB, options, htmlOverrides, activeOption, activeSegment, view]);
+  // Warn before leaving while generating or with unsaved generated output.
+  useEffect(() => {
+    const hasUnsaved = generating || ((!!options.a || !!options.b) && saveState !== "saved");
+    if (!hasUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [generating, options.a, options.b, saveState]);
+
+  function restoreDraft(d: Draft) {
+    const c = d.campaign;
+    setBrandId(c.brandId);
+    setSendDate(c.sendDate);
+    setTheme(c.theme);
+    setOfferType(c.offerType);
+    setOfferValue(c.offerValue);
+    setOfferShipping(c.offerShipping || "");
+    setUrgency(c.urgency);
+    setHookContract(c.hookContract || "");
+    setSegments(c.segments);
+    setLastHero(c.lastSend?.hero || "");
+    setLastAngle(c.lastSend?.angle || "");
+    setLastCtr(c.lastSend?.ctr || "");
+    setLastNote(c.lastSend?.note || "");
+    setLastOpenerMechanic(c.lastSend?.openerMechanic || "");
+    setLastEmotionalArc(c.lastSend?.emotionalArc || "");
+    setWinningContent(c.winningContent || "");
+    setCustomPerfContext(c.customPerfContext ?? null);
+    setBodyLayout(c.bodyLayout || "continuous");
+    setModuleLayout(c.moduleLayout || DEFAULT_MODULE_LAYOUT);
+    setProductCopyStyle(c.productCopyStyle || "headline_winner");
+    setRecentProductSlugs(c.recentProductSlugs || []);
+    setSlots(d.slots);
+    setImages(d.images);
+    setIncludeLogo(d.includeLogo);
+    setProductLayout(d.productLayout);
+    setModelA(d.modelA);
+    setModelB(d.modelB);
+    setOptions(d.options);
+    setHtmlOverrides(d.htmlOverrides);
+    setActiveOption(d.activeOption);
+    setActiveSegment(d.activeSegment);
+    setView(d.view);
+    setVisited(new Set([0, 1, 2]));
+    setPendingRestore(null);
   }
 
   function regenerateFromFeedback() {
@@ -617,6 +743,7 @@ export default function Studio() {
     setVisited(new Set([0]));
     setOpenStep(0);
     setView("build");
+    clearDraft();
   }
 
   function openVersion(v: SavedVersion) {
@@ -823,6 +950,19 @@ export default function Studio() {
           );
         })}
       </nav>
+
+      {pendingRestore && (
+        <div className="section-panel mb-5 flex flex-wrap items-center gap-3" role="status">
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">Restore unsaved work?</div>
+            <div className="text-xs text-[var(--muted)]">
+              A previous session left generated A/B output for {BRANDS[pendingRestore.campaign.brandId]?.name || "a brand"} ({pendingRestore.campaign.segments.length} segment{pendingRestore.campaign.segments.length !== 1 ? "s" : ""}, saved {relativeTime(pendingRestore.savedAt)}).
+            </div>
+          </div>
+          <button onClick={() => restoreDraft(pendingRestore)} className="btn-primary shrink-0">Restore</button>
+          <button onClick={clearDraft} className="btn-ghost shrink-0">Discard</button>
+        </div>
+      )}
 
       <WorkflowSnapshot
         brandName={brand.name}
@@ -1126,6 +1266,7 @@ export default function Studio() {
             </button>
             {!canGenerate && <span className="text-xs text-[var(--warn)]">Pick at least one segment and 1–{maxProducts} products.</span>}
           </div>
+          {generating && <GenerationProgress elapsedSec={elapsedSec} onCancel={cancelGenerate} />}
         </section>
       )}
 
@@ -1157,6 +1298,7 @@ export default function Studio() {
               </div>
 
               {genWarning && <Banner level="warn">{genWarning}</Banner>}
+              {generating && <GenerationProgress elapsedSec={elapsedSec} onCancel={cancelGenerate} />}
 
               {activeBrief && <FormatCoverage brief={activeBrief} />}
 
@@ -1317,6 +1459,41 @@ export default function Studio() {
 
       <Styles />
     </main>
+  );
+}
+
+function relativeTime(ts: number): string {
+  const min = Math.round((Date.now() - ts) / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr} hr ago`;
+  return `${Math.round(hr / 24)} day(s) ago`;
+}
+
+function GenerationProgress({ elapsedSec, onCancel }: { elapsedSec: number; onCancel: () => void }) {
+  const mins = Math.floor(elapsedSec / 60);
+  const label = mins > 0 ? `${mins}m ${String(elapsedSec % 60).padStart(2, "0")}s` : `${elapsedSec}s`;
+  const stage =
+    elapsedSec < 20
+      ? "Requesting both options in parallel…"
+      : elapsedSec < 60
+      ? "Writing per-segment copy + design brief, then validating…"
+      : "Large segment sets generate in batches — Opus/Pro/frontier briefs can take 1–3 minutes.";
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" className="section-panel flex items-center gap-3">
+      <span
+        aria-hidden
+        className="animate-spin shrink-0"
+        style={{ display: "inline-block", width: 16, height: 16, borderRadius: 9999, border: "2px solid var(--border)", borderTopColor: "var(--text)" }}
+      />
+      <div className="flex flex-col min-w-0">
+        <span className="text-sm font-medium">Generating A + B — {label} elapsed</span>
+        <span className="text-xs text-[var(--muted)]">{stage}</span>
+      </div>
+      <div className="flex-1" />
+      <button onClick={onCancel} className="btn-ghost shrink-0">Cancel</button>
+    </div>
   );
 }
 
