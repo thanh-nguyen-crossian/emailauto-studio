@@ -126,6 +126,7 @@ export default function Studio() {
   // generated A/B options
   const [options, setOptions] = useState<{ a?: GenBrief; b?: GenBrief }>({});
   const [activeOption, setActiveOption] = useState<OptKey>("a");
+  const [compareMode, setCompareMode] = useState(false);
   const [activeSegment, setActiveSegment] = useState<string>("");
   const [outputTab, setOutputTab] = useState<"preview" | "brief">("preview");
   // Manual HTML edits to the rendered email, keyed `${opt}:${segment}` (overrides the render).
@@ -588,6 +589,14 @@ export default function Studio() {
   }
   function preheaderFor(opt: OptKey, seg: string): string {
     return options[opt]?.subject_lines?.[segJsonKey(seg)]?.preheader || "";
+  }
+  // A segment is "incomplete" when the model never produced a real subject or body for it — the
+  // preview/export would otherwise silently ship a "BrandName 21" placeholder subject.
+  function segmentIncomplete(opt: OptKey, seg: string): boolean {
+    const b = options[opt];
+    if (!b) return false;
+    const key = segJsonKey(seg);
+    return !b.subject_lines?.[key]?.subject?.trim() || !b.body?.[key]?.trim();
   }
   function useSubjectOption(subject: string, preheader: string, style?: string, modelHint?: string, sharedThread?: string) {
     if (!activeBrief || !activeSegment) return;
@@ -1294,6 +1303,11 @@ export default function Studio() {
                   );
                 })}
                 <div className="flex-1" />
+                {options.a && options.b && (
+                  <button onClick={() => setCompareMode((v) => !v)} className={`choice-pill ${compareMode ? "choice-pill-active" : ""}`} title="View A and B side by side for the current segment">
+                    {compareMode ? "Exit compare" : "Compare A · B"}
+                  </button>
+                )}
                 <button onClick={() => generate()} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "Regenerate A + B"}</button>
               </div>
 
@@ -1326,27 +1340,71 @@ export default function Studio() {
               </div>
 
               {/* segment tabs */}
-              <VariantTabs variants={segments} active={activeSegment} onSelect={setActiveSegment} labelFor={(s) => `${s} · ${segLabel(s)}`} />
+              <VariantTabs variants={segments} active={activeSegment} onSelect={setActiveSegment} labelFor={(s) => `${s} · ${segLabel(s)}`} incompleteFor={(s) => segmentIncomplete(activeOption, s)} />
+
+              {/* side-by-side A | B compare (read-only) for the active segment */}
+              {compareMode && options.a && options.b && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {(["a", "b"] as OptKey[]).map((opt) => {
+                    const br = options[opt]!;
+                    const cd = br.creative_direction || {};
+                    const subj = subjectFor(opt, activeSegment);
+                    const pre = preheaderFor(opt, activeSegment);
+                    return (
+                      <div key={opt} className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold">
+                            Option {opt.toUpperCase()}
+                            <span className="ml-1 text-xs" style={{ color: scoreColor(br._score) }}>{br._score ?? "—"}/100</span>
+                          </span>
+                          <span className="text-xs text-[var(--muted)] truncate">{cd.angle || "?"} · {cd.framework || "?"}</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-[var(--muted)]">Subject: </span><strong>{subj}</strong>
+                          <span className="ml-1 font-semibold" style={{ color: subjectLenColor(subj.length) }}>{subj.length}c</span>
+                          {pre && <div className="text-[var(--muted)] mt-0.5 truncate">{pre}</div>}
+                        </div>
+                        <Preview html={htmlFor(opt, activeSegment)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* output sub-tabs */}
-              <div className="flex gap-2">
-                {(["preview", "brief"] as const).map((t) => (
-                  <button key={t} onClick={() => setOutputTab(t)}
-                    className={`choice-pill ${outputTab === t ? "choice-pill-active" : ""}`}>
-                    {t === "preview" ? "Preview" : "Design brief"}
-                  </button>
-                ))}
-              </div>
+              {!compareMode && (
+                <div className="flex gap-2">
+                  {(["preview", "brief"] as const).map((t) => (
+                    <button key={t} onClick={() => setOutputTab(t)}
+                      className={`choice-pill ${outputTab === t ? "choice-pill-active" : ""}`}>
+                      {t === "preview" ? "Preview" : "Design brief"}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-              {activeBrief && outputTab === "preview" && (
+              {!compareMode && activeBrief && segmentIncomplete(activeOption, activeSegment) && (
+                <Banner level="fail">
+                  No generated copy for segment {activeSegment} in Option {activeOption.toUpperCase()} — the preview shows a placeholder subject. Regenerate or edit before exporting or pushing to SendGrid.
+                </Banner>
+              )}
+
+              {!compareMode && activeBrief && outputTab === "preview" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <div className="mb-2 text-sm">
                       <span className="text-[var(--muted)]">Subject: </span>
                       <strong>{subjectFor(activeOption, activeSegment)}</strong>
-                      <span className="text-[var(--muted)] ml-2">({subjectFor(activeOption, activeSegment).length} chars)</span>
+                      <span className="ml-2 font-semibold" style={{ color: subjectLenColor(subjectFor(activeOption, activeSegment).length) }} title="Playbook target 42–58 (hard cap 60)">
+                        {subjectFor(activeOption, activeSegment).length}c
+                      </span>
                       {preheaderFor(activeOption, activeSegment) && (
-                        <div className="text-xs text-[var(--muted)] mt-1">Preheader: {preheaderFor(activeOption, activeSegment)}</div>
+                        <div className="text-xs text-[var(--muted)] mt-1">
+                          Preheader: {preheaderFor(activeOption, activeSegment)}
+                          <span className="ml-2 font-semibold" style={{ color: preheaderLenColor(preheaderFor(activeOption, activeSegment).length) }} title="Playbook target 60–90">
+                            {preheaderFor(activeOption, activeSegment).length}c
+                          </span>
+                        </div>
                       )}
                     </div>
                     <SubjectOptionsPanel brief={activeBrief} segment={activeSegment} onUse={useSubjectOption} />
@@ -1393,7 +1451,7 @@ export default function Studio() {
                 </div>
               )}
 
-              {activeBrief && outputTab === "brief" && (
+              {!compareMode && activeBrief && outputTab === "brief" && (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2">
                     <button onClick={exportExcel} className="btn-primary">Export to Excel (.xls · A + B)</button>
@@ -1427,7 +1485,7 @@ export default function Studio() {
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm"><strong>{opt.toUpperCase()}</strong> · <span className="font-mono">{seg}</span> <span className="text-[var(--muted)]">{segLabel(seg)}</span></span>
                             <div className="flex gap-2">
-                              <button onClick={() => navigator.clipboard.writeText(html)} className="btn-ghost">Copy</button>
+                              <CopyButton text={html} />
                               <button onClick={() => download(`${templateName(opt, seg)}.html`, html)} className="btn-ghost">.html</button>
                               <button disabled={syncingKey === key} onClick={() => syncDesign(opt, seg)} className="btn-ghost">{syncingKey === key ? "…" : "Design"}</button>
                               <button disabled={tplKey === key} onClick={() => syncTemplate(opt, seg)} className="btn-ghost">{tplKey === key ? "Cleaning…" : "Template"}</button>
@@ -1439,7 +1497,7 @@ export default function Studio() {
                             <div className="text-xs text-[var(--ok)] flex flex-wrap items-center gap-2">
                               <span>Template</span>
                               <code className="bg-[var(--surface-2)] border border-[var(--border)] rounded px-1.5 py-0.5">{tpl.templateId}</code>
-                              <button onClick={() => navigator.clipboard.writeText(tpl.templateId!)} className="underline text-[var(--muted)]">copy id</button>
+                              <CopyButton text={tpl.templateId!} label="copy id" className="underline text-[var(--muted)]" />
                               <a href={tpl.editorUrl} target="_blank" rel="noreferrer" className="underline">open</a>
                             </div>
                           )}
@@ -1460,6 +1518,40 @@ export default function Studio() {
       <Styles />
     </main>
   );
+}
+
+function CopyButton({ text, label = "Copy", className = "btn-ghost" }: { text: string; label?: string; className?: string }) {
+  const [state, setState] = useState<"idle" | "ok" | "err">("idle");
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setState("ok");
+        } catch {
+          setState("err");
+        }
+        setTimeout(() => setState("idle"), 1500);
+      }}
+    >
+      {state === "ok" ? "Copied ✓" : state === "err" ? "Copy failed" : label}
+    </button>
+  );
+}
+
+// Subject 42-58 (hard cap 60) and preheader 60-90 are the playbook bands; colour the char counts.
+function subjectLenColor(len: number): string {
+  if (len >= 42 && len <= 58) return "var(--ok)";
+  if (len <= 60 && len >= 36) return "var(--warn)";
+  return "var(--bad)";
+}
+function preheaderLenColor(len: number): string {
+  if (len === 0) return "var(--muted)";
+  if (len >= 60 && len <= 90) return "var(--ok)";
+  if (len >= 50 && len <= 100) return "var(--warn)";
+  return "var(--bad)";
 }
 
 function relativeTime(ts: number): string {
@@ -1784,7 +1876,7 @@ function PromptBlock({
           <div className="text-xs text-[var(--muted)]">{subtitle}</div>
         </button>
         <span className="text-xs text-[var(--muted)]">{value.length} chars</span>
-        <button onClick={() => navigator.clipboard.writeText(value)} className="btn-ghost">Copy</button>
+        <CopyButton text={value} />
         <button onClick={onReset} disabled={!edited} className="btn-ghost">Reset</button>
       </div>
       {open && (
@@ -1801,16 +1893,18 @@ function PromptBlock({
 }
 
 function VariantTabs({
-  variants, active, onSelect, labelFor,
+  variants, active, onSelect, labelFor, incompleteFor,
 }: {
-  variants: string[]; active: string; onSelect: (v: string) => void; labelFor?: (v: string) => string;
+  variants: string[]; active: string; onSelect: (v: string) => void; labelFor?: (v: string) => string; incompleteFor?: (v: string) => boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {variants.map((v) => (
         <button key={v} onClick={() => onSelect(v)}
+          title={incompleteFor?.(v) ? "This segment is missing generated copy" : undefined}
           className={`choice-pill ${active === v ? "choice-pill-active" : ""}`}>
           {labelFor ? labelFor(v) : v}
+          {incompleteFor?.(v) && <span aria-hidden style={{ color: "var(--bad)" }}> ⚠</span>}
         </button>
       ))}
     </div>
