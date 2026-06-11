@@ -283,10 +283,22 @@ export function renderEmailHTML(
   const accent = brand.accent;
   const muid = muidFactory();
   const key = segJsonKey(segment);
+  // Case-insensitive fallback: model may return lowercase seg_1_a instead of seg_1_A (SantaFare)
+  const resolveKey = (map: Record<string, unknown> | undefined) => {
+    if (!map) return undefined;
+    if (key in map) return key;
+    const lower = key.toLowerCase();
+    if (lower in map) return lower;
+    const upper = key.toUpperCase();
+    if (upper in map) return upper;
+    return undefined;
+  };
+  const slKey = resolveKey(brief.subject_lines as Record<string, unknown> | undefined);
+  const bodyKey = resolveKey(brief.body as Record<string, unknown> | undefined);
 
-  const sl = brief.subject_lines?.[key];
+  const sl = slKey ? brief.subject_lines?.[slKey] : undefined;
   const preheader = sl?.preheader || "";
-  const bodyText = brief.body?.[key] || brief.body?.base || "";
+  const bodyText = (bodyKey ? brief.body?.[bodyKey] : undefined) || brief.body?.base || "";
   const bodyLayout = options.bodyLayout || campaign.bodyLayout || "continuous";
 
   // Product copy blocks come from the brief; pair each to a catalog product by slot order.

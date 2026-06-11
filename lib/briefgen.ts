@@ -283,8 +283,8 @@ const VARIETY_BANKS: Record<string, {
   },
   lux_fitting: {
     characters: [
-      { name: "Michelle", role: "woman who reached out to me" },
-      { name: "Diane", role: "longtime customer" },
+      { name: "Rachel", role: "woman who reached out to me" },
+      { name: "Joanne", role: "longtime customer" },
       { name: "Susan", role: "woman from our community" },
       { name: "Claire", role: "subscriber who messaged us" },
       { name: "Pam", role: "customer" },
@@ -300,7 +300,7 @@ const VARIETY_BANKS: Record<string, {
       "cool and breathable from the first wear",
       "smooths without squeezing",
       "stretches four ways without going sheer",
-      "moves with you, not against you",
+      "hugs the right places without restricting movement",
       "feels like wearing nothing at all",
     ],
   },
@@ -1163,10 +1163,10 @@ function addFlag(b: GenBrief, type: Flag["type"], msg: string) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|first product block should|missing required field|missing subject\/preheader/i;
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
-  /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should/i;
+  /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener/i;
 
 export function flagTier(msg: string): FlagTier {
   if (SERIOUS_FLAG.test(msg)) return "serious";
@@ -1213,6 +1213,7 @@ export function flagTierCounts(flags: Flag[] = []): { serious: number; structura
 export function validateBrief(brief: GenBrief, campaign: Campaign, products: Product[] = []): GenBrief {
   brief._flags = [];
   const subjectMax = BRANDS[campaign.brandId]?.subjectMax || 58;
+  const subjectMin = BRANDS[campaign.brandId]?.subjectMin || 42;
 
   (["creative_direction", "subject_lines", "theme", "banner", "body", "products", "quality_checks"] as const).forEach(
     (f) => {
@@ -1229,10 +1230,18 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     const opts = Array.isArray(v.options) ? v.options : [];
     if (s.length > 60) addFlag(brief, "warn", `${seg} subject over hard cap (${s.length} > 60)`);
     else if (s.length > subjectMax) addFlag(brief, "warn", `${seg} subject above target (${s.length} > ${subjectMax})`);
-    if (s && s.length < 42) addFlag(brief, "warn", `${seg} subject may be too short (${s.length})`);
+    if (s && s.length < subjectMin) addFlag(brief, "warn", `${seg} subject may be too short (${s.length} < ${subjectMin})`);
     if (p && (p.length < 60 || p.length > 90)) addFlag(brief, "warn", `${seg} preheader length ${p.length} (target 60-90)`);
     if (/{{\s*first_name\s*}}/i.test(s) && /{{\s*first_name\s*}}/i.test(p)) addFlag(brief, "warn", `${seg} repeats {{first_name}} in subject + preheader`);
     if (!/{{\s*first_name\s*}}/i.test(s + " " + p)) addFlag(brief, "warn", `${seg} missing {{first_name}} in subject/preheader pair`);
+    if (s && !hasOfferSignal(s + " " + (p || ""), campaign)) {
+      addFlag(brief, "warn", `${seg} subject/preheader missing offer signal — include price, %, o.f.f, 💲, or shipping cue`);
+    }
+    if (s && p) {
+      const subjNorm = norm(s);
+      const preheaderNewWords = norm(p).split(/\s+/).filter((w) => w.length > 3 && !subjNorm.includes(w));
+      if (preheaderNewWords.length < 2) addFlag(brief, "warn", `${seg} preheader adds no new beat — add offer details, social proof, or deadline not in the subject`);
+    }
     if (similarity(s, p) > 0.55) addFlag(brief, "warn", `${seg} subject and preheader too similar`);
     if (opts.length < 3) addFlag(brief, "warn", `${seg} needs 3+ subject/preheader options`);
     opts.forEach((o, i) => {
@@ -1240,8 +1249,18 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       if (!o.model_hint) addFlag(brief, "warn", `${seg} option ${i + 1} missing model_hint`);
       if (!o.shared_thread) addFlag(brief, "warn", `${seg} option ${i + 1} missing shared_thread`);
       if ((o.subject || "").length > 60) addFlag(brief, "warn", `${seg} option ${i + 1} subject over hard cap`);
+      if (o.subject && o.subject.length < subjectMin) addFlag(brief, "warn", `${seg} option ${i + 1} subject too short (${o.subject.length} < ${subjectMin})`);
       if (o.preheader && (o.preheader.length < 60 || o.preheader.length > 90)) {
         addFlag(brief, "warn", `${seg} option ${i + 1} preheader length ${o.preheader.length} (target 60-90)`);
+      }
+      if (o.subject && !hasOfferSignal((o.subject || "") + " " + (o.preheader || ""), campaign)) {
+        addFlag(brief, "warn", `${seg} option ${i + 1} subject/preheader missing offer signal`);
+      }
+      if (o.subject && !/{{\s*first_name\s*}}/i.test((o.subject || "") + " " + (o.preheader || ""))) {
+        addFlag(brief, "warn", `${seg} option ${i + 1} missing {{first_name}}`);
+      }
+      if (o.subject && similarity(o.subject, s) > 0.78) {
+        addFlag(brief, "warn", `${seg} option ${i + 1} too similar to the primary subject`);
       }
     });
     const optionStyles = opts.map((o) => norm(o.style || o.model_hint || "")).filter(Boolean);
@@ -1263,6 +1282,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   });
 
   const body = brief.body || {};
+  if (!body.base || !String(body.base).trim()) addFlag(brief, "error", "body.base is empty — shared body foundation is required");
   campaign.segments.forEach((id) => {
     if (!body[segJsonKey(id)]) addFlag(brief, "warn", "Missing body variant for segment " + id);
   });
@@ -1294,6 +1314,11 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   (["segment_insight", "emotion", "hero_product", "proof_or_price", "urgency", "avoid_rule"] as const).forEach((f) => {
     if (!hc[f]) addFlag(brief, "warn", "Hook contract missing: " + f);
   });
+  if (products[0]?.name && hc.hero_product &&
+      !containsSignificantReference(hc.hero_product, products[0].name) &&
+      !containsSignificantReference(products[0].name, hc.hero_product)) {
+    addFlag(brief, "warn", `Hook contract hero_product "${hc.hero_product}" does not match slot-0 product "${products[0].name}"`);
+  }
 
   const banner = brief.banner || ({} as GenBanner);
   const bannerMain = [banner.main_text_1, banner.main_text_2, banner.main_text_3, banner.main_text].filter(Boolean).join("\n");
@@ -1326,6 +1351,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     }
   }
   if (banner.cta && WEAK_CTA.includes(banner.cta.toLowerCase())) addFlag(brief, "warn", `Weak banner CTA: "${banner.cta}"`);
+  if (banner.cta && (wordCount(banner.cta) < 2 || wordCount(banner.cta) > 4)) addFlag(brief, "warn", `Banner CTA should be 2-4 words ("${banner.cta}" = ${wordCount(banner.cta)} words)`);
   const bannerBullets = String(banner.image_guidance || "").split(/\n+/).filter((line) => /^\s*[-•]/.test(line));
   if (banner.image_guidance && (bannerBullets.length < 4 || bannerBullets.length > 6)) {
     addFlag(brief, "warn", "Banner image guidance should be 4-6 compact bullets");
@@ -1359,6 +1385,12 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   Object.entries(body).forEach(([seg, text]) => {
     const paras = String(text || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
     const firstTwoParas = paras.slice(0, 2).join("\n\n");
+    if (text && /{{\s*first_name\s*}}/i.test(text)) {
+      addFlag(brief, "warn", `${seg} body contains {{first_name}} — merge tags belong in subject/preheader only`);
+    }
+    if (text && /we('ve| have)?\s+(missed|been missing)\s+you|(we'?re|we are)\s+sorry|we\s+apologize|feel\s+bad\s+(that|about)|it's been\s+a\s+while\s+since/i.test(String(text).slice(0, 250))) {
+      addFlag(brief, "warn", `${seg} reactivation guilt/apology opener — lead with value, not an apology`);
+    }
     if (text && wordCount(text) > 150) addFlag(brief, "warn", `${seg} body over 150 words (${wordCount(text)})`);
     if (text && wordCount(text) < 100) addFlag(brief, "warn", `${seg} body too short (${wordCount(text)} words; target 120-150)`);
     if (campaign.bodyLayout === "interspersed" && paras.length > 2) {
@@ -1446,6 +1478,8 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       addFlag(brief, "warn", "First product block should remain the selected hero product");
     }
     if (wordCount(p.main_text) > 5) addFlag(brief, "warn", `Product ${i + 1} main text over 5 words`);
+    if (!p.sub_text) addFlag(brief, "warn", `Product ${i + 1} missing sub_text`);
+    else if (wordCount(p.sub_text) > 12) addFlag(brief, "warn", `Product ${i + 1} sub_text over 12 words (${wordCount(p.sub_text)})`);
     if ((campaign.productCopyStyle || "headline_winner") === "headline_winner" && wordCount(p.main_text) > 4) {
       addFlag(brief, "warn", `Product ${i + 1} headline-winner main text should be <=4 words`);
     }
@@ -1476,6 +1510,13 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   PLAYBOOK_REQUIRED_QA.forEach((f) => {
     if (!qc[f as keyof GenQualityChecks]) addFlag(brief, "warn", "Quality check missing: " + f);
   });
+  if (brief.body_variety?.openerMechanicLabel && qc.opener_mechanic) {
+    const requestedMechanic = norm(brief.body_variety.openerMechanicLabel).split(/\s+/)[0];
+    const usedMechanic = norm(qc.opener_mechanic);
+    if (requestedMechanic && requestedMechanic.length > 3 && !usedMechanic.includes(requestedMechanic)) {
+      addFlag(brief, "warn", "Opener mechanic in quality_checks doesn't match body_variety — model may have ignored the variety profile");
+    }
+  }
 
   brief._score = scoreBrief(brief._flags);
   return brief;
@@ -1546,8 +1587,17 @@ export function briefContrastIssues(a: GenBrief, b: GenBrief): string[] {
   }
   const bodyA = briefBodyText(a);
   const bodyB = briefBodyText(b);
-  if (bodyA && bodyB && (similarity(bodyA, bodyB) > 0.62 || phraseOverlap(bodyA, bodyB) > 0.18)) {
+  if (bodyA && bodyB && (similarity(bodyA, bodyB) > 0.50 || phraseOverlap(bodyA, bodyB) > 0.18)) {
     issues.push("A/B body copy shares too much structure; change opener family, proof path, bridge, and CTA rhythm");
+  }
+  const aOpenerMechanic = a.quality_checks?.opener_mechanic;
+  const bOpenerMechanic = b.quality_checks?.opener_mechanic;
+  if (aOpenerMechanic && bOpenerMechanic) {
+    const aMech = norm(aOpenerMechanic).split(/\s+/)[0];
+    const bMech = norm(bOpenerMechanic).split(/\s+/)[0];
+    if (aMech && aMech.length > 3 && aMech === bMech) {
+      issues.push("A/B opener mechanics are the same; B must use a different entry point (story/fact/question/direct_problem/occasion/re_engagement/insider_reveal)");
+    }
   }
   const bannerA = briefBannerText(a);
   const bannerB = briefBannerText(b);

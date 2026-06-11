@@ -55,6 +55,8 @@ export interface Brand {
   subjectFormula: string;
   /** Max subject length for this brand (playbook: 42–58 by brand). */
   subjectMax: number;
+  /** Min subject length for this brand — brand-specific lower bound. */
+  subjectMin?: number;
   /** Brand urgency type (playbook win rules). */
   urgencyType: string;
   /** Brand preheader formula (playbook Prompt 5). */
@@ -133,6 +135,10 @@ export interface BodyVarietyProfile {
   proofRole: string;
   subjectStyle: string;
   visualDirection: string;
+  /** Injected into the prompt — not a model output field. Stripped on deserialization. */
+  _openerDirective?: string;
+  /** Injected into the prompt — not a model output field. Stripped on deserialization. */
+  _arcDirective?: string;
 }
 
 /** A campaign. The variant axis is the selected segments (per brand; SantaFare = lifecycle tiers). */

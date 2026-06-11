@@ -46,6 +46,8 @@ You are writing Option B in parallel with Option A. Deliberately avoid the obvio
 Pick a distinct angle, framework, opener mechanic, emotional arc, visual direction, CTA wording, and proof role.
 Do not wait to see Option A; make Option B a clearly different usable challenger.`;
 
+const REPAIR_SYSTEM = `You are an email copy repair specialist. Fix the listed playbook violations in the provided brief with minimal rewriting. Preserve all creative direction, product facts, prices, URLs, and supplied reviews. Return one complete JSON object in the same schema — no prose, no fences.`;
+
 const SEGMENT_BATCH_THRESHOLD = Math.max(2, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 3));
 const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 2));
 const SEGMENT_BATCH_CONCURRENCY = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY || 2));
@@ -105,21 +107,22 @@ async function fetchJsonWithTimeout<T>(
   }
 }
 
-async function createText(system: string, user: string, selection: AIModelSelection): Promise<string> {
-  if (selection.provider === "claude") return callClaude(system, user, selection.model);
-  if (selection.provider === "gemini") return callGemini(system, user, selection.model);
-  if (selection.provider === "openai") return callOpenAI(system, user, selection.model);
+async function createText(system: string, user: string, selection: AIModelSelection, temperature?: number): Promise<string> {
+  if (selection.provider === "claude") return callClaude(system, user, selection.model, temperature);
+  if (selection.provider === "gemini") return callGemini(system, user, selection.model, temperature);
+  if (selection.provider === "openai") return callOpenAI(system, user, selection.model, temperature);
   throw new Error(`Unsupported AI provider: ${selection.provider}`);
 }
 
 async function createAndParseWithModel(
   system: string,
   user: string,
-  selection: AIModelSelection
+  selection: AIModelSelection,
+  temperature?: number
 ): Promise<Record<string, unknown>> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await createText(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection);
+    const raw = await createText(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection, temperature);
     try {
       return parseStrictJson(raw);
     } catch (err) {
@@ -129,14 +132,14 @@ async function createAndParseWithModel(
   throw lastErr instanceof Error ? lastErr : new Error("Failed to parse model output");
 }
 
-async function callClaude(system: string, user: string, model: string): Promise<string> {
+async function callClaude(system: string, user: string, model: string, temperature = 0.65): Promise<string> {
   let resp;
   try {
     resp = await getClient().messages.create(
       {
         model,
         max_tokens: MAX_OUTPUT_TOKENS,
-        temperature: 0.65,
+        temperature,
         system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: user }],
       },
@@ -153,7 +156,7 @@ async function callClaude(system: string, user: string, model: string): Promise<
   return textPart && textPart.type === "text" ? textPart.text : "";
 }
 
-async function callGemini(system: string, user: string, model: string): Promise<string> {
+async function callGemini(system: string, user: string, model: string, temperature = 0.65): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
   const { res, data } = await fetchJsonWithTimeout<{
@@ -169,7 +172,7 @@ async function callGemini(system: string, user: string, model: string): Promise<
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
-        temperature: 0.65,
+        temperature,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         responseMimeType: "application/json",
       },
@@ -180,16 +183,18 @@ async function callGemini(system: string, user: string, model: string): Promise<
   return data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
 }
 
-async function callOpenAI(system: string, user: string, model: string): Promise<string> {
+async function callOpenAI(system: string, user: string, model: string, temperature = 0.65): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
   const payload: Record<string, unknown> = {
     model,
+    store: true,
     input: [
       { role: "system", content: [{ type: "input_text", text: system }] },
       { role: "user", content: [{ type: "input_text", text: user }] },
     ],
     max_output_tokens: MAX_OUTPUT_TOKENS,
+    temperature,
     text: { format: { type: "json_object" }, verbosity: "low" },
   };
   if (/^gpt-5/i.test(model)) payload.reasoning = { effort: "low" };
@@ -486,14 +491,8 @@ async function repairBriefIfNeeded(
   if (!flags.length) return brief;
 
   try {
-    const repairSystem = `${system}
-
-QUALITY REPAIR MODE:
-- Fix the listed playbook failures with minimal rewriting.
-- Keep valid facts, product URLs, prices, and supplied reviews unchanged.
-- Return one complete JSON object only.`;
     const repaired = validateBrief(
-      (await createAndParseWithModel(repairSystem, buildQualityRepairPrompt(optionLabel, brief, flags), selection)) as unknown as GenBrief,
+      (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, 0.30)) as unknown as GenBrief,
       campaign,
       products
     );
@@ -523,20 +522,22 @@ async function generateOptionsSingle(
     const usrABase = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaign, false), revision);
     const usrA = appendSegmentBatchContext(appendModelExecutionStyle(usrABase, "A", models.a), "A", batchContext);
 
+    // B system prompt: same structure as A (keeps Claude system-prompt cache warm for retry).
+    // Contrast instruction goes in the user message so it doesn't fragment the cached prefix.
     const sysBInitial = overrides?.system?.trim()
-      ? overrides.system.trim() + OPTION_B_INITIAL_CONTRAST
-      : buildSystemPrompt(campaign, products, true) + OPTION_B_INITIAL_CONTRAST;
+      ? overrides.system.trim()
+      : buildSystemPrompt(campaign, products, true);
     const usrBBase = overrides?.user?.trim()
       ? overrides.user.trim() + "\n\nGenerate Option B now — make it a clearly different challenger from Option A."
-      : buildUserPrompt(campaign, true);
+      : buildUserPrompt(campaign, true) + OPTION_B_INITIAL_CONTRAST;
     const usrB = appendSegmentBatchContext(appendModelExecutionStyle(appendRevisionFeedback(usrBBase, revision), "B", models.b), "B", batchContext);
 
     const startedAt = Date.now();
     // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa) — the
     // marketer waited minutes and one usable option beats zero. Only a both-failed run is fatal.
     const [aSettled, bSettled] = await Promise.allSettled([
-      createAndParseWithModel(sysA, usrA, models.a),
-      createAndParseWithModel(sysBInitial, usrB, models.b),
+      createAndParseWithModel(sysA, usrA, models.a, 0.65),
+      createAndParseWithModel(sysBInitial, usrB, models.b, 0.75),
     ]);
     if (aSettled.status === "rejected" && bSettled.status === "rejected") {
       // Surface the more informative of the two errors (truncation/timeout beats a generic parse note).
@@ -573,7 +574,7 @@ WARNING: A/B contrast failed:
 ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
-      b = validateBrief((await createAndParseWithModel(sysB, retry, models.b)) as unknown as GenBrief, campaign, products);
+      b = validateBrief((await createAndParseWithModel(sysB, retry, models.b, 0.80)) as unknown as GenBrief, campaign, products);
       b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
       b._provider = providerLabel(models.b.provider);
       b._model = models.b.model;
