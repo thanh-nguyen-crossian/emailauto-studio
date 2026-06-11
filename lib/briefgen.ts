@@ -661,7 +661,19 @@ export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
 
   const lastArc = campaign.lastSend?.emotionalArc;
   const availableArcs = EMOTIONAL_ARCS.filter((a) => a.key !== lastArc);
-  const arc = availableArcs[(seed >> 5) % availableArcs.length];
+  // Block arcs that conflict with the selected route's framework to prevent contradictory
+  // prompt layers (e.g. gratitude_surprise opener is in the WEAK_COPY deny-list, so it can't
+  // combine with BAB which forces a "before" state that reads as gratitude).
+  const routeForA = selectCreativeRoute(campaign, false);
+  const incompatibleArcs: Partial<Record<string, BodyVarietyProfile["emotionalArc"][]>> = {
+    "BAB": ["gratitude_surprise"],
+    "Short": ["curiosity_reveal"],    // Short Sale needs direct premise, not a withheld reveal
+    "Suspended": ["pain_relief"],     // Suspended Loop must withhold; pain_relief resolves too early
+  };
+  const frameworkKey = routeForA.frameworkBias.split(" ")[0];
+  const blockedArcs = incompatibleArcs[frameworkKey] || [];
+  const compatibleArcs = availableArcs.filter((a) => !blockedArcs.includes(a.key as BodyVarietyProfile["emotionalArc"]));
+  const arc = (compatibleArcs.length ? compatibleArcs : availableArcs)[(seed >> 5) % (compatibleArcs.length || availableArcs.length)];
 
   const char = banks.characters[(seed >> 3) % banks.characters.length];
   const pain = banks.painPoints[(seed >> 7) % banks.painPoints.length];
@@ -701,8 +713,11 @@ function selectCreativeRoute(campaign: Campaign, isOptionB: boolean): CreativeRo
   ].join("::"));
   const aIndex = seed % CREATIVE_ROUTE_BANK.length;
   if (!isOptionB) return CREATIVE_ROUTE_BANK[aIndex];
-  const offset = 2 + (seed % Math.max(1, CREATIVE_ROUTE_BANK.length - 2));
-  return CREATIVE_ROUTE_BANK[(aIndex + offset) % CREATIVE_ROUTE_BANK.length];
+  // Always use an odd offset so B lands on the opposite even/odd parity from A,
+  // guaranteeing all 6 routes (including CD, GH, KL at odd indices) are reachable.
+  const half = Math.floor(CREATIVE_ROUTE_BANK.length / 2);
+  const oddOffset = ((seed % half) * 2) + 1;
+  return CREATIVE_ROUTE_BANK[(aIndex + oddOffset) % CREATIVE_ROUTE_BANK.length];
 }
 
 function creativeRoutePrompt(campaign: Campaign, isOptionB: boolean): string {
@@ -720,7 +735,8 @@ function creativeRoutePrompt(campaign: Campaign, isOptionB: boolean): string {
 • Visual pattern: ${route.visualPattern}
 • Proof texture: ${route.proofTexture}
 • Avoid: ${route.avoid}
-Write creative_direction.branch="${route.branch}", creative_direction.brief_route="${route.route}", and creative_direction.source_pattern="${route.sourcePattern}". This route is a hard A/B separation control, not a decorative label.`;
+The body architecture "${route.bodyArchitecture}" is a LITERAL paragraph order, not a suggestion. The first paragraph executes stage 1, the second executes stage 2 — do not invert or collapse stages.
+Write creative_direction.branch="${route.branch}", creative_direction.brief_route="${route.route}", and creative_direction.source_pattern="${route.sourcePattern}". Deviating from this body architecture is INVALID.`;
 }
 
 // ---- helpers ----
@@ -777,7 +793,7 @@ function segmentBodyDirectionLines(campaign: Campaign): string {
       const guidance = segGuidance(campaign.brandId, id) || meta || "Use the segment label as the buyer motivation.";
       const move = SEGMENT_BODY_MOVES[(seed + i * 2) % SEGMENT_BODY_MOVES.length];
       const softSell = SEGMENT_SOFT_SELL_MODES[(seed + i) % SEGMENT_SOFT_SELL_MODES.length];
-      return `• body.${segJsonKey(id)} (${id} ${label}${meta ? ` — ${meta}` : ""}): audience motive: ${guidance} Copy move: ${move.label} — ${move.directive}. Soft-sell mode: ${softSell}`;
+      return `• body.${segJsonKey(id)} (${id} ${label}${meta ? ` — ${meta}` : ""}): audience motive: ${guidance} Entry point: ${move.label} — ${move.directive} Do NOT start with the same first 8 words as any other segment body in this option — the opener must name a situation specific to "${guidance || label}", not a generic pain. Soft-sell mode: ${softSell}`;
     })
     .join("\n");
 }
@@ -897,20 +913,22 @@ function renderPromptLayers(layers: { title: string; body?: string }[]): string 
 
 const CORE_PROMPT_LAYER = `Return JSON only. Build in this order: evidence -> segment -> hook contract -> banner/body/products -> subject/preheader -> QA.
 One send = one promise. Subject, preheader, hero, body, product grid, CTA, and P.S. must share the same product/offer/proof/emotion thread.
+The shared thread is: ONE hero product by name + ONE specific proof or price figure + ONE concrete reader situation. All seven copy surfaces must reference at least two of these three elements. A thread tied only by brand name or discount percentage is NOT a shared thread.
 Use supplied facts only for reviews, ratings, counts, guarantees, stock, shipping, prices, and urgency. If proof is missing, write qualitative benefit language.
 Never use fake Re/Fwd, "click here", "learn more", "I hope this email finds you well", "meet your new favorite", "don't let X go to waste", generic gratitude, grammar errors, unsupported medical/age claims, or body/age shaming.
-Use {{first_name}} in subject OR preheader, never both. Replace $ with 💲 in promo copy; use brand off-symbol rules.`;
+Use {{first_name}} in subject OR preheader, never both — never in body copy. Replace $ with 💲 in promo copy; use brand off-symbol rules.`;
 
 const CREATIVE_PROMPT_LAYER = `Guardrails are constraints, not a script. Let the model write fresh language.
-A/B options must differ by at least four: angle, framework, opener mechanic, emotional arc, proof role, product bridge, subject style, visual direction, CTA wording, urgency texture.
+A and B are STRUCTURALLY DIFFERENT emails — not synonym swaps. They must differ in ALL of: angle, framework, opener mechanic, body opening sentence, banner headline family, and product-grid pattern. Changing only wording, tone, or surface phrasing while keeping the same paragraph structure IS NOT a valid A/B contrast. If Option A opens with a named micro-story, Option B must not. If Option A uses PAS, Option B must use a different framework. State the structural differences in creative_direction BEFORE writing any copy.
 Rotate opener mechanics: story, fact, question, occasion, re-engagement, insider reveal, or direct problem. Avoid repeating the last-send structure.
 Segment versions keep one hook but adapt motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next product; lapsed = low-risk return reason; high-return-risk = fit/material clarity.
 Multi-segment body copy must not be cloned paragraph skeletons. Change the first sentence, proof/risk reducer, product bridge, and final line for every segment.`;
 
-const COMPONENT_PROMPT_LAYER = `Subject/preheader: 3+ paired options per segment, distinct Claude/Gemini/ChatGPT-style lenses, subject hard cap 60, preheader 60-90, preheader adds a new beat.
+const COMPONENT_PROMPT_LAYER = `SUBJECT / PREHEADER — write these FIRST, before body copy:
+For EVERY segment write 3 paired options with distinct style lenses (strategic/curiosity/direct-response). Each pair MUST: (1) subject 42-60 chars, preheader 60-90 chars — count characters literally; (2) preheader introduces a NEW beat not in the subject — a different proof, deadline, product angle, or tension, NOT a paraphrase of the subject; (3) no two options share the same opening verb or emotional frame; (4) every subject must include an offer signal (price, %, o.f.f, 💲, or shipping cue); (5) {{first_name}} in subject OR preheader, not both, never in body. Write subjects before body copy — the subject hook informs the body, not the reverse.
 Body: 120-150 words per segment, persona-signed, selected opener in 2-3 sentences, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words. Tone is personal-note first: product fit before promo, one calm urgency beat, no hard-sell command stack.
-Banner: main_text_1/2/3 and sub_text_1/2/3 each use distinct angles; image_guidance is 4-6 compact bullets covering first 200px, product, offer, palette, crop, CTA path.
-Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words. HTML product modules use linked images only, so product text/CTA should be written as text to bake into each image.
+Banner: main_text_1 must be a tension or hook statement (NOT a discount headline). main_text_2 names the product mechanism or proof (NOT a brand tagline). main_text_3 resolves with the offer or CTA. The banner tells a 3-beat story: tension → proof → resolution. If all three lines follow the same discount-headline pattern, rewrite them. main_text_1/2/3 and sub_text_1/2/3 each use distinct angles; image_guidance is 4-6 compact bullets covering first 200px, product, offer, palette, crop, CTA path.
+Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words, sub_text carries price/proof/deadline. HTML product modules use linked images only, so product text/CTA should be written as text to bake into each image.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
 
 const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
@@ -1054,24 +1072,57 @@ export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
       : "";
 
   const variety = campaign.bodyVariety as (BodyVarietyProfile & { _openerDirective?: string; _arcDirective?: string }) | undefined;
-  const varietyMandate = variety
+  // Option B gets a shifted variety profile so its opener mechanic, arc, character, and pain
+  // are structurally different from A's — preventing synonym-swap bodies at the sentence level.
+  let effectiveVariety = variety;
+  if (isB && variety) {
+    const banks = VARIETY_BANKS[campaign.brandId] || VARIETY_BANKS.bra_goddess;
+    const persona = BRANDS[campaign.brandId]?.persona || "Sandra";
+    const seed2 = hashSeed([campaign.brandId, campaign.sendDate, campaign.theme, "_B"].join("::"));
+    const availMechanics = OPENER_MECHANICS.filter((m) => m.key !== variety.openerMechanic);
+    const availArcs = EMOTIONAL_ARCS.filter((a) => a.key !== variety.emotionalArc);
+    const mechB = availMechanics[seed2 % availMechanics.length];
+    const arcB = availArcs[(seed2 >> 5) % availArcs.length];
+    const charB = banks.characters[(seed2 >> 3) % banks.characters.length];
+    const painB = banks.painPoints[(seed2 >> 7) % banks.painPoints.length];
+    const sensoryB = banks.sensoryPhrases[(seed2 >> 11) % banks.sensoryPhrases.length];
+    effectiveVariety = {
+      ...variety,
+      openerMechanic: mechB.key,
+      openerMechanicLabel: mechB.label,
+      namedCharacter: charB.name,
+      characterRole: charB.role,
+      painPoint: painB,
+      sensoryPhrase: sensoryB,
+      emotionalArc: arcB.key,
+      emotionalArcLabel: arcB.label,
+      _openerDirective: mechB.directive(charB.name, charB.role, painB, persona),
+      _arcDirective: arcB.directive,
+    } as typeof variety;
+  }
+
+  const varietyMandate = effectiveVariety
     ? `\nCREATIVE VARIETY DIRECTION — required constraints, not a script:
-• Opener mechanic to use: ${variety.openerMechanicLabel} — ${variety._openerDirective || ""}
-• Creative lens: ${variety.creativeLens}
-• Proof role: ${variety.proofRole}
-• Subject style to favor: ${variety.subjectStyle}
-• Visual direction to favor: ${variety.visualDirection}
-• Optional story seed: ${variety.namedCharacter} (${variety.characterRole}). Use this named person only if it helps the chosen opener; do not force a character into fact/question/direct-problem openers.
-• Pain territory: "${variety.painPoint}" — use this pain scenario or a fresh close variant in the first 1-2 sentences.
-• Sensory territory: "${variety.sensoryPhrase}" — include this phrase or a fresh equivalent.
-• Emotional arc: ${variety.emotionalArcLabel} — ${variety._arcDirective || ""}
+• Opener mechanic to use: ${effectiveVariety.openerMechanicLabel} — ${effectiveVariety._openerDirective || ""}
+• Creative lens: ${effectiveVariety.creativeLens}
+• Proof role: ${effectiveVariety.proofRole}
+• Subject style to favor: ${effectiveVariety.subjectStyle}
+• Visual direction to favor: ${effectiveVariety.visualDirection}
+• Optional story seed: ${effectiveVariety.namedCharacter} (${effectiveVariety.characterRole}). Use this named person only if it helps the chosen opener; do not force a character into fact/question/direct-problem openers.
+• Pain territory: "${effectiveVariety.painPoint}" — use this pain scenario or a fresh close variant in the first 1-2 sentences.
+• Sensory territory: "${effectiveVariety.sensoryPhrase}" — include this phrase or a fresh equivalent.
+• Emotional arc: ${effectiveVariety.emotionalArcLabel} — ${effectiveVariety._arcDirective || ""}
 Write naturally in the brand persona, avoid repeating sentence skeletons from prior campaigns, and record the opener mechanic label in quality_checks.opener_mechanic.`
+    : "";
+  const openerFallback = !effectiveVariety
+    ? `\nOPENER MECHANIC — required: choose one from: story (named person discovers a solution to their specific pain), fact (one concrete product truth), question (natural question about reader pain answered by sentence 2), direct_problem (name the pain in sentence 1), occasion (tie pain to a named moment), re_engagement (acknowledge the gap — no apology), or insider_reveal (exclusive early access framing). Do NOT open with a gratitude statement, bullet list, "Meet X", or "Introducing X". Record your choice in quality_checks.opener_mechanic.`
     : "";
   const segmentBodyMandate = campaign.segments.length > 1
     ? `\nSEGMENT BODY DIFFERENTIATION — required:
 Keep one Hook Contract across all segments, but body text must be meaningfully different by segment. Do not rewrite the same paragraph skeleton with different nouns.
 ${segmentBodyDirectionLines(campaign)}
-For every segment body, change all four: first sentence entry point, proof/risk reducer, product bridge sentence, and final sign-off/CTA sentence.`
+For every segment body, change all four: first sentence entry point, proof/risk reducer, product bridge sentence, and final sign-off/CTA sentence.
+Reader-position rule: each segment must anchor the reader at a DIFFERENT position in their brand relationship. Loyal/high-freq segments: reader is in a use moment — open there. At-risk/lapsed segments: reader who has not engaged — open with the gap before the product. New/browse segments: reader who is uncertain — open with a product truth before social proof. Never let two segments begin from the same reader position.`
     : "";
   const winToneMandate = `\nWINEMAILTEMPS TONE CALIBRATION — required:
 Recent winning emails read like a short personal note: one concrete moment or pain, then product fit, then offer as a helpful detail. The body should not sound like a sale alert.
@@ -1095,7 +1146,7 @@ Body layout: ${bodyLayoutLabel(campaign)}
 Product template: ${productCopyStyleLabel(campaign)}
 Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}`,
     },
-    { title: "Creative Variety", body: varietyMandate },
+    { title: "Creative Variety", body: varietyMandate || openerFallback },
     { title: "Segment Body Differentiation", body: segmentBodyMandate },
     { title: "Tone Calibration", body: winToneMandate },
   ]);
