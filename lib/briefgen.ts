@@ -5,6 +5,8 @@ import { BRANDS } from "./config/brands";
 import { intelligencePromptBlock, getBrandIntelligence } from "./config/intelligence";
 import type { Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 
+export const PROMPT_REGISTRY_VERSION = "emailstudio-email-brief-v2026-06-12.1";
+
 // ---- generated output shape (snake_case, matching the prompt schema) ----
 export interface GenHookContract {
   segment_insight: string;
@@ -144,6 +146,7 @@ export interface GenBrief {
   _score?: number;
   _provider?: string;
   _model?: string;
+  _prompt_version?: string;
   body_variety?: BodyVarietyProfile;
 }
 
@@ -187,7 +190,7 @@ SUBJECT: 42-56 chars; name often in preheader; use SAVING/O.F.F; reluctant deadl
 
 // ---- validation pattern banks ----
 const SPAM_WORDS = ["free!", "winner", "congratulations", "click here", "limited time offer", "act now", "urgent"];
-const WEAK_COPY = ["i hope this email finds you well", "meet your new favorite", "meet the ", "meet your ", "introducing the ", "amazing value", "great quality", "don't miss out", "dont miss out"];
+const WEAK_COPY = ["i hope this email finds you well", "meet your new favorite", "meet the ", "meet your ", "introducing the ", "amazing value", "great quality", "don't miss out", "dont miss out", "be hurry"];
 const BODY_HARD_SELL_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "act now", pattern: /\bact now\b/gi },
   { label: "buy now", pattern: /\bbuy now\b/gi },
@@ -222,6 +225,7 @@ const ACCENT_MARKER = /==[^=]+==/g;
 const BOLD_MARKER = /\*\*[^*]+\*\*/g;
 const THEME_STOPWORDS = new Set(["sale", "email", "campaign", "offer", "promo", "spring", "summer", "winter", "fall", "thank", "thanks"]);
 const HARD_SELL_COMMANDS = new Set(["act now", "hurry", "claim now", "grab now", "rush"]);
+const SCHEMA_PLACEHOLDER_PATTERN = /<[^>]+>|120-150 words|product\(slug:slug\)|main text 1:?\s*$|- bullet\s*\n\s*- bullet/i;
 
 // ---- body variety system ----
 function hashSeed(s: string): number {
@@ -759,6 +763,44 @@ function bodyLayoutLabel(c: Campaign): string {
     ? "interspersed: one opener before product blocks, then at most one bridge/P.S. after"
     : "continuous: one uninterrupted body section before product blocks";
 }
+function strategyPromptLayer(c: Campaign): string {
+  const s = c.strategy;
+  if (!s) return "";
+  const lines = [
+    s.campaignGoal && `Campaign goal: ${s.campaignGoal}`,
+    s.keyMessage && `Key message: ${s.keyMessage}`,
+    s.storyline && `Storyline progression: ${s.storyline}`,
+    s.painPoints && `Pain points to answer: ${s.painPoints}`,
+    s.solutions && `Solutions/benefits to present: ${s.solutions}`,
+    s.toneKeywords && `Tone/voice cues from source page: ${s.toneKeywords}`,
+  ].filter(Boolean);
+  if (!lines.length) return "";
+  return `${lines.join("\n")}
+Use this as strategic context only. If storyline is supplied, make this send feel like the next chapter in the customer journey rather than a standalone reset. Keep the locked playbook, brand voice, hook contract, proof safety, and SendGrid schema higher priority.`;
+}
+function opsPromptLayer(c: Campaign): string {
+  const o = c.ops;
+  if (!o) return "";
+  const tracking = [
+    o.trackOpens === false ? "opens off" : "opens on",
+    o.trackClicks === false ? "clicks off" : "clicks on",
+    o.utmPlan && `UTM: ${o.utmPlan}`,
+    o.publicArchive ? "public archive/link enabled" : "",
+  ].filter(Boolean).join("; ");
+  const lines = [
+    `Provider: ${o.provider || "sendgrid"}`,
+    (o.senderName || o.senderEmail || o.replyTo) && `Sender: ${[o.senderName, o.senderEmail].filter(Boolean).join(" <")}${o.senderEmail && o.senderName ? ">" : ""}${o.replyTo ? `; reply-to ${o.replyTo}` : ""}`,
+    o.audienceSource && `Audience source: ${o.audienceSource}`,
+    o.segmentRule && `Segment rule: ${o.segmentRule}`,
+    `Consent: ${o.consentBasis || "prior_purchase_or_opt_in"}${o.doubleOptIn ? " + double opt-in" : ""}`,
+    o.suppressionNotes && `Suppression hygiene: ${o.suppressionNotes}`,
+    o.scheduleWindow && `Schedule window: ${o.scheduleWindow}`,
+    tracking && `Tracking/link plan: ${tracking}`,
+    o.complianceNotes && `Compliance notes: ${o.complianceNotes}`,
+  ].filter(Boolean);
+  return `${lines.join("\n")}
+Use this for operational QA, link planning, and brief handoff only. Do not add a second footer or unsubscribe block; the renderer handles footer structure. If consent/suppression/tracking context is weak, surface the risk in quality_checks without making the recipient-facing copy legalistic.`;
+}
 function productCopyStyleLabel(c: Campaign): string {
   const labels: Record<string, string> = {
     headline_winner: "headline_winner: winning template default, short headline does the work, USPs stay tiny",
@@ -899,6 +941,13 @@ function matchesSuppliedReview(text: string, source?: string): boolean {
   const tNoAttr = norm(text.replace(/\s*[—-]\s*[A-Za-z.][A-Za-z. ]*$/, ""));
   return t.includes(s) || s.includes(t) || (!!tNoAttr && s.includes(tNoAttr));
 }
+function matchesAnySuppliedReview(text: string, products: Product[]): boolean {
+  if (!String(text || "").trim() || !hasAttributedReview(text)) return true;
+  return products.some((p) => matchesSuppliedReview(text, p.review));
+}
+function looksLikeSchemaPlaceholder(text?: string): boolean {
+  return SCHEMA_PLACEHOLDER_PATTERN.test(String(text || ""));
+}
 function truncateForPrompt(text: string, max = 1200): string {
   const clean = String(text || "").trim();
   return clean.length > max ? clean.slice(0, max).trimEnd() + "\n[truncated]" : clean;
@@ -947,6 +996,29 @@ const EXCEL_BRIEF_REFERENCE_LAYER = `Email Content.xlsx production-brief shape:
 - Variation in those files comes from branch-level changes: AB/CD subject families, banner layout references, product order/overlay copy, body architecture, and proof texture. Do not treat A/B as synonym swaps.
 - Product rows should read like image-overlay instructions: product image, main text, sub text/review/proof, popout/badge, CTA, and visual note. Keep HTML output structure unchanged; this is copy/image-brief guidance, not raw HTML.
 - When proof such as 5-star counts, units sold, stock, or ratings is not supplied by the selected products/pages, write qualitative proof instead.`;
+
+const BRAND_BRIEF_PATTERN_LAYER: Record<string, string> = {
+  bra_goddess: `BraGoddess Email Content.xlsx pattern memory:
+- Real sheets often split by segment-number subject rows, "Banner (2 version)", Body Part 1A, Product 1/3/5, and product-image overlays.
+- Variety should come from fit problem, comfort proof, visual before/after or support detail, and product order. Avoid reusing a generic Sandra thank-you sale body.
+- Designer notes should specify one mature smiling model, clear bra/support visibility, popout/review placement only when supplied, and readable rose/crimson hierarchy.`,
+  gents_lux: `GentsLux Email Content.xlsx pattern memory:
+- Real sheets lean on product motion, GIF/detail references, and mechanism popouts such as stretch, cooling, waistband, pocket, or durability.
+- Body copy should sound restrained and practical. Curiosity is useful, but proof should be a product mechanism or supplied review, not hype.
+- Product blocks should use different mechanism headlines per item; USPs stay clipped, masculine, and visual enough to bake into images.`,
+  lux_fitting: `LuxFitting Email Content.xlsx pattern memory:
+- Real sheets often use Body Part 1 with base plus segment variants, then product rows with popup, review, main text, visual detail, and styling cues.
+- The best body route is sensory + price + outfit/use moment, not broad empowerment. Each segment should change the occasion, objection, or styling tip.
+- Banner/design notes should keep movement/silhouette readable, avoid crowded countdown stacks, and keep pink-red palette clean.`,
+  santa_fare: `SantaFare Email Content.xlsx pattern memory:
+- Real sheets use AB/CD-style branches, handwritten or gift-note details, proof badges, and exact product/recipient visual directions.
+- Copy should feel like Mary discovered a thoughtful gift for a specific person. Suspended loop and personalization should beat discount-first urgency.
+- Default to 4 focused products; product rows should name recipient/use case, material/personalization detail, and restrained deep-scarlet visual direction.`,
+};
+
+function brandBriefPatternLayer(brandId: string): string {
+  return BRAND_BRIEF_PATTERN_LAYER[brandId] || "";
+}
 
 // ---- prompt builders ----
 /** The clause appended to Option B's system prompt forcing a different angle + framework than A. */
@@ -1036,6 +1108,10 @@ export function buildSystemPrompt(
 
   return renderPromptLayers([
     {
+      title: "Prompt Registry",
+      body: `Prompt id/version: ${PROMPT_REGISTRY_VERSION}. Keep output compatible with this JSON schema; do not mention this id in recipient-facing copy.`,
+    },
+    {
       title: "Role",
       body: `You are an expert ecommerce email copywriter for ${brand.name}. Persona: ${brand.persona}. Voice: ${brand.voice}. Layout: ${brand.layout}.`,
     },
@@ -1049,6 +1125,7 @@ export function buildSystemPrompt(
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
     { title: "SendGrid HTML Fit", body: SENDGRID_HTML_PROMPT_LAYER },
     { title: "Email Content XLSX Reference", body: EXCEL_BRIEF_REFERENCE_LAYER },
+    { title: "Brand Brief Pattern Memory", body: brandBriefPatternLayer(campaign.brandId) },
     { title: "Brand Rules", body: BRAND_PLAYBOOK_RULES[campaign.brandId] || "" },
     { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
     { title: "Option Contrast", body: contrast },
@@ -1146,6 +1223,8 @@ Body layout: ${bodyLayoutLabel(campaign)}
 Product template: ${productCopyStyleLabel(campaign)}
 Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}`,
     },
+    { title: "Strategy Intake", body: strategyPromptLayer(campaign) },
+    { title: "Campaign Operations", body: opsPromptLayer(campaign) },
     { title: "Creative Variety", body: varietyMandate || openerFallback },
     { title: "Segment Body Differentiation", body: segmentBodyMandate },
     { title: "Tone Calibration", body: winToneMandate },
@@ -1163,10 +1242,10 @@ function addFlag(b: GenBrief, type: Flag["type"], msg: string) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty/i;
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
-  /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener/i;
+  /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
 
 export function flagTier(msg: string): FlagTier {
   if (SERIOUS_FLAG.test(msg)) return "serious";
@@ -1220,6 +1299,13 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       if (!brief[f]) addFlag(brief, "error", "Missing required field: " + f);
     }
   );
+  if (campaign.ops) {
+    if (!campaign.ops.senderEmail?.trim()) addFlag(brief, "warn", "Ops sender email missing — confirm verified sender before ESP sync");
+    if (!campaign.ops.audienceSource?.trim()) addFlag(brief, "warn", "Ops audience source missing — document list/import/source before send");
+    if (!campaign.ops.segmentRule?.trim()) addFlag(brief, "warn", "Ops segment rule missing — confirm who receives each variant");
+    if (campaign.ops.consentBasis === "unknown") addFlag(brief, "warn", "Ops consent basis unknown — confirm opt-in and suppression before send");
+    if (campaign.ops.trackClicks !== false && !campaign.ops.utmPlan?.trim()) addFlag(brief, "warn", "UTM plan missing while click tracking is enabled");
+  }
 
   const sl = brief.subject_lines || {};
   campaign.segments.forEach((id) => {
@@ -1228,6 +1314,8 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   Object.entries(sl).forEach(([seg, v]) => {
     const s = v.subject || "", p = v.preheader || "";
     const opts = Array.isArray(v.options) ? v.options : [];
+    if (!s.trim()) addFlag(brief, "warn", `${seg} missing selected subject`);
+    if (!p.trim()) addFlag(brief, "warn", `${seg} missing selected preheader`);
     if (s.length > 60) addFlag(brief, "warn", `${seg} subject over hard cap (${s.length} > 60)`);
     else if (s.length > subjectMax) addFlag(brief, "warn", `${seg} subject above target (${s.length} > ${subjectMax})`);
     if (s && s.length < subjectMin) addFlag(brief, "warn", `${seg} subject may be too short (${s.length} < ${subjectMin})`);
@@ -1248,6 +1336,8 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       if (!o.style) addFlag(brief, "warn", `${seg} option ${i + 1} missing style`);
       if (!o.model_hint) addFlag(brief, "warn", `${seg} option ${i + 1} missing model_hint`);
       if (!o.shared_thread) addFlag(brief, "warn", `${seg} option ${i + 1} missing shared_thread`);
+      if (!o.subject?.trim()) addFlag(brief, "warn", `${seg} option ${i + 1} missing subject`);
+      if (!o.preheader?.trim()) addFlag(brief, "warn", `${seg} option ${i + 1} missing preheader`);
       if ((o.subject || "").length > 60) addFlag(brief, "warn", `${seg} option ${i + 1} subject over hard cap`);
       if (o.subject && o.subject.length < subjectMin) addFlag(brief, "warn", `${seg} option ${i + 1} subject too short (${o.subject.length} < ${subjectMin})`);
       if (o.preheader && (o.preheader.length < 60 || o.preheader.length > 90)) {
@@ -1285,6 +1375,9 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   if (!body.base || !String(body.base).trim()) addFlag(brief, "error", "body.base is empty — shared body foundation is required");
   campaign.segments.forEach((id) => {
     if (!body[segJsonKey(id)]) addFlag(brief, "warn", "Missing body variant for segment " + id);
+  });
+  Object.entries(body).forEach(([key, value]) => {
+    if (looksLikeSchemaPlaceholder(value)) addFlag(brief, "warn", `${key} still contains schema placeholder text`);
   });
 
   const richText = JSON.stringify({ ba: brief.banner, bo: brief.body, p: brief.products });
@@ -1356,6 +1449,12 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   if (banner.image_guidance && (bannerBullets.length < 4 || bannerBullets.length > 6)) {
     addFlag(brief, "warn", "Banner image guidance should be 4-6 compact bullets");
   }
+  if (looksLikeSchemaPlaceholder(banner.image_guidance)) addFlag(brief, "warn", "Banner image guidance still contains schema placeholder text");
+  [banner.review_quote, ...(banner.review_texts || [])].filter(Boolean).forEach((review) => {
+    if (!matchesAnySuppliedReview(String(review), products)) {
+      addFlag(brief, "warn", "Banner review looks invented; use supplied review text or unattributed proof language");
+    }
+  });
   bannerBullets.forEach((line) => {
     const text = line.replace(/^\s*[-•]\s*/, "");
     if (wordCount(text) > 12) addFlag(brief, "warn", `Banner bullet over 12 words: "${line.trim()}"`);

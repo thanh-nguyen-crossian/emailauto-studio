@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPublicHtml, PublicFetchError } from "@/lib/publicFetch";
-import { extractUSPs } from "@/lib/scrape";
+import { extractPageHighlights, extractPageToneKeywords } from "@/lib/scrape";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 export const maxDuration = 20;
 
-const TIMEOUT_MS = 12000;
+const TIMEOUT_MS = 12_000;
 const MAX_HTML_BYTES = 1_500_000;
 
 export async function POST(req: NextRequest) {
@@ -29,13 +29,15 @@ export async function POST(req: NextRequest) {
     const html = await fetchPublicHtml(url, {
       timeoutMs: TIMEOUT_MS,
       maxBytes: MAX_HTML_BYTES,
-      tooLargeMessage: "Product page is too large to scrape safely",
+      tooLargeMessage: "Brand page is too large to analyze safely",
     });
-    const usps = extractUSPs(html);
-    return NextResponse.json({ usps });
+    return NextResponse.json({
+      toneKeywords: extractPageToneKeywords(html),
+      highlights: extractPageHighlights(html),
+    });
   } catch (e) {
     const status = e instanceof PublicFetchError ? e.status : 502;
-    const error = e instanceof Error ? e.message : "Could not fetch the page";
+    const error = e instanceof Error ? e.message : "Could not analyze the page";
     return NextResponse.json({ error }, { status });
   }
 }

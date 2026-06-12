@@ -72,3 +72,75 @@ export function extractUSPs(html: string, max = 6): string[] {
   }
   return out.slice(0, max);
 }
+
+const TONE_WORDS = [
+  "warm", "friendly", "personal", "helpful", "caring", "calm", "confident", "practical",
+  "premium", "luxury", "elegant", "sophisticated", "minimal", "modern", "bold", "playful",
+  "energetic", "inviting", "trustworthy", "thoughtful", "comfortable", "romantic", "heritage",
+  "crafted", "durable", "breathable", "soft", "effortless", "exclusive", "timeless", "giftable",
+];
+const TEXT_STOPWORDS = new Set([
+  "about", "after", "again", "also", "because", "before", "being", "between", "brand", "brands",
+  "cart", "collection", "customer", "customers", "email", "every", "feature", "features", "from",
+  "have", "home", "into", "learn", "more", "order", "page", "privacy", "product", "products",
+  "return", "returns", "shipping", "shop", "store", "than", "that", "their", "there", "these",
+  "this", "with", "your",
+]);
+
+function htmlAttr(html: string, pattern: RegExp): string {
+  const m = pattern.exec(html);
+  return m ? stripTags(m[1] || "") : "";
+}
+
+export function extractPageHighlights(html: string, max = 5): string[] {
+  const src = String(html || "").replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ");
+  const candidates: string[] = [
+    htmlAttr(src, /<title[^>]*>([\s\S]*?)<\/title>/i),
+    htmlAttr(src, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i),
+    htmlAttr(src, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i),
+  ];
+  for (const m of src.matchAll(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>/gi)) candidates.push(stripTags(m[1]));
+
+  const seen = new Set<string>();
+  return candidates
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => s.length >= 12 && s.length <= 180 && !isNoise(s))
+    .filter((s) => {
+      const k = s.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .slice(0, max);
+}
+
+export function extractPageToneKeywords(html: string, max = 8): string[] {
+  const highlights = extractPageHighlights(html, 8).join(" ");
+  const visible = String(html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 20000);
+  const text = decodeEntities(`${highlights} ${visible}`).toLowerCase();
+  const scores = new Map<string, number>();
+
+  TONE_WORDS.forEach((word) => {
+    const re = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+    const count = text.match(re)?.length || 0;
+    if (count) scores.set(word, count + (highlights.toLowerCase().includes(word) ? 2 : 0));
+  });
+
+  if (scores.size < max) {
+    const words = text.match(/\b[a-z][a-z-]{5,}\b/g) || [];
+    words.forEach((word) => {
+      if (TEXT_STOPWORDS.has(word) || NAV.test(word) || /\d/.test(word)) return;
+      scores.set(word, (scores.get(word) || 0) + 0.25);
+    });
+  }
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([word]) => word)
+    .slice(0, max);
+}

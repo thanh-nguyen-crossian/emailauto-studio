@@ -17,6 +17,8 @@ import {
   type BodyLayout,
   type BodyVarietyProfile,
   type Campaign,
+  type CampaignOps,
+  type CampaignStrategy,
   type EmailModuleKey,
   type ImageOverrides,
   type OfferType,
@@ -78,6 +80,39 @@ const OFFER_PRESETS: Record<OfferType, string[]> = {
   none: [],
 };
 const SHIPPING_PRESETS = ["Free Shipping 💲35+", "Free Shipping 💲45+", "Free Shipping 💲50+", "Free Shipping 💲55+"];
+const DEFAULT_OPS: CampaignOps = {
+  provider: "sendgrid",
+  senderName: "",
+  senderEmail: "",
+  replyTo: "",
+  audienceSource: "",
+  segmentRule: "",
+  consentBasis: "prior_purchase_or_opt_in",
+  doubleOptIn: false,
+  suppressionNotes: "",
+  scheduleWindow: "",
+  trackOpens: true,
+  trackClicks: true,
+  utmPlan: "utm_source=sendgrid&utm_medium=email&utm_campaign={{campaign_name}}",
+  publicArchive: false,
+  complianceNotes: "",
+};
+const OPS_PROVIDER_OPTIONS = [
+  ["sendgrid", "SendGrid"],
+  ["smtp", "SMTP"],
+  ["ses", "AWS SES"],
+  ["mailgun", "Mailgun"],
+  ["postmark", "Postmark"],
+  ["local", "Inbox/local"],
+  ["other", "Other"],
+] as const;
+const CONSENT_OPTIONS = [
+  ["prior_purchase_or_opt_in", "Purchase/opt-in"],
+  ["double_opt_in", "Double opt-in"],
+  ["manual_import", "Manual import"],
+  ["winback_existing_customer", "Winback customers"],
+  ["unknown", "Unknown"],
+] as const;
 
 // Format an ISO date (2026-05-31) as the team's naming token: Sun31May26.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -110,6 +145,10 @@ export default function Studio() {
   const [lastNote, setLastNote] = useState("");
   const [lastOpenerMechanic, setLastOpenerMechanic] = useState("");
   const [lastEmotionalArc, setLastEmotionalArc] = useState("");
+  const [strategy, setStrategy] = useState<CampaignStrategy>({});
+  const [ops, setOps] = useState<CampaignOps>(DEFAULT_OPS);
+  const [toneExtracting, setToneExtracting] = useState(false);
+  const [toneError, setToneError] = useState<string | null>(null);
   const [winningContent, setWinningContent] = useState("");
   const [customPerfContext, setCustomPerfContext] = useState<string | null>(null);
   const [modelA, setModelA] = useState<AIModelSelection>(DEFAULT_AI_MODELS.a);
@@ -253,6 +292,7 @@ export default function Studio() {
 
   const offerParts = [offerValue, offerShipping].map((p) => p.trim()).filter(Boolean);
   const offer = offerParts.length ? offerParts.join(" + ") : "No promo this send";
+  const strategyActive = Object.values(strategy).some((v) => String(v || "").trim());
   const campaign: Campaign = useMemo(
     () => ({
       brandId, sendDate, segments, layout, theme,
@@ -265,11 +305,13 @@ export default function Studio() {
         openerMechanic: lastOpenerMechanic || undefined,
         emotionalArc: lastEmotionalArc || undefined,
       },
+      strategy: strategyActive ? strategy : undefined,
+      ops,
       winningContent,
       customPerfContext: customPerfContext ?? undefined,
       recentProductSlugs: recentProductSlugs.length ? recentProductSlugs : undefined,
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, winningContent, customPerfContext, recentProductSlugs]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, winningContent, customPerfContext, recentProductSlugs]
   );
 
   const varietyProfile: BodyVarietyProfile = useMemo(
@@ -310,6 +352,44 @@ export default function Studio() {
 
   function toggle<T>(list: T[], value: T, setter: (v: T[]) => void) {
     setter(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  }
+  function updateStrategy(patch: Partial<CampaignStrategy>) {
+    setStrategy((prev) => ({ ...prev, ...patch }));
+  }
+  function updateOps(patch: Partial<CampaignOps>) {
+    setOps((prev) => ({ ...prev, ...patch }));
+  }
+  async function extractToneFromUrl() {
+    const url = strategy.toneSourceUrl?.trim();
+    if (!url || !/^https?:\/\//i.test(url)) {
+      setToneError("Enter a public http(s) page first.");
+      return;
+    }
+    setToneExtracting(true);
+    setToneError(null);
+    try {
+      const res = await fetch("/api/extract-tone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setToneError(data.error || "Could not analyze the page");
+        return;
+      }
+      const toneKeywords = Array.isArray(data.toneKeywords) ? data.toneKeywords.join(", ") : "";
+      const highlights = Array.isArray(data.highlights) ? data.highlights.slice(0, 3).join(" | ") : "";
+      setStrategy((prev) => ({
+        ...prev,
+        toneKeywords,
+        keyMessage: prev.keyMessage || highlights,
+      }));
+    } catch {
+      setToneError("Could not analyze the page");
+    } finally {
+      setToneExtracting(false);
+    }
   }
 
   // ---- slot editing ----
@@ -385,7 +465,9 @@ export default function Studio() {
   const [userOverride, setUserOverride] = useState<string | null>(null);
   const effectiveSystem = systemOverride ?? systemPromptA;
   const effectiveUser = userOverride ?? userPromptA;
-  const promptOverridesActive = systemOverride !== null || userOverride !== null;
+  const systemPromptEdited = systemOverride !== null && systemOverride !== systemPromptA;
+  const userPromptEdited = userOverride !== null && userOverride !== userPromptA;
+  const promptOverridesActive = systemPromptEdited || userPromptEdited;
   const autoSegmentBatching = segments.length > 3 && !promptOverridesActive;
 
   function stopGenTimer() {
@@ -419,8 +501,8 @@ export default function Studio() {
             name: p.name, slug: p.slug, price: p.price, usps: p.usps, review: p.review, url: p.url,
           })),
           promptOverrides:
-            systemOverride !== null || userOverride !== null
-              ? { system: systemOverride ?? undefined, user: userOverride ?? undefined }
+            promptOverridesActive
+              ? { system: systemPromptEdited ? systemOverride ?? undefined : undefined, user: userPromptEdited ? userOverride ?? undefined : undefined }
               : undefined,
           models: normalizeModelPair({ a: modelA, b: modelB }),
           feedback: feedback?.trim() || undefined,
@@ -533,6 +615,8 @@ export default function Studio() {
     setLastNote(c.lastSend?.note || "");
     setLastOpenerMechanic(c.lastSend?.openerMechanic || "");
     setLastEmotionalArc(c.lastSend?.emotionalArc || "");
+    setStrategy(c.strategy || {});
+    setOps(c.ops || DEFAULT_OPS);
     setWinningContent(c.winningContent || "");
     setCustomPerfContext(c.customPerfContext ?? null);
     setBodyLayout(c.bodyLayout || "continuous");
@@ -660,7 +744,7 @@ export default function Studio() {
     if (!options.a && !options.b) return;
     if (incompleteOutputLabels.length && !window.confirm(`Export with incomplete segment copy? Missing: ${incompleteOutputLabels.slice(0, 8).join(", ")}${incompleteOutputLabels.length > 8 ? "…" : ""}`)) return;
     const { exportBriefsToExcel } = await import("@/lib/exportExcel");
-    await exportBriefsToExcel(options, brand.name, dateToken(sendDate));
+    await exportBriefsToExcel(options, brand.name, dateToken(sendDate), ops);
   }
 
   async function syncDesign(opt: OptKey, seg: string) {
@@ -717,6 +801,8 @@ export default function Studio() {
         segments, slots, includeLogo, productLayout, bodyLayout, moduleLayout, productCopyStyle, images, options, htmlOverrides,
         models: normalizeModelPair({ a: modelA, b: modelB }),
         lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote, openerMechanic: lastOpenerMechanic || undefined, emotionalArc: lastEmotionalArc || undefined },
+        strategy: strategyActive ? strategy : undefined,
+        ops,
         winningContent,
         customPerfContext: customPerfContext ?? undefined,
       };
@@ -763,6 +849,10 @@ export default function Studio() {
     setSystemOverride(null);
     setUserOverride(null);
     setCustomPerfContext(null);
+    setStrategy({});
+    setOps(DEFAULT_OPS);
+    setToneError(null);
+    setToneExtracting(false);
     setModelA(DEFAULT_AI_MODELS.a);
     setModelB(DEFAULT_AI_MODELS.b);
     setHtmlOverrides({});
@@ -788,6 +878,8 @@ export default function Studio() {
     setLastNote(d.lastSend?.note || "");
     setLastOpenerMechanic(d.lastSend?.openerMechanic || "");
     setLastEmotionalArc(d.lastSend?.emotionalArc || "");
+    setStrategy(d.strategy || {});
+    setOps(d.ops || DEFAULT_OPS);
     setWinningContent(d.winningContent || "");
     setCustomPerfContext(d.customPerfContext ?? null);
     const models = normalizeModelPair(d.models);
@@ -851,10 +943,17 @@ export default function Studio() {
       setView("review");
     }
   }
-  const STEP_TITLES = ["Brand · Date · Theme", "Promo & Urgency", "Products", "Segments", "Last-Send Context", "Winning Reference"];
+  const STEP_TITLES = ["Brand · Date · Theme", "Promo & Urgency", "Products", "Segments", "Ops & Last-Send Context", "Winning Reference"];
 
   const segLabel = (code: string) => brand.productSegments.find((s) => s.code === code)?.label || code;
   const heroProduct = selectedProducts[0] || brand.catalog.find((p) => p.slug === brand.heroSlug) || brand.catalog[0];
+  const opsProviderLabel = OPS_PROVIDER_OPTIONS.find(([value]) => value === ops.provider)?.[1] || "SendGrid";
+  const opsSummary = [
+    opsProviderLabel,
+    ops.senderEmail ? "sender set" : "sender missing",
+    ops.audienceSource ? "audience set" : "audience missing",
+    ops.trackClicks === false ? "clicks off" : "clicks on",
+  ].join(" · ");
 
   function autoFillProductSet() {
     const desired = Math.min(maxProducts, brand.defaultProductCount || maxProducts, brand.catalog.length);
@@ -882,11 +981,11 @@ export default function Studio() {
 
   const stepSummary = (i: number): string => {
     switch (i) {
-      case 0: return `${brand.name} · ${dateToken(sendDate)} · ${theme || "no theme"}`;
+      case 0: return `${brand.name} · ${dateToken(sendDate)} · ${theme || "no theme"}${strategyActive ? " · strategy enriched" : ""}`;
       case 1: return `${offerParts.length ? offerParts.join(" + ") : "No promo"} · ${urgency}`;
       case 2: return `${selectedProducts.length} product${selectedProducts.length === 1 ? "" : "s"} (hero: ${brand.catalog.find((p) => p.slug === brand.heroSlug)?.name})`;
       case 3: return segments.length ? segments.map((s) => `${s} ${segLabel(s)}`).join(" · ") : "none selected";
-      case 4: return lastHero || lastAngle || lastCtr ? `${lastHero || "?"} · ${lastAngle || "?"} · ${lastCtr || "?"}%` : "skipped";
+      case 4: return `${opsSummary}${lastHero || lastAngle || lastCtr ? ` · last: ${lastHero || "?"}/${lastAngle || "?"}/${lastCtr || "?"}%` : ""}`;
       case 5: return winningContent.trim() ? `${winningContent.trim().length} chars pasted` : "skipped";
       default: return "";
     }
@@ -1049,6 +1148,48 @@ export default function Studio() {
                     </div>
                     <textarea value={hookContract} aria-label="Hook Contract" onChange={(e) => setHookContract(e.target.value)} rows={3} className="input" placeholder="segment insight + emotion + hero product + price/proof + urgency + avoid rule" />
                   </Field>
+                  <div className="border-t border-[var(--border)] pt-4 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-semibold">Strategy enrichment</h3>
+                        <p className="text-xs text-[var(--muted)] mt-0.5">Goal, narrative, pain, solution, and tone cues.</p>
+                      </div>
+                      {strategyActive && (
+                        <button type="button" onClick={() => { setStrategy({}); setToneError(null); }} className="btn-ghost">Clear strategy</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Field label="Campaign goal">
+                        <input value={strategy.campaignGoal || ""} aria-label="Campaign goal" onChange={(e) => updateStrategy({ campaignGoal: e.target.value })} placeholder="e.g. Win back low-click buyers" className="input" />
+                      </Field>
+                      <Field label="Key message">
+                        <input value={strategy.keyMessage || ""} aria-label="Key message" onChange={(e) => updateStrategy({ keyMessage: e.target.value })} placeholder="e.g. Comfort proof before the discount" className="input" />
+                      </Field>
+                    </div>
+                    <Field label="Storyline progression">
+                      <textarea value={strategy.storyline || ""} aria-label="Storyline progression" onChange={(e) => updateStrategy({ storyline: e.target.value })} rows={2} className="input" placeholder="How this send should fit into the larger customer story" />
+                    </Field>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Field label="Pain points">
+                        <textarea value={strategy.painPoints || ""} aria-label="Pain points" onChange={(e) => updateStrategy({ painPoints: e.target.value })} rows={2} className="input" placeholder="Fit doubt, price hesitation, timing, gifting uncertainty" />
+                      </Field>
+                      <Field label="Solutions">
+                        <textarea value={strategy.solutions || ""} aria-label="Solutions" onChange={(e) => updateStrategy({ solutions: e.target.value })} rows={2} className="input" placeholder="USP, review, price, shipping, return, product mechanism" />
+                      </Field>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                      <Field label="Tone source URL">
+                        <input value={strategy.toneSourceUrl || ""} aria-label="Tone source URL" onChange={(e) => updateStrategy({ toneSourceUrl: e.target.value })} placeholder={brand.domain ? `https://${brand.domain}` : "https://..."} className="input" />
+                      </Field>
+                      <Field label="Tone cues">
+                        <input value={strategy.toneKeywords || ""} aria-label="Tone cues" onChange={(e) => updateStrategy({ toneKeywords: e.target.value })} placeholder="warm, practical, premium" className="input" />
+                      </Field>
+                      <button type="button" onClick={extractToneFromUrl} disabled={toneExtracting} className="btn-ghost">
+                        {toneExtracting ? "Extracting…" : "Extract cues"}
+                      </button>
+                    </div>
+                    {toneError && <div className="text-xs text-[var(--bad)]">{toneError}</div>}
+                  </div>
                 </div>
               )}
 
@@ -1179,14 +1320,54 @@ export default function Studio() {
               )}
 
               {i === 4 && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-sm text-[var(--muted)]">Optional — helps the model rotate away from the last send's angle/hero.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Field label="Last send CTR %"><input value={lastCtr} aria-label="Last send CTR percent" onChange={(e) => setLastCtr(e.target.value)} placeholder="0.84" className="input" /></Field>
-                    <Field label="Last hero"><input value={lastHero} aria-label="Last hero product" onChange={(e) => setLastHero(e.target.value)} placeholder="Daisy Bra" className="input" /></Field>
-                    <Field label="Last angle"><input value={lastAngle} aria-label="Last send angle" onChange={(e) => setLastAngle(e.target.value)} placeholder="Proof" className="input" /></Field>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">Send operations</h3>
+                      <p className="text-sm text-[var(--muted)] mt-1">Keila-style launch context: provider, list source, consent, tracking, and handoff notes.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Field label="Provider">
+                        <select value={ops.provider || "sendgrid"} aria-label="Email provider" onChange={(e) => updateOps({ provider: e.target.value as CampaignOps["provider"] })} className="input">
+                          {OPS_PROVIDER_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Sender name"><input value={ops.senderName || ""} aria-label="Sender name" onChange={(e) => updateOps({ senderName: e.target.value })} placeholder="Sandra at BraGoddess" className="input" /></Field>
+                      <Field label="Verified sender email"><input value={ops.senderEmail || ""} aria-label="Verified sender email" onChange={(e) => updateOps({ senderEmail: e.target.value })} placeholder="hello@example.com" className="input" /></Field>
+                      <Field label="Reply-to"><input value={ops.replyTo || ""} aria-label="Reply-to email" onChange={(e) => updateOps({ replyTo: e.target.value })} placeholder="support@example.com" className="input" /></Field>
+                      <Field label="Audience source"><input value={ops.audienceSource || ""} aria-label="Audience source" onChange={(e) => updateOps({ audienceSource: e.target.value })} placeholder="Klaviyo engaged 120d, imported buyers" className="input" /></Field>
+                      <Field label="Segment rule"><input value={ops.segmentRule || ""} aria-label="Segment rule" onChange={(e) => updateOps({ segmentRule: e.target.value })} placeholder="Send segment code to matching product interest" className="input" /></Field>
+                      <Field label="Consent basis">
+                        <select value={ops.consentBasis || "prior_purchase_or_opt_in"} aria-label="Consent basis" onChange={(e) => updateOps({ consentBasis: e.target.value as CampaignOps["consentBasis"] })} className="input">
+                          {CONSENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Send window"><input value={ops.scheduleWindow || ""} aria-label="Send window" onChange={(e) => updateOps({ scheduleWindow: e.target.value })} placeholder="Tue 10am local / after QA" className="input" /></Field>
+                      <div className="flex flex-col gap-2 pt-6">
+                        <label className="ops-check"><input type="checkbox" checked={!!ops.doubleOptIn} onChange={(e) => updateOps({ doubleOptIn: e.target.checked })} /> Double opt-in</label>
+                        <label className="ops-check"><input type="checkbox" checked={ops.trackOpens !== false} onChange={(e) => updateOps({ trackOpens: e.target.checked })} /> Track opens</label>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <label className="ops-check"><input type="checkbox" checked={ops.trackClicks !== false} onChange={(e) => updateOps({ trackClicks: e.target.checked })} /> Track clicks</label>
+                      <label className="ops-check"><input type="checkbox" checked={!!ops.publicArchive} onChange={(e) => updateOps({ publicArchive: e.target.checked })} /> Public archive link</label>
+                      <button type="button" onClick={() => setOps(DEFAULT_OPS)} className="btn-ghost">Reset ops</button>
+                    </div>
+                    <Field label="UTM plan"><input value={ops.utmPlan || ""} aria-label="UTM plan" onChange={(e) => updateOps({ utmPlan: e.target.value })} placeholder="utm_source=sendgrid&utm_medium=email&utm_campaign={{campaign_name}}" className="input" /></Field>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Field label="Suppression hygiene"><textarea value={ops.suppressionNotes || ""} aria-label="Suppression hygiene" onChange={(e) => updateOps({ suppressionNotes: e.target.value })} rows={2} className="input" placeholder="Exclude recent purchasers, unsubscribed, complaints, hard bounces" /></Field>
+                      <Field label="Compliance notes"><textarea value={ops.complianceNotes || ""} aria-label="Compliance notes" onChange={(e) => updateOps({ complianceNotes: e.target.value })} rows={2} className="input" placeholder="Footer/unsubscribe handled by renderer; region-specific note if needed" /></Field>
+                    </div>
                   </div>
-                  <Field label="Note (e.g. 3rd reviews arc — avoid)"><input value={lastNote} aria-label="Last-send note" onChange={(e) => setLastNote(e.target.value)} className="input" /></Field>
+                  <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-4">
+                    <p className="text-sm text-[var(--muted)]">Optional - helps the model rotate away from the last send's angle/hero.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Field label="Last send CTR %"><input value={lastCtr} aria-label="Last send CTR percent" onChange={(e) => setLastCtr(e.target.value)} placeholder="0.84" className="input" /></Field>
+                      <Field label="Last hero"><input value={lastHero} aria-label="Last hero product" onChange={(e) => setLastHero(e.target.value)} placeholder="Daisy Bra" className="input" /></Field>
+                      <Field label="Last angle"><input value={lastAngle} aria-label="Last send angle" onChange={(e) => setLastAngle(e.target.value)} placeholder="Proof" className="input" /></Field>
+                    </div>
+                    <Field label="Note (e.g. 3rd reviews arc - avoid)"><input value={lastNote} aria-label="Last-send note" onChange={(e) => setLastNote(e.target.value)} className="input" /></Field>
+                  </div>
                 </div>
               )}
 
@@ -1222,6 +1403,7 @@ export default function Studio() {
             segments={segments.length}
             hasLastSend={Boolean(lastHero || lastAngle || lastNote)}
           />
+          <OpsReadinessPanel ops={ops} segments={segments.length} />
 
           <div className="section-panel">
             <h3 className="text-sm font-semibold mb-2">Pre-flight summary</h3>
@@ -1235,6 +1417,8 @@ export default function Studio() {
               <Summary k="Products" v={`${selectedProducts.length} (${selectedProducts.map((p) => p.name).join(", ")})`} />
               <Summary k="Body layout" v={bodyLayout} />
               <Summary k="Product copy" v={productCopyStyle.replace(/_/g, " ")} />
+              <Summary k="Strategy" v={strategyActive ? [strategy.campaignGoal, strategy.keyMessage, strategy.toneKeywords].filter(Boolean).join(" · ") || "enriched" : "none"} />
+              <Summary k="Ops" v={opsSummary} />
             </div>
           </div>
 
@@ -1260,6 +1444,16 @@ export default function Studio() {
           <Banner level="warn">
             Timeout tip: Opus, Pro, and full frontier GPT models can be slow on multi-segment briefs. For fastest runs, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model only for final polish.
           </Banner>
+          <GenerationBudgetPanel
+            systemPrompt={effectiveSystem}
+            userPrompt={effectiveUser}
+            segments={segments.length}
+            products={selectedProducts.length}
+            autoBatching={autoSegmentBatching}
+            promptOverridesActive={promptOverridesActive}
+            modelA={modelA}
+            modelB={modelB}
+          />
 
           <PromptBlock
             title="Performance context"
@@ -1274,7 +1468,7 @@ export default function Studio() {
             title="System prompt (shared, cached)"
             subtitle={`${brand.name} · ${brand.persona} — B also gets a parallel contrast clause`}
             value={effectiveSystem}
-            edited={systemOverride !== null}
+            edited={systemPromptEdited}
             onChange={(v) => setSystemOverride(v)}
             onReset={() => setSystemOverride(null)}
           />
@@ -1282,7 +1476,7 @@ export default function Studio() {
             title="User prompt (shared by A & B)"
             subtitle="lead creative direction, then all copy sections"
             value={effectiveUser}
-            edited={userOverride !== null}
+            edited={userPromptEdited}
             onChange={(v) => setUserOverride(v)}
             onReset={() => setUserOverride(null)}
           />
@@ -1318,6 +1512,7 @@ export default function Studio() {
                       <div className="text-sm font-semibold">Option {opt.toUpperCase()} <span className="ml-1 text-xs" style={{ color: scoreColor(b._score) }}>{b._score ?? "—"}/100</span></div>
                       <div className="text-xs text-[var(--muted)]">{cd.angle || "?"} · {cd.framework || "?"}</div>
                       {b._model && <div className="text-[10px] mono text-[var(--muted)]">{b._provider || "AI"} · {b._model}</div>}
+                      {b._prompt_version && <div className="text-[10px] mono text-[var(--muted)] truncate" title={b._prompt_version}>{b._prompt_version}</div>}
                     </button>
                   );
                 })}
@@ -1617,6 +1812,89 @@ function GenerationProgress({ elapsedSec, onCancel }: { elapsedSec: number; onCa
   );
 }
 
+function GenerationBudgetPanel({
+  systemPrompt,
+  userPrompt,
+  segments,
+  products,
+  autoBatching,
+  promptOverridesActive,
+  modelA,
+  modelB,
+}: {
+  systemPrompt: string;
+  userPrompt: string;
+  segments: number;
+  products: number;
+  autoBatching: boolean;
+  promptOverridesActive: boolean;
+  modelA: AIModelSelection;
+  modelB: AIModelSelection;
+}) {
+  const inputTokens = estimateTokens(systemPrompt.length + userPrompt.length);
+  const outputPerOption = 1800 + segments * 850 + products * 220;
+  const batchCount = autoBatching ? Math.max(1, Math.ceil(segments / 2)) : 1;
+  const baseCalls = batchCount * 2;
+  const totalOutputBudget = outputPerOption * 2;
+  const highRisk =
+    promptOverridesActive && segments > 3 ||
+    inputTokens > 9000 ||
+    totalOutputBudget > 14000 ||
+    [modelA, modelB].some((m) => modelOpsProfile(m).tier === "premium");
+  return (
+    <div className="section-panel">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-sm font-semibold">Generation budget</h3>
+          <p className="text-xs text-[var(--muted)] mt-0.5">Estimate before spend: prompt size, expected output, batching, and model speed profile.</p>
+        </div>
+        <span className="status-pill" style={{ color: highRisk ? "var(--warn)" : "var(--ok)" }}>
+          {highRisk ? "Watch cost/time" : "Healthy run"}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <Summary k="Input estimate" v={`${inputTokens.toLocaleString()} tokens`} />
+        <Summary k="Output estimate" v={`~${Math.round(totalOutputBudget / 1000)}k tokens`} />
+        <Summary k="Base calls" v={`${baseCalls} call${baseCalls === 1 ? "" : "s"}`} />
+        <Summary k="Batching" v={autoBatching ? `${batchCount} segment batches` : promptOverridesActive && segments > 3 ? "Off: prompt edited" : "Single batch"} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+        <ModelBudgetCard label="Option A" selection={modelA} />
+        <ModelBudgetCard label="Option B" selection={modelB} />
+      </div>
+      {promptOverridesActive && segments > 3 && (
+        <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
+          Custom prompt edits disable automatic segment batching. Reset system/user prompt edits for more reliable large-segment runs.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function estimateTokens(chars: number): number {
+  return Math.max(1, Math.ceil(chars / 4));
+}
+
+function modelOpsProfile(selection: AIModelSelection): { tier: "fast" | "balanced" | "premium"; label: string } {
+  const id = selection.model.toLowerCase();
+  if (/opus|pro/.test(id) && !/mini|nano|flash-lite|lite/.test(id)) return { tier: "premium", label: "Premium quality, slower/costlier" };
+  if (/haiku|flash|lite|mini|nano/.test(id)) return { tier: "fast", label: "Fast/economical" };
+  return { tier: "balanced", label: "Balanced quality/speed" };
+}
+
+function ModelBudgetCard({ label, selection }: { label: string; selection: AIModelSelection }) {
+  const profile = modelOpsProfile(selection);
+  const color = profile.tier === "premium" ? "var(--warn)" : profile.tier === "fast" ? "var(--ok)" : "var(--accent)";
+  return (
+    <div className="summary-tile">
+      <div className="text-[10px] uppercase text-[var(--muted)]">{label}</div>
+      <div className="text-sm font-semibold mt-0.5">{selection.provider}</div>
+      <div className="text-[11px] mono text-[var(--muted)] mt-0.5 truncate" title={selection.model}>{selection.model}</div>
+      <div className="text-xs font-semibold mt-1" style={{ color }}>{profile.label}</div>
+    </div>
+  );
+}
+
 function scoreColor(s?: number): string {
   const v = typeof s === "number" ? s : 100;
   return v >= 80 ? "var(--ok)" : v >= 55 ? "var(--warn)" : "var(--bad)";
@@ -1762,6 +2040,78 @@ function PlaybookChecklist({
           <p className="text-xs text-[var(--muted)] mt-0.5">From email-campaign-playbook.html: lock one hook, prove it, then generate subjects last.</p>
         </div>
         <span className="text-xs text-[var(--muted)]">Pre-generation QA</span>
+      </div>
+      <div className="playbook-grid">
+        {items.map((item) => (
+          <div key={item.label} className={`playbook-card playbook-card-${item.tone}`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[10px] uppercase text-[var(--muted)]">{item.label}</div>
+              <span className="playbook-status">{item.tone}</span>
+            </div>
+            <div className="text-sm font-semibold mt-1">{item.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OpsReadinessPanel({ ops, segments }: { ops: CampaignOps; segments: number }) {
+  const provider = OPS_PROVIDER_OPTIONS.find(([value]) => value === ops.provider)?.[1] || "SendGrid";
+  const consentLabel = CONSENT_OPTIONS.find(([value]) => value === ops.consentBasis)?.[1] || "Purchase/opt-in";
+  const items = [
+    {
+      label: "Provider",
+      value: provider,
+      tone: "ok",
+    },
+    {
+      label: "Sender",
+      value: ops.senderEmail?.trim() ? ops.senderEmail : "Add verified sender",
+      tone: ops.senderEmail?.trim() ? "ok" : "warn",
+    },
+    {
+      label: "Audience",
+      value: ops.audienceSource?.trim() ? `${segments} segment${segments === 1 ? "" : "s"} from source` : "List/source missing",
+      tone: ops.audienceSource?.trim() && segments > 0 ? "ok" : "bad",
+    },
+    {
+      label: "Segment rule",
+      value: ops.segmentRule?.trim() ? "Routing rule documented" : "Map segments to list/filter",
+      tone: ops.segmentRule?.trim() ? "ok" : "warn",
+    },
+    {
+      label: "Consent",
+      value: `${consentLabel}${ops.doubleOptIn ? " + double opt-in" : ""}`,
+      tone: ops.consentBasis === "unknown" ? "bad" : "ok",
+    },
+    {
+      label: "Suppression",
+      value: ops.suppressionNotes?.trim() ? "Exclusions documented" : "Add bounces/unsubs/recent buyers",
+      tone: ops.suppressionNotes?.trim() ? "ok" : "warn",
+    },
+    {
+      label: "Tracking",
+      value: ops.trackClicks === false ? "Click tracking off" : ops.utmPlan?.trim() ? "Clicks + UTM ready" : "UTM needed",
+      tone: ops.trackClicks === false ? "warn" : ops.utmPlan?.trim() ? "ok" : "bad",
+    },
+    {
+      label: "Schedule",
+      value: ops.scheduleWindow?.trim() || "No send window",
+      tone: ops.scheduleWindow?.trim() ? "ok" : "warn",
+    },
+  ] as const;
+  const okCount = items.filter((item) => item.tone === "ok").length;
+  const hasBlocking = items.some((item) => item.tone === "bad");
+
+  return (
+    <div className="section-panel">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-sm font-semibold">Campaign ops readiness</h3>
+          <p className="text-xs text-[var(--muted)] mt-0.5">Production checks inspired by Keila: sender, audience, consent, tracking, and scheduling.</p>
+        </div>
+        <span className={`text-xs font-semibold ${hasBlocking ? "text-[var(--bad)]" : "text-[var(--ok)]"}`}>{okCount}/{items.length} ready</span>
       </div>
       <div className="playbook-grid">
         {items.map((item) => (
@@ -2492,6 +2842,8 @@ function Styles() {
       .input { width:100%; background:var(--surface); border:1px solid var(--border-strong); border-radius:7px; padding:9px 11px; color:var(--text); font-size:14px; min-height:38px; box-shadow:inset 0 1px 0 rgba(20,36,33,.04); }
       .input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); outline:none; }
       textarea.input { line-height:1.55; }
+      .ops-check { display:flex; align-items:center; gap:8px; min-height:38px; border:1px solid var(--border-strong); background:var(--surface); border-radius:7px; padding:8px 10px; color:var(--text); font-size:13px; font-weight:650; box-shadow:var(--shadow-tiny); }
+      .ops-check input { width:16px; height:16px; accent-color:var(--accent); }
       .btn-primary { background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:7px; padding:9px 14px; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 8px 18px rgba(35,102,90,.16); }
       .btn-primary:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
       .btn-ghost { background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:7px; padding:7px 11px; font-size:13px; font-weight:650; cursor:pointer; box-shadow:var(--shadow-tiny); }

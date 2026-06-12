@@ -6,16 +6,43 @@
 // Opens natively in Excel and Google Sheets.
 
 import type { GenBrief } from "./briefgen";
+import type { CampaignOps } from "./config/types";
 
 type Row = (string | null)[];
 
-function briefToRows(brief: GenBrief): Row[] {
+function opsToText(ops?: CampaignOps): string {
+  if (!ops) return "";
+  return [
+    `Provider: ${ops.provider || "sendgrid"}`,
+    [ops.senderName, ops.senderEmail].filter(Boolean).length
+      ? `Sender: ${[ops.senderName, ops.senderEmail].filter(Boolean).join(" / ")}`
+      : "",
+    ops.replyTo ? `Reply-to: ${ops.replyTo}` : "",
+    ops.audienceSource ? `Audience source: ${ops.audienceSource}` : "",
+    ops.segmentRule ? `Segment rule: ${ops.segmentRule}` : "",
+    `Consent: ${ops.consentBasis || "prior_purchase_or_opt_in"}${ops.doubleOptIn ? " + double opt-in" : ""}`,
+    ops.suppressionNotes ? `Suppression: ${ops.suppressionNotes}` : "",
+    ops.scheduleWindow ? `Schedule: ${ops.scheduleWindow}` : "",
+    `Tracking: opens ${ops.trackOpens === false ? "off" : "on"}, clicks ${ops.trackClicks === false ? "off" : "on"}`,
+    ops.utmPlan ? `UTM: ${ops.utmPlan}` : "",
+    ops.publicArchive ? "Public archive: on" : "",
+    ops.complianceNotes ? `Compliance: ${ops.complianceNotes}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function briefToRows(brief: GenBrief, ops?: CampaignOps): Row[] {
   const rows: Row[] = [];
   const addRow = (col2?: string | null, col3?: string | null, col4?: string | null, col5?: string | null) =>
     rows.push([null, col2 || null, col3 || null, col4 || null, col5 || null]);
   const spacer = () => rows.push([null, null, null, null, null]);
 
   spacer();
+
+  const opsText = opsToText(ops);
+  if (opsText) {
+    addRow("Send ops", opsText);
+    spacer();
+  }
 
   // Subject lines + preheaders — paired 2-per-row
   const segs = Object.entries(brief.subject_lines || {});
@@ -103,8 +130,10 @@ function briefToRows(brief: GenBrief): Row[] {
       b.logo_stars,
       "Main text 1: " + (b.main_text_1 || b.main_text || ""),
       "Main text 2: " + (b.main_text_2 || ""),
+      "Main text 3: " + (b.main_text_3 || ""),
       "Sub text 1: " + (b.sub_text_1 || b.sub_text || ""),
       "Sub text 2: " + (b.sub_text_2 || ""),
+      "Sub text 3: " + (b.sub_text_3 || ""),
       "Main image: " + (b.main_image || ""),
       "Sub image: " + (b.sub_image || ""),
       "Trust-booster: " + (b.trust_booster || ""),
@@ -211,11 +240,12 @@ function safeSheetName(s: string): string {
 export async function exportBriefsToExcel(
   options: { a?: GenBrief; b?: GenBrief },
   brand: string,
-  dateLabel: string
+  dateLabel: string,
+  ops?: CampaignOps
 ): Promise<void> {
   const sheets = (["a", "b"] as const)
     .filter((opt) => options[opt])
-    .map((opt) => sheetXml(safeSheetName(`${brand}_${dateLabel}_${opt.toUpperCase()}`), briefToRows(options[opt]!)))
+    .map((opt) => sheetXml(safeSheetName(`${brand}_${dateLabel}_${opt.toUpperCase()}`), briefToRows(options[opt]!, ops)))
     .join("");
 
   const xml = `<?xml version="1.0"?>

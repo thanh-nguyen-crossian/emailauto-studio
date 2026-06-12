@@ -3,13 +3,15 @@ import { generateOptions, providerConfigError } from "@/lib/anthropic";
 import { selectVarietyProfile, type GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
-import { RECIPIENT_NAME_TOKEN, type BodyVarietyProfile, type Campaign, type EmailModuleKey, type Product } from "@/lib/config/types";
+import { RECIPIENT_NAME_TOKEN, type BodyVarietyProfile, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type Product } from "@/lib/config/types";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
 const MAX_PRODUCTS = 6;
 const MAX_TEXT = 1200;
 const MAX_LONG_TEXT = 9000;
+const VALID_MAIL_PROVIDERS = new Set<CampaignMailProvider>(["sendgrid", "smtp", "ses", "mailgun", "postmark", "local", "other"]);
+const VALID_CONSENT_BASIS = new Set<CampaignConsentBasis>(["prior_purchase_or_opt_in", "double_opt_in", "manual_import", "winback_existing_customer", "unknown"]);
 
 export const runtime = "nodejs";
 // A/B generations run in parallel; B retries only when contrast collapses across route/copy shape.
@@ -36,6 +38,48 @@ function cleanProducts(input: unknown): Product[] | string {
       segment: cleanText(item.segment, 40),
     };
   }).filter((p) => p.name && p.slug);
+}
+
+function cleanStrategy(input: unknown): CampaignStrategy | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const s = input as Partial<CampaignStrategy>;
+  const strategy: CampaignStrategy = {
+    campaignGoal: cleanText(s.campaignGoal, 220),
+    keyMessage: cleanText(s.keyMessage, 260),
+    storyline: cleanText(s.storyline, 700),
+    painPoints: cleanText(s.painPoints, 500),
+    solutions: cleanText(s.solutions, 500),
+    toneSourceUrl: cleanText(s.toneSourceUrl, 500),
+    toneKeywords: cleanText(s.toneKeywords, 260),
+  };
+  return Object.values(strategy).some(Boolean) ? strategy : undefined;
+}
+
+function cleanOps(input: unknown): CampaignOps | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const o = input as Partial<CampaignOps>;
+  const provider = VALID_MAIL_PROVIDERS.has(o.provider as CampaignMailProvider) ? o.provider as CampaignMailProvider : "sendgrid";
+  const consentBasis = VALID_CONSENT_BASIS.has(o.consentBasis as CampaignConsentBasis)
+    ? o.consentBasis as CampaignConsentBasis
+    : "prior_purchase_or_opt_in";
+  const ops: CampaignOps = {
+    provider,
+    senderName: cleanText(o.senderName, 100),
+    senderEmail: cleanText(o.senderEmail, 160),
+    replyTo: cleanText(o.replyTo, 160),
+    audienceSource: cleanText(o.audienceSource, 220),
+    segmentRule: cleanText(o.segmentRule, 450),
+    consentBasis,
+    doubleOptIn: !!o.doubleOptIn,
+    suppressionNotes: cleanText(o.suppressionNotes, 450),
+    scheduleWindow: cleanText(o.scheduleWindow, 180),
+    trackOpens: o.trackOpens !== false,
+    trackClicks: o.trackClicks !== false,
+    utmPlan: cleanText(o.utmPlan, 300),
+    publicArchive: !!o.publicArchive,
+    complianceNotes: cleanText(o.complianceNotes, 450),
+  };
+  return ops;
 }
 
 function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {
@@ -71,6 +115,8 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
     recipientName: RECIPIENT_NAME_TOKEN,
     recentProductSlugs: Array.isArray(c.recentProductSlugs) ? c.recentProductSlugs as string[] : undefined,
     lastSend: c.lastSend,
+    strategy: cleanStrategy(c.strategy),
+    ops: cleanOps(c.ops),
     winningContent: cleanText(c.winningContent, MAX_LONG_TEXT),
     customPerfContext: cleanText(c.customPerfContext, 2500),
   };

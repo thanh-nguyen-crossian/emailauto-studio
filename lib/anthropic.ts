@@ -7,6 +7,7 @@ import {
   buildUserPrompt,
   contrastInstruction,
   isHighImpactFlag,
+  PROMPT_REGISTRY_VERSION,
   validateBrief,
   validateBriefPair,
   type GenBrief,
@@ -268,6 +269,7 @@ function briefRevisionSummary(brief?: GenBrief) {
     _score: _dropScore,
     _provider: _dropProvider,
     _model: _dropModel,
+    _prompt_version: _dropPromptVersion,
     body_variety: _dropVariety,
     ...copy
   } = brief as GenBrief & Record<string, unknown>;
@@ -275,6 +277,7 @@ function briefRevisionSummary(brief?: GenBrief) {
   void _dropScore;
   void _dropProvider;
   void _dropModel;
+  void _dropPromptVersion;
   void _dropVariety;
   return copy;
 }
@@ -330,6 +333,14 @@ function appendModelExecutionStyle(user: string, optionLabel: "A" | "B", selecti
 MODEL EXECUTION LENS FOR OPTION ${optionLabel}:
 ${modelExecutionStyle(selection)}
 This lens should change reasoning, sentence architecture, subject style, visual detail, and proof path. Do not expose provider/model names as recipient-facing copy.`;
+}
+
+function stampBrief(brief: GenBrief | undefined, selection: AIModelSelection): GenBrief | undefined {
+  if (!brief) return brief;
+  brief._provider = providerLabel(selection.provider);
+  brief._model = selection.model;
+  brief._prompt_version = PROMPT_REGISTRY_VERSION;
+  return brief;
 }
 
 interface SegmentBatchContext {
@@ -428,6 +439,7 @@ function mergeOptionBatches(
   const validated = validateBrief(base, campaign, products);
   validated._provider = provider;
   validated._model = model;
+  validated._prompt_version = PROMPT_REGISTRY_VERSION;
   return validated;
 }
 
@@ -550,8 +562,8 @@ async function generateOptionsSingle(
       a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
       b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
     ]);
-    if (a) { a._provider = providerLabel(models.a.provider); a._model = models.a.model; }
-    if (b) { b._provider = providerLabel(models.b.provider); b._model = models.b.model; }
+    stampBrief(a, models.a);
+    stampBrief(b, models.b);
 
     // One option failed — return the survivor with a non-fatal warning the UI can show.
     if (!a || !b) {
@@ -576,8 +588,7 @@ ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
       b = validateBrief((await createAndParseWithModel(sysB, retry, models.b, 0.80)) as unknown as GenBrief, campaign, products);
       b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
-      b._provider = providerLabel(models.b.provider);
-      b._model = models.b.model;
+      stampBrief(b, models.b);
     }
 
     [a, b] = validateBriefPair(a, b);

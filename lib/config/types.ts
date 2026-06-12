@@ -115,6 +115,45 @@ export interface LastSend {
   emotionalArc?: string;
 }
 
+export interface CampaignStrategy {
+  /** The business objective for this send, adapted from the recommender-style intake. */
+  campaignGoal?: string;
+  /** The single value proposition or key message the email should carry. */
+  keyMessage?: string;
+  /** How this send should fit into a larger email/customer storyline. */
+  storyline?: string;
+  /** Buyer pains or frictions to address, comma/newline separated. */
+  painPoints?: string;
+  /** Product/offer solutions to present, comma/newline separated. */
+  solutions?: string;
+  /** Optional brand/site URL used to derive tone cues. */
+  toneSourceUrl?: string;
+  /** Human or auto-extracted tone/voice cues from the source page. */
+  toneKeywords?: string;
+}
+
+export type CampaignMailProvider = "sendgrid" | "smtp" | "ses" | "mailgun" | "postmark" | "local" | "other";
+export type CampaignConsentBasis = "prior_purchase_or_opt_in" | "double_opt_in" | "manual_import" | "winback_existing_customer" | "unknown";
+
+/** Production/send readiness context inspired by newsletter platform workflows. */
+export interface CampaignOps {
+  provider?: CampaignMailProvider;
+  senderName?: string;
+  senderEmail?: string;
+  replyTo?: string;
+  audienceSource?: string;
+  segmentRule?: string;
+  consentBasis?: CampaignConsentBasis;
+  doubleOptIn?: boolean;
+  suppressionNotes?: string;
+  scheduleWindow?: string;
+  trackOpens?: boolean;
+  trackClicks?: boolean;
+  utmPlan?: string;
+  publicArchive?: boolean;
+  complianceNotes?: string;
+}
+
 export interface BodyVarietyProfile {
   openerMechanic:
     | "story"
@@ -173,6 +212,10 @@ export interface Campaign {
   recipientName: string;
   /** Optional last-send context. */
   lastSend?: LastSend;
+  /** Optional strategic intake inspired by sequence-level email campaign generators. */
+  strategy?: CampaignStrategy;
+  /** Optional production/send-readiness context. */
+  ops?: CampaignOps;
   /** Optional winning-email reference to mirror structure/pacing. */
   winningContent?: string;
   /** Optional edited performance guidance injected into the system prompt. */
