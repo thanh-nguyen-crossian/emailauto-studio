@@ -120,6 +120,13 @@ function logoBlock(brand: Brand, images: ImageOverrides, muid: () => string): st
   );
 }
 
+function productHref(brand: Brand, product: Product | undefined): string {
+  const raw = product?.url?.trim();
+  if (!raw) return buildUrl(brand, product?.slug || null);
+  if (raw.includes("{{paramurl}}")) return raw;
+  return `${raw}${raw.includes("?") ? "&" : "?"}{{paramurl}}`;
+}
+
 function heroBlock(brand: Brand, images: ImageOverrides, muid: () => string): string {
   const src = attr(images.hero || ph(564, 280, "Hero banner"));
   return columnsSingle(
@@ -130,9 +137,16 @@ function heroBlock(brand: Brand, images: ImageOverrides, muid: () => string): st
   );
 }
 
-function textBlock(text: string, brand: Brand, accent: string, muid: () => string, align: "left" | "center" = "left"): string {
+function textBlock(
+  text: string,
+  brand: Brand,
+  accent: string,
+  muid: () => string,
+  align: "left" | "center" = "left",
+  productLinks: Record<string, string> = {}
+): string {
   return columnsSingle(
-    textModule(muid(), paragraphsToHtml(text, brand, accent, align)),
+    textModule(muid(), paragraphsToHtml(text, brand, accent, align, productLinks)),
     "0px 18px 18px 18px",
     528,
     "0px 18px 0px 18px"
@@ -255,7 +269,7 @@ function bannerCaptionBlock(brand: Brand, accent: string, banner: GenBrief["bann
 function productBlock(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(564, 280, pb.name || product?.name || "Product"));
-  const img = imageModule(muid(), buildUrl(brand, slug), src, pb.alt_text || pb.name || product?.name || "Product", 564, 0, true);
+  const img = imageModule(muid(), productHref(brand, product), src, pb.alt_text || pb.name || product?.name || "Product", 564, 0, true);
   return columnsSingle(img, "0px 9px 18px 9px", 564, "0px 9px 0px 9px");
 }
 
@@ -263,7 +277,7 @@ function productBlock(brand: Brand, product: Product | undefined, pb: GenProduct
 function productCellInner(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string, imgW: number): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(imgW, Math.round(imgW * 0.9), pb.name || product?.name || "Product"));
-  return imageModule(muid(), buildUrl(brand, slug), src, pb.alt_text || pb.name || product?.name || "Product", imgW, 0, true);
+  return imageModule(muid(), productHref(brand, product), src, pb.alt_text || pb.name || product?.name || "Product", imgW, 0, true);
 }
 
 /**
@@ -305,6 +319,11 @@ export function renderEmailHTML(
   const ordered = [...products].sort((a, b) =>
     a.slug === brand.heroSlug ? -1 : b.slug === brand.heroSlug ? 1 : 0
   );
+  const productLinks = Object.fromEntries(
+    products
+      .filter((product) => product.slug && product.url)
+      .flatMap((product) => [[product.slug, product.url || ""], [product.slug.toLowerCase(), product.url || ""]])
+  );
   const blocks = [...(brief.products || [])].sort((a, b) => (a.slot || 0) - (b.slot || 0));
 
   const mods: string[] = [];
@@ -326,7 +345,7 @@ export function renderEmailHTML(
   };
   const pushBody = (index: number) => {
     const text = bodyChunks[index];
-    if (text) mods.push(textBlock(text, brand, accent, muid));
+    if (text) mods.push(textBlock(text, brand, accent, muid, "left", productLinks));
   };
 
   // Product grid — arrangement chosen by the user.
@@ -366,12 +385,12 @@ export function renderEmailHTML(
       else if (key === "products_3_4") pushProductRange(2, 4);
       else if (key === "products_5_6") pushProductRange(4, 6);
     });
-    if (brief.ps) mods.push(textBlock(`P.S. ${brief.ps}`, brand, accent, muid));
+    if (brief.ps) mods.push(textBlock(`P.S. ${brief.ps}`, brand, accent, muid, "left", productLinks));
   } else {
     pushHero();
     const beforeProducts = bodyLayout === "interspersed" ? bodyParts.slice(0, 1).join("\n\n") : bodyText;
     const afterProducts = bodyLayout === "interspersed" ? bodyParts.slice(1).join("\n\n") : "";
-    if (beforeProducts) mods.push(textBlock(beforeProducts, brand, accent, muid));
+    if (beforeProducts) mods.push(textBlock(beforeProducts, brand, accent, muid, "left", productLinks));
     if (layout === "two") {
       pushGridRows(0, 2, 282, 282, 18);
     } else if (layout === "three") {
@@ -384,7 +403,7 @@ export function renderEmailHTML(
     }
     const psText = brief.ps ? `P.S. ${brief.ps}` : "";
     const closingText = [afterProducts, psText].filter(Boolean).join("\n\n");
-    if (closingText) mods.push(textBlock(closingText, brand, accent, muid));
+    if (closingText) mods.push(textBlock(closingText, brand, accent, muid, "left", productLinks));
   }
 
   mods.push(footerBlock(brand, campaign, muid));

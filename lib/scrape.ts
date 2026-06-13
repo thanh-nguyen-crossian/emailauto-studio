@@ -73,6 +73,165 @@ export function extractUSPs(html: string, max = 6): string[] {
   return out.slice(0, max);
 }
 
+export interface ProductPageDetails {
+  name: string;
+  price: string;
+  review: string;
+  image: string;
+  highlights: string[];
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function metaContent(html: string, key: string): string {
+  const escaped = escapeRegExp(key);
+  const re = new RegExp(`<meta\\b(?=[^>]*(?:name|property)=["']${escaped}["'])(?=[^>]*content=["']([^"']+)["'])[^>]*>`, "i");
+  return htmlAttr(html, re);
+}
+
+function normalizeAbsoluteUrl(raw: string, baseUrl?: string): string {
+  const value = raw.trim();
+  if (!value) return "";
+  try {
+    return new URL(value, baseUrl || undefined).toString();
+  } catch {
+    return value;
+  }
+}
+
+function cleanProductName(raw: string): string {
+  const text = stripTags(raw)
+    .replace(/\s+/g, " ")
+    .replace(/\s*(?:\||–|—)\s*(?:official\s+)?(?:store|shop|online store).*$/i, "")
+    .trim();
+  const split = text.split(/\s+(?:\||–|—)\s+/).map((part) => part.trim()).filter(Boolean);
+  return (split[0] || text).replace(/\s+[-|]\s*$/, "").slice(0, 120);
+}
+
+function normalizePrice(raw: string): string {
+  const text = stripTags(raw).replace(/,/g, "").trim();
+  const match = /(?:USD|US\$|\$|💲)?\s*(\d{1,4}(?:\.\d{2})?)/i.exec(text);
+  return match ? match[1] : "";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function ldText(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") return String(value).trim();
+  if (Array.isArray(value)) return value.map(ldText).find(Boolean) || "";
+  const record = asRecord(value);
+  if (!record) return "";
+  return ldText(record["@value"] || record.name || record.text || record.url);
+}
+
+function flattenJsonLd(value: unknown, out: Record<string, unknown>[] = []): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    value.forEach((item) => flattenJsonLd(item, out));
+    return out;
+  }
+  const record = asRecord(value);
+  if (!record) return out;
+  out.push(record);
+  if (Array.isArray(record["@graph"])) flattenJsonLd(record["@graph"], out);
+  return out;
+}
+
+function ldTypeIncludes(record: Record<string, unknown>, type: string): boolean {
+  const value = record["@type"];
+  const wanted = type.toLowerCase();
+  if (Array.isArray(value)) return value.some((item) => String(item).toLowerCase() === wanted);
+  return String(value || "").toLowerCase() === wanted;
+}
+
+function jsonLdRecords(html: string): Record<string, unknown>[] {
+  const records: Record<string, unknown>[] = [];
+  for (const match of html.matchAll(/<script\b[^>]*type=["'][^"']*ld\+json[^"']*["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    const raw = decodeEntities(match[1] || "").replace(/^\s*<!--|-->\s*$/g, "").trim();
+    if (!raw) continue;
+    try {
+      flattenJsonLd(JSON.parse(raw), records);
+    } catch {
+      /* Some storefronts emit invalid JSON-LD; fall back to meta tags. */
+    }
+  }
+  return records;
+}
+
+function productJsonLd(html: string): Record<string, unknown> | null {
+  return jsonLdRecords(html).find((record) => ldTypeIncludes(record, "Product")) || null;
+}
+
+function priceFromJsonLd(product: Record<string, unknown> | null): string {
+  if (!product) return "";
+  const offers = Array.isArray(product.offers) ? product.offers : product.offers ? [product.offers] : [];
+  for (const offer of offers) {
+    const record = asRecord(offer);
+    if (!record) continue;
+    const price = normalizePrice(ldText(record.price || record.lowPrice || record.highPrice));
+    if (price) return price;
+    const spec = asRecord(record.priceSpecification);
+    const specPrice = spec ? normalizePrice(ldText(spec.price)) : "";
+    if (specPrice) return specPrice;
+  }
+  return normalizePrice(ldText(product.price));
+}
+
+function reviewFromJsonLd(product: Record<string, unknown> | null): string {
+  if (!product) return "";
+  const reviews = Array.isArray(product.review) ? product.review : product.review ? [product.review] : [];
+  for (const review of reviews) {
+    const record = asRecord(review);
+    const text = record ? ldText(record.reviewBody || record.description || record.name) : ldText(review);
+    if (text.length >= 12 && text.length <= 220 && !isNoise(text)) return text;
+  }
+  return "";
+}
+
+function imageFromJsonLd(product: Record<string, unknown> | null, baseUrl?: string): string {
+  if (!product) return "";
+  return normalizeAbsoluteUrl(ldText(product.image), baseUrl);
+}
+
+function reviewFromHtml(html: string): string {
+  for (const match of html.matchAll(/<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>/gi)) {
+    const text = stripTags(match[1]).replace(/\s+/g, " ").trim();
+    if (text.length >= 20 && text.length <= 220 && !isNoise(text)) return text;
+  }
+  return "";
+}
+
+/** Extract product metadata for custom product links. Values are source-backed and may be blank. */
+export function extractProductPageDetails(html: string, pageUrl?: string): ProductPageDetails {
+  const src = String(html || "");
+  const product = productJsonLd(src);
+  const name =
+    cleanProductName(ldText(product?.name)) ||
+    cleanProductName(metaContent(src, "og:title")) ||
+    cleanProductName(metaContent(src, "twitter:title")) ||
+    cleanProductName(htmlAttr(src, /<title[^>]*>([\s\S]*?)<\/title>/i)) ||
+    cleanProductName(htmlAttr(src, /<h1\b[^>]*>([\s\S]*?)<\/h1>/i));
+  const price =
+    priceFromJsonLd(product) ||
+    normalizePrice(metaContent(src, "product:price:amount")) ||
+    normalizePrice(metaContent(src, "og:price:amount")) ||
+    normalizePrice(htmlAttr(src, /(?:sale|regular)?\s*price[^<]{0,40}([\$💲]?\s*\d{1,4}(?:[.,]\d{2})?)/i));
+  const image =
+    imageFromJsonLd(product, pageUrl) ||
+    normalizeAbsoluteUrl(metaContent(src, "og:image") || metaContent(src, "twitter:image"), pageUrl);
+  const review = reviewFromJsonLd(product) || reviewFromHtml(src);
+  return {
+    name,
+    price,
+    review,
+    image,
+    highlights: extractPageHighlights(src, 5),
+  };
+}
+
 const TONE_WORDS = [
   "warm", "friendly", "personal", "helpful", "caring", "calm", "confident", "practical",
   "premium", "luxury", "elegant", "sophisticated", "minimal", "modern", "bold", "playful",

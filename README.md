@@ -8,7 +8,7 @@ AI provider.
 Everything is previewable, editable, exportable (HTML / `.zip` / Excel), and one click away from a
 SendGrid **Design** or **Dynamic Template**. Backed by user accounts, saved history, and admin approval.
 
-- **Live:** https://emailauto-studio.vercel.app
+- **Live:** https://emailauto-studio-rust.vercel.app
 - **Stack:** Next.js 15 (App Router, TS) · React 19 · Tailwind v4 · Claude/Gemini/ChatGPT APIs · SendGrid v3 · Supabase · Vercel
 
 ---
@@ -39,7 +39,6 @@ SendGrid is only needed for the sync-to-SendGrid step.
 | `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default `3` |
 | `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default `2` |
 | `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent segment batches after the anchor batch; default `2` |
-| `EMAILSTUDIO_ANALYSIS_URL` | server | optional hosted analysis sidecar; blank means analysis runs local-only and is disabled on Vercel |
 | `SENDGRID_API_KEY` | server | needs Marketing read/write for `/v3/designs` |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | anon / publishable key |
@@ -58,7 +57,7 @@ Build brief (6-step wizard)  →  Review & generate  →  A/B output
 1. **Build** — an accordion wizard: ① Brand · Date · Theme ② Promo & Urgency ③ Products
    (8 slots: pick product, set a customer URL, tick/scrape USPs) ④ Segments ⑤ Last-send context
    ⑥ Winning reference.
-2. **Review & generate** — performance-intelligence panel + a pre-flight summary + the **exact,
+2. **Review & generate** — a pre-flight summary + the **exact,
    editable** system/user prompts. One combined prompt → per-segment copy **and** design brief,
    run twice for two contrasting options (**A/B**, forced to different angle + framework).
 3. **A/B output** — switch Option A/B and segment; choose subject/preheader options, body
@@ -95,7 +94,6 @@ CONTRIBUTING.md dev workflow, branch/PR conventions, deploy
 |---|---|
 | `npm run dev` | local dev server |
 | `npm run typecheck` | TypeScript validation |
-| `npm run test:analytics` | Python analytics test suite |
 | `npm run check` | TypeScript + production build |
 | `npm run build` | production build (don't run while `dev` is up) |
 | `npm run lint` | ESLint |

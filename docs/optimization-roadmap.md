@@ -191,14 +191,14 @@ _Requires significant development, new infrastructure, or multi-system integrati
 
 ---
 
-### T3-01: AI Automation Agent (Campaign Generation + Flow Management)
-**What**: An AI agent that auto-generates email copy variants (per brand, per tier, per segment) using the Claude API, schedules campaigns, and monitors performance.
+### T3-01: External AI Automation Service (Campaign Generation + Flow Management)
+**What**: A separate service that auto-generates email copy variants (per brand, per tier, per segment), schedules campaigns, and monitors performance.
 **Architecture**:
 ```
-Schedule trigger → agents/automation/campaign_generator.py
-  → Claude API (copy generation per brand/tier/segment)
+Schedule trigger → external automation service
+  → AI provider API (copy generation per brand/tier/segment)
   → SendGrid API (create + schedule campaign)
-  → agents/analytics/performance_analyzer.py (post-send monitoring)
+  → external performance monitor
   → Report to Slack/email
 ```
 **Key capabilities**:
@@ -210,11 +210,11 @@ Schedule trigger → agents/automation/campaign_generator.py
 
 ---
 
-### T3-02: AI Analytics Agent (Performance Dashboard + Anomaly Detection)
-**What**: An agent that reads export data, detects anomalies (access rate drop, spam spike, CBH/1K below baseline), and generates weekly insight reports.
+### T3-02: External Analytics Service (Performance Dashboard + Anomaly Detection)
+**What**: A separate hosted service that reads export data, detects anomalies (access rate drop, spam spike, CBH/1K below baseline), and generates weekly insight reports.
 **Architecture**:
 ```
-Data ingestion (data/raw/) → agents/analytics/performance_analyzer.py
+Data ingestion (data/raw/) → external performance analyzer
   → anomaly_detector.py (flag deviations >2σ from rolling 4-week avg)
   → report_generator.py (Claude API for narrative insights)
   → Push report to Slack/email weekly

@@ -801,31 +801,6 @@ function opsPromptLayer(c: Campaign): string {
   return `${lines.join("\n")}
 Use this for operational QA, link planning, and brief handoff only. Do not add a second footer or unsubscribe block; the renderer handles footer structure. If consent/suppression/tracking context is weak, surface the risk in quality_checks without making the recipient-facing copy legalistic.`;
 }
-function analysisPromptLayer(c: Campaign): string {
-  const a = c.analysisContext;
-  if (!a) return "";
-  const selected = a.selected_solution;
-  const ops = a.campaign_ops;
-  const lines = [
-    a.brand && `Analysis brand: ${a.brand}`,
-    a.timeline && `Timeline: ${a.timeline}`,
-    `Primary metric: ${a.primary_metric || "Access/Delivered"}`,
-    a.guardrails?.length && `Guardrails: ${a.guardrails.join(", ")}`,
-    a.executive_summary?.length && `Executive summary: ${a.executive_summary.join(" | ")}`,
-    a.top_recommendations?.length && `Top recommendations: ${a.top_recommendations.join(" | ")}`,
-    a.solution_priorities?.length && `Solution priorities: ${a.solution_priorities.join(" | ")}`,
-    selected && [selected.problem, selected.root_cause, selected.evidence, selected.solution, selected.experiment, selected.fallback_if_fail].some(Boolean)
-      ? `Selected solution: problem=${selected.problem || "n/a"}; root_cause=${selected.root_cause || "n/a"}; evidence=${selected.evidence || "n/a"}; solution=${selected.solution || "n/a"}; experiment=${selected.experiment || "n/a"}; fallback=${selected.fallback_if_fail || "n/a"}`
-      : "",
-    ops && [ops.audience_filter, ops.content_route, ops.measurement_plan].some(Boolean)
-      ? `Campaign ops from analysis: audience=${ops.audience_filter || "n/a"}; content_route=${ops.content_route || "n/a"}; measurement=${ops.measurement_plan || "n/a"}`
-      : "",
-    Number.isFinite(a.total_sends) && `Evidence base: ${a.total_sends} sends; anomalies=${a.anomaly_count ?? "?"}; high=${a.high_severity_count ?? "?"}; analysis=${a.ai_status || "deterministic"}`,
-  ].filter(Boolean);
-  if (!lines.length) return "";
-  return `${lines.join("\n")}
-Use this analysis as the performance decision layer, not as recipient-facing copy. Optimize Access/Delivered and first-scroll click intent; protect optout/spam guardrails. The subject, hero, body opener, inline product link, product order, and CTA must all make the selected solution visible. If analysis conflicts with a supplied product fact or brand playbook rule, keep the factual/playbook rule and explain the tradeoff in quality_checks.`;
-}
 function productCopyStyleLabel(c: Campaign): string {
   const labels: Record<string, string> = {
     headline_winner: "headline_winner: winning template default, short headline does the work, USPs stay tiny",
@@ -1062,7 +1037,7 @@ export function buildSystemPrompt(
   const productContext = products
     .map((p, i) => {
       const usps = (p.usps || []).filter(Boolean);
-      return `${i + 1}${i === 0 ? " HERO" : ""}. ${p.name} | ${p.url || "no URL"} | 💲${p.price} | USP: ${usps.join("; ") || "none"} | review: ${p.review || "none"}`;
+      return `${i + 1}${i === 0 ? " HERO" : ""}. ${p.name} | slug:${p.slug} | ${p.url || "no URL"} | 💲${p.price} | USP: ${usps.join("; ") || "none"} | review: ${p.review || "none"}`;
     })
     .join("\n");
   const segContext = campaign.segments
@@ -1248,7 +1223,6 @@ Body layout: ${bodyLayoutLabel(campaign)}
 Product template: ${productCopyStyleLabel(campaign)}
 Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}`,
     },
-    { title: "Analysis Context", body: analysisPromptLayer(campaign) },
     { title: "Strategy Intake", body: strategyPromptLayer(campaign) },
     { title: "Campaign Operations", body: opsPromptLayer(campaign) },
     { title: "Creative Variety", body: varietyMandate || openerFallback },

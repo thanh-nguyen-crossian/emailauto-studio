@@ -14,7 +14,6 @@ import {
   DEFAULT_MODULE_LAYOUT,
   RECIPIENT_NAME_TOKEN,
   type AIModelSelection,
-  type AnalysisContext,
   type BodyLayout,
   type BodyVarietyProfile,
   type Campaign,
@@ -46,7 +45,18 @@ import { HtmlFormatEditor } from "./components/HtmlFormatEditor";
 type View = "build" | "review" | "output";
 type OptKey = "a" | "b";
 /** A product slot: a chosen catalog product + per-send URL override + the USPs selected for copy. */
-type Slot = { slug: string; url: string; usps: string[]; scrapedUsps?: string[] };
+type Slot = {
+  slug: string;
+  url: string;
+  usps: string[];
+  scrapedUsps?: string[];
+  scrapedFeatures?: string[];
+  isCustom?: boolean;
+  customName?: string;
+  customPrice?: string;
+  customReview?: string;
+  scrapedImage?: string;
+};
 
 const DRAFT_KEY = "emailstudio:draft:v1";
 interface Draft {
@@ -66,36 +76,7 @@ interface Draft {
   view: View;
 }
 const MAX_SLOTS = 8;
-
-type AnalysisMode = "deterministic" | "ai";
-type AnalysisRunSummary = {
-  report_path?: string;
-  report_url?: string;
-  report_date?: string;
-  executive_summary?: unknown[];
-  top_recommendations?: unknown[];
-  solution_priorities?: unknown[];
-  solutions?: unknown[];
-  campaign_ops?: unknown;
-  analysis_scope?: { start_month?: string; end_month?: string; selected_sources?: string[]; selected_sheets?: string[] };
-  anomaly_count?: number;
-  high_severity_count?: number;
-  total_sends?: number;
-  ai_status?: string;
-  ai_error?: string;
-};
-type AnalysisStatus = {
-  ok?: boolean;
-  dependency_error?: string;
-  source_options?: { key: string; label: string; exists: boolean; recommended?: boolean; description?: string }[];
-  workbook_sheets?: { name: string; recommended?: boolean }[];
-  timeline_bounds?: { min_month?: string; max_month?: string; months?: string[] };
-  page_performance_count?: number;
-  win_template_count?: number;
-  failed_template_count?: number;
-  reports?: { report_file: string; report_url?: string; created_at?: number; exists?: boolean; summary?: AnalysisRunSummary }[];
-  api_keys_configured?: Record<string, boolean>;
-};
+const CUSTOM_PRODUCT_VALUE = "__other_product__";
 
 /** Build the initial slots for a brand: slot 0 = hero (URL + all USPs preselected). */
 function initSlots(brandId: string): Slot[] {
@@ -144,12 +125,6 @@ const CONSENT_OPTIONS = [
   ["winback_existing_customer", "Winback customers"],
   ["unknown", "Unknown"],
 ] as const;
-const ANALYSIS_BRAND_SLUG: Record<string, string> = {
-  bra_goddess: "bragoddess",
-  gents_lux: "gentslux",
-  lux_fitting: "luxfitting",
-  santa_fare: "santafare",
-};
 
 // Format an ISO date (2026-05-31) as the team's naming token: Sun31May26.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -162,118 +137,25 @@ function dateToken(iso: string): string {
   return `${DAYS[dow]}${d}${MONS[mo - 1]}${String(y).slice(2)}`;
 }
 
-function compactUnknown(value: unknown, max = 260): string {
-  if (!value) return "";
-  if (typeof value === "string") return value.trim().slice(0, max);
-  if (typeof value === "number") return String(value);
-  if (Array.isArray(value)) return value.map((item) => compactUnknown(item, 120)).filter(Boolean).join("; ").slice(0, max);
-  if (typeof value === "object") {
-    const item = value as Record<string, unknown>;
-    return [item.action, item.solution, item.problem, item.rationale, item.expected_impact, item.name]
-      .map((part) => compactUnknown(part, 160))
-      .filter(Boolean)
-      .join(" — ")
-      .slice(0, max);
-  }
-  return "";
+function slugifyProductSeed(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\//, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
 }
 
-function compactList(values: unknown[] | undefined, maxItems = 4, itemMax = 260): string[] {
-  return (values || []).map((value) => compactUnknown(value, itemMax)).filter(Boolean).slice(0, maxItems);
-}
-
-function monthRangeLabel(scope?: AnalysisRunSummary["analysis_scope"], fallback?: AnalysisStatus["timeline_bounds"]): string {
-  const start = scope?.start_month || fallback?.min_month || "";
-  const end = scope?.end_month || fallback?.max_month || "";
-  if (start && end) return `${start} to ${end}`;
-  return start || end || "latest available timeline";
-}
-
-function reportFileFromSummary(summary?: AnalysisRunSummary | null): string {
-  const raw = summary?.report_url || summary?.report_path || "";
-  const file = raw.split("/").filter(Boolean).pop() || "";
-  return file.endsWith(".html") ? file : "";
-}
-
-function hasAnalysisSummary(value: unknown): value is AnalysisRunSummary {
-  if (!value || typeof value !== "object") return false;
-  const summary = value as AnalysisRunSummary;
-  return Boolean(
-    summary.report_path ||
-    summary.report_url ||
-    summary.total_sends ||
-    summary.anomaly_count ||
-    summary.high_severity_count ||
-    summary.executive_summary?.length ||
-    summary.top_recommendations?.length ||
-    summary.solution_priorities?.length ||
-    summary.solutions?.length ||
-    summary.campaign_ops
-  );
-}
-
-function parseAnalysisSummaryJson(raw: string): AnalysisRunSummary {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("Paste a valid analysis summary JSON object.");
-  }
-  const root = parsed as { summary?: unknown; reports?: { summary?: unknown }[] };
-  const candidate = hasAnalysisSummary(parsed)
-    ? parsed
-    : hasAnalysisSummary(root.summary)
-      ? root.summary
-      : root.reports?.map((report) => report.summary).find(hasAnalysisSummary);
-  if (!hasAnalysisSummary(candidate)) {
-    throw new Error("That JSON does not look like an EmailAuto analysis summary.");
-  }
-  return candidate;
-}
-
-function buildAnalysisContextFromSummary(summary: AnalysisRunSummary | null, status: AnalysisStatus | null, brandId: string): AnalysisContext | undefined {
-  if (!summary) return undefined;
-  const slug = ANALYSIS_BRAND_SLUG[brandId] || brandId;
-  const solutions = Array.isArray(summary.solutions) ? summary.solutions as Record<string, unknown>[] : [];
-  const selected = solutions.find((item) => item.brand_slug === slug) || solutions[0] || {};
-  const campaignOpsRoot = summary.campaign_ops && typeof summary.campaign_ops === "object" ? summary.campaign_ops as Record<string, unknown> : {};
-  const brandPlans = campaignOpsRoot.brands && typeof campaignOpsRoot.brands === "object" ? campaignOpsRoot.brands as Record<string, unknown> : {};
-  const brandPlan = brandPlans[slug] && typeof brandPlans[slug] === "object" ? brandPlans[slug] as Record<string, unknown> : {};
-  const audienceFilter = brandPlan.audience_filter && typeof brandPlan.audience_filter === "object" ? brandPlan.audience_filter as Record<string, unknown> : {};
-  const contentRoute = brandPlan.content_route && typeof brandPlan.content_route === "object" ? brandPlan.content_route as Record<string, unknown> : {};
-  const measurementPlan = brandPlan.measurement_plan && typeof brandPlan.measurement_plan === "object" ? brandPlan.measurement_plan as Record<string, unknown> : {};
-  const experiment = selected.experiment && typeof selected.experiment === "object" ? selected.experiment as Record<string, unknown> : {};
-  const reportFile = reportFileFromSummary(summary);
-  return {
-    brand: BRANDS[brandId]?.name || String(selected.brand || ""),
-    timeline: monthRangeLabel(summary.analysis_scope, status?.timeline_bounds),
-    primary_metric: compactUnknown(experiment.primary_metric, 80) || "Access/Delivered",
-    guardrails: compactList(Array.isArray(experiment.guardrails) ? experiment.guardrails : ["Optout/Delivered", "Spam/Delivered"], 4, 80),
-    executive_summary: compactList(summary.executive_summary, 4, 260),
-    top_recommendations: compactList(summary.top_recommendations, 3, 320),
-    solution_priorities: compactList(summary.solution_priorities, 4, 260),
-    selected_solution: {
-      problem: compactUnknown(selected.problem, 260),
-      root_cause: compactUnknown(selected.root_cause, 320),
-      evidence: compactUnknown(selected.evidence, 320),
-      solution: compactUnknown(selected.solution, 320),
-      experiment: compactUnknown(experiment.name || experiment.hypothesis || experiment.success_rule, 260),
-      fallback_if_fail: compactUnknown(selected.fallback_if_fail, 220),
-    },
-    campaign_ops: {
-      audience_filter: compactUnknown([
-        audienceFilter.include ? `Include ${compactUnknown(audienceFilter.include, 180)}` : "",
-        audienceFilter.exclude ? `Exclude ${compactUnknown(audienceFilter.exclude, 180)}` : "",
-      ].filter(Boolean), 260),
-      content_route: compactUnknown([contentRoute.recommended_type, contentRoute.reason].filter(Boolean), 260),
-      measurement_plan: compactUnknown([measurementPlan.primary, measurementPlan.secondary, measurementPlan.guardrail].filter(Boolean), 260),
-    },
-    report_url: reportFile ? `/api/analysis/report/${encodeURIComponent(reportFile)}` : summary.report_url,
-    total_sends: summary.total_sends,
-    anomaly_count: summary.anomaly_count,
-    high_severity_count: summary.high_severity_count,
-    ai_status: summary.ai_status,
-  };
+function customSlotSlug(slot: Slot, index: number): string {
+  const urlPath = (() => {
+    try {
+      const u = new URL(slot.url);
+      return `${u.hostname}-${u.pathname}`;
+    } catch {
+      return slot.url;
+    }
+  })();
+  return `custom-${slugifyProductSeed(slot.customName || urlPath || `product-${index + 1}`) || `product-${index + 1}`}`;
 }
 
 export default function Studio() {
@@ -304,19 +186,6 @@ export default function Studio() {
   const [customPerfContext, setCustomPerfContext] = useState<string | null>(null);
   const [modelA, setModelA] = useState<AIModelSelection>(DEFAULT_AI_MODELS.a);
   const [modelB, setModelB] = useState<AIModelSelection>(DEFAULT_AI_MODELS.b);
-  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
-  const [analysisSummary, setAnalysisSummary] = useState<AnalysisRunSummary | null>(null);
-  const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
-  const [useAnalysisContext, setUseAnalysisContext] = useState(false);
-  const [analysisSources, setAnalysisSources] = useState<string[]>(["master_plan"]);
-  const [analysisSheets, setAnalysisSheets] = useState<string[]>([]);
-  const [analysisStartMonth, setAnalysisStartMonth] = useState("");
-  const [analysisEndMonth, setAnalysisEndMonth] = useState("");
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("deterministic");
-  const [analysisModel, setAnalysisModel] = useState<AIModelSelection>(DEFAULT_AI_MODELS.a);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisRunning, setAnalysisRunning] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [segments, setSegments] = useState<string[]>(
     BRANDS[BRAND_LIST[0].id].productSegments.slice(0, 2).map((s) => s.code)
   );
@@ -451,105 +320,8 @@ export default function Studio() {
     }
   }
 
-  async function loadAnalysisStatus() {
-    setAnalysisLoading(true);
-    setAnalysisError(null);
-    try {
-      const res = await fetch("/api/analysis/status", { headers: await authHeader() });
-      const data = await res.json();
-      if (!res.ok) {
-        setAnalysisError(data.error || "Could not load analysis status");
-        return;
-      }
-      const status = data as AnalysisStatus;
-      setAnalysisStatus(status);
-      if (status.dependency_error) setAnalysisError(status.dependency_error);
-      const availableSources = (status.source_options || []).filter((source) => source.exists).map((source) => source.key);
-      if (availableSources.length) setAnalysisSources((prev) => prev.length > 1 ? prev : availableSources);
-      const recommendedSheets = (status.workbook_sheets || []).filter((sheet) => sheet.recommended).map((sheet) => sheet.name);
-      if (recommendedSheets.length) setAnalysisSheets((prev) => prev.length ? prev : recommendedSheets);
-      const months = status.timeline_bounds?.months || [];
-      if (months.length) {
-        setAnalysisStartMonth((prev) => prev || months[Math.max(0, months.length - 6)]);
-        setAnalysisEndMonth((prev) => prev || months[months.length - 1]);
-      }
-      const latest = status.reports?.map((report) => report.summary).find(hasAnalysisSummary) || null;
-      if (latest) {
-        setAnalysisSummary(latest);
-        setUseAnalysisContext(true);
-      }
-    } catch (e) {
-      setAnalysisError(e instanceof Error ? e.message : "Could not load analysis status");
-    } finally {
-      setAnalysisLoading(false);
-    }
-  }
-
-  async function runPerformanceAnalysis() {
-    setAnalysisRunning(true);
-    setAnalysisError(null);
-    try {
-      const res = await fetch("/api/analysis/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
-        body: JSON.stringify({
-          mode: analysisMode,
-          provider: analysisModel.provider,
-          model: analysisModel.model,
-          sources: analysisSources,
-          sheets: analysisSheets,
-          timeline: {
-            start_month: analysisStartMonth,
-            end_month: analysisEndMonth,
-          },
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.ok === false) {
-        setAnalysisError(data.error || "Analysis failed");
-        return;
-      }
-      setAnalysisSummary(data.summary || null);
-      setUseAnalysisContext(Boolean(data.summary));
-      setAnalysisStatus((prev) => prev ? { ...prev, reports: data.reports || prev.reports } : prev);
-    } catch (e) {
-      setAnalysisError(e instanceof Error ? e.message : "Analysis failed");
-    } finally {
-      setAnalysisRunning(false);
-    }
-  }
-
-  function importAnalysisSummary(raw: string) {
-    try {
-      const summary = parseAnalysisSummaryJson(raw);
-      setAnalysisSummary(summary);
-      setAnalysisError(null);
-      setUseAnalysisContext(true);
-    } catch (e) {
-      setAnalysisError(e instanceof Error ? e.message : "Could not import analysis summary");
-    }
-  }
-
-  function clearAnalysisContext() {
-    setAnalysisSummary(null);
-    setAnalysisContext(null);
-    setUseAnalysisContext(false);
-    setAnalysisError(null);
-  }
-
-  useEffect(() => {
-    if (authState === "loading" || authState === "out") return;
-    void loadAnalysisStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authState]);
-
   const brand = BRANDS[brandId];
   const layout = brand.layout;
-
-  useEffect(() => {
-    if (!analysisSummary) return;
-    setAnalysisContext(buildAnalysisContextFromSummary(analysisSummary, analysisStatus, brandId) || null);
-  }, [analysisSummary, analysisStatus, brandId]);
 
   const offerParts = [offerValue, offerShipping].map((p) => p.trim()).filter(Boolean);
   const offer = offerParts.length ? offerParts.join(" + ") : "No promo this send";
@@ -568,12 +340,11 @@ export default function Studio() {
       },
       strategy: strategyActive ? strategy : undefined,
       ops,
-      analysisContext: useAnalysisContext && analysisContext ? analysisContext : undefined,
       winningContent,
       customPerfContext: customPerfContext ?? undefined,
       recentProductSlugs: recentProductSlugs.length ? recentProductSlugs : undefined,
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, useAnalysisContext, analysisContext, winningContent, customPerfContext, recentProductSlugs]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, winningContent, customPerfContext, recentProductSlugs]
   );
 
   const varietyProfile: BodyVarietyProfile = useMemo(
@@ -594,8 +365,24 @@ export default function Studio() {
   // Filled slots → Product list, applying the per-slot URL + selected-USP overrides. Hero first.
   const selectedProducts: Product[] = useMemo(() => {
     return slots
-      .filter((s) => s.slug)
-      .map((s): Product | null => {
+      .filter((s) => s.slug || s.isCustom)
+      .map((s, i): Product | null => {
+        if (s.isCustom) {
+          const name = (s.customName || "").trim();
+          const url = (s.url || "").trim();
+          if (!name && !url) return null;
+          const usps = s.usps.length ? s.usps : [...(s.scrapedUsps || []), ...(s.scrapedFeatures || [])].slice(0, 6);
+          return {
+            slug: s.slug || customSlotSlug(s, i),
+            name: name || `Custom product ${i + 1}`,
+            price: (s.customPrice || "").trim() || "TBD",
+            url,
+            review: (s.customReview || "").trim(),
+            usps,
+            segment: "custom",
+            hero: i === 0,
+          };
+        }
         const cat = brand.catalog.find((p) => p.slug === s.slug);
         if (!cat) return null;
         return { ...cat, url: s.url || cat.url, usps: s.usps.length ? s.usps : cat.usps };
@@ -658,10 +445,45 @@ export default function Studio() {
   function updateSlot(i: number, patch: Partial<Slot>) {
     setSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
+  function updateSlotUrl(i: number, url: string) {
+    setSlots((prev) => prev.map((s, idx) => (
+      idx === i && url !== s.url
+        ? { ...s, url, scrapedUsps: [], scrapedFeatures: [], scrapedImage: "" }
+        : idx === i
+          ? { ...s, url }
+          : s
+    )));
+  }
   function pickProduct(i: number, slug: string) {
+    if (slug === CUSTOM_PRODUCT_VALUE) {
+      updateSlot(i, {
+        slug: `custom-product-${i + 1}`,
+        url: "",
+        usps: [],
+        scrapedUsps: [],
+        scrapedFeatures: [],
+        isCustom: true,
+        customName: "",
+        customPrice: "",
+        customReview: "",
+        scrapedImage: "",
+      });
+      return;
+    }
     const cat = brand.catalog.find((p) => p.slug === slug);
     // Reset scrapedUsps so ProductSlotCard's useEffect fires the scrape automatically.
-    updateSlot(i, { slug, url: cat?.url || "", usps: [...(cat?.usps || [])], scrapedUsps: [] });
+    updateSlot(i, {
+      slug,
+      url: cat?.url || "",
+      usps: [...(cat?.usps || [])],
+      scrapedUsps: [],
+      scrapedFeatures: [],
+      isCustom: false,
+      customName: "",
+      customPrice: "",
+      customReview: "",
+      scrapedImage: "",
+    });
   }
   // Fetch the slot's URL server-side, extract USPs, merge into the pool and auto-select the top few.
   async function scrapeSlot(i: number, url: string): Promise<string> {
@@ -675,16 +497,54 @@ export default function Studio() {
       const data = await res.json();
       if (!res.ok) return data.error || "Could not fetch the page";
       const usps: string[] = data.usps || [];
-      if (!usps.length) return "No USPs found — add them manually below";
+      const product = data.product && typeof data.product === "object" ? data.product as Partial<{ name: string; price: string; review: string; image: string; highlights: string[] }> : {};
+      const features = Array.isArray(product.highlights) ? product.highlights.filter(Boolean) : [];
+      if (!usps.length && !features.length && !product.name && !product.price) return "No product details found — add them manually below";
+      let imageSlug = "";
+      let imageUrl = "";
       setSlots((prev) =>
         prev.map((s, idx) => {
           if (idx !== i) return s;
-          const merged = Array.from(new Set([...(s.scrapedUsps || []), ...usps]));
-          const autoSel = usps.slice(0, 4).filter((u) => !s.usps.includes(u));
-          return { ...s, scrapedUsps: merged, usps: [...s.usps, ...autoSel] };
+          const nextCustomName = s.isCustom && product.name && !s.customName?.trim() ? product.name : s.customName;
+          const nextCustomPrice = s.isCustom && product.price && !s.customPrice?.trim() ? product.price : s.customPrice;
+          const nextCustomReview = s.isCustom && product.review && !s.customReview?.trim() ? product.review : s.customReview;
+          const nextSlot = {
+            ...s,
+            url,
+            customName: nextCustomName,
+            customPrice: nextCustomPrice,
+            customReview: nextCustomReview,
+            scrapedImage: product.image || s.scrapedImage,
+            scrapedUsps: Array.from(new Set([...(s.scrapedUsps || []), ...usps])),
+            scrapedFeatures: Array.from(new Set([...(s.scrapedFeatures || []), ...features])),
+          };
+          if (s.isCustom) nextSlot.slug = customSlotSlug(nextSlot, idx);
+          const pool = [...usps, ...features].filter(Boolean);
+          const autoSel = pool.slice(0, 4).filter((u) => !nextSlot.usps.includes(u));
+          if (product.image && nextSlot.slug) {
+            imageSlug = nextSlot.slug;
+            imageUrl = product.image;
+          }
+          return { ...nextSlot, usps: [...nextSlot.usps, ...autoSel] };
         })
       );
-      return `✓ Found ${usps.length} USPs — select below`;
+      if (imageSlug && imageUrl) {
+        setImages((prev) => ({
+          ...prev,
+          products: {
+            ...(prev.products || {}),
+            [imageSlug]: prev.products?.[imageSlug] || imageUrl,
+          },
+        }));
+      }
+      const found = [
+        usps.length ? `${usps.length} USPs` : "",
+        features.length ? `${features.length} page clues` : "",
+        product.name ? "name" : "",
+        product.price ? "price" : "",
+        product.image ? "image" : "",
+      ].filter(Boolean).join(", ");
+      return `✓ Found ${found || "product details"} — review below`;
     } catch {
       return "Could not fetch the page";
     }
@@ -879,9 +739,6 @@ export default function Studio() {
     setLastEmotionalArc(c.lastSend?.emotionalArc || "");
     setStrategy(c.strategy || {});
     setOps(c.ops || DEFAULT_OPS);
-    setAnalysisSummary(null);
-    setAnalysisContext(c.analysisContext || null);
-    setUseAnalysisContext(Boolean(c.analysisContext));
     setWinningContent(c.winningContent || "");
     setCustomPerfContext(c.customPerfContext ?? null);
     setBodyLayout(c.bodyLayout || "continuous");
@@ -1068,7 +925,6 @@ export default function Studio() {
         lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote, openerMechanic: lastOpenerMechanic || undefined, emotionalArc: lastEmotionalArc || undefined },
         strategy: strategyActive ? strategy : undefined,
         ops,
-        analysisContext: useAnalysisContext && analysisContext ? analysisContext : undefined,
         winningContent,
         customPerfContext: customPerfContext ?? undefined,
       };
@@ -1117,10 +973,6 @@ export default function Studio() {
     setCustomPerfContext(null);
     setStrategy({});
     setOps(DEFAULT_OPS);
-    setAnalysisSummary(null);
-    setAnalysisContext(null);
-    setUseAnalysisContext(false);
-    setAnalysisError(null);
     setToneError(null);
     setToneExtracting(false);
     setModelA(DEFAULT_AI_MODELS.a);
@@ -1150,9 +1002,6 @@ export default function Studio() {
     setLastEmotionalArc(d.lastSend?.emotionalArc || "");
     setStrategy(d.strategy || {});
     setOps(d.ops || DEFAULT_OPS);
-    setAnalysisSummary(null);
-    setAnalysisContext(d.analysisContext || null);
-    setUseAnalysisContext(Boolean(d.analysisContext));
     setWinningContent(d.winningContent || "");
     setCustomPerfContext(d.customPerfContext ?? null);
     const models = normalizeModelPair(d.models);
@@ -1540,7 +1389,7 @@ export default function Studio() {
               {i === 2 && (
                 <div className="flex flex-col gap-3">
                   <p className="text-sm text-[var(--muted)]">
-                    Slot 1 is the <strong className="text-[var(--text)]">Hero</strong> (featured in banner + body). Add up to {MAX_SLOTS} slots. For each: pick the product, set a customer URL, and tick the USPs (or add your own) that should feed the copy + brief.
+                    Slot 1 is the <strong className="text-[var(--text)]">Hero</strong> (featured in banner + body). Add up to {MAX_SLOTS} slots. Pick a catalog product or choose <strong className="text-[var(--text)]">Other product</strong> to paste a new page, then tick the USPs that should feed the copy + brief.
                   </p>
                   <Field label="Product block template">
                     <ProductStylePicker value={productCopyStyle} onChange={setProductCopyStyle} />
@@ -1555,7 +1404,8 @@ export default function Studio() {
                         usedSlugs={slots.map((s) => s.slug).filter(Boolean)}
                         recentSlugs={recentProductSlugs}
                         onPick={(slug) => pickProduct(si, slug)}
-                        onUrl={(url) => updateSlot(si, { url })}
+                        onUrl={(url) => updateSlotUrl(si, url)}
+                        onCustomChange={(patch) => updateSlot(si, patch)}
                         onScrape={(url) => scrapeSlot(si, url)}
                         onToggleUsp={(usp) => toggleSlotUsp(si, usp)}
                         onAddCustomUsp={() => addCustomUsp(si)}
@@ -1677,33 +1527,6 @@ export default function Studio() {
             hasLastSend={Boolean(lastHero || lastAngle || lastNote)}
           />
           <OpsReadinessPanel ops={ops} segments={segments.length} />
-          <AnalysisPanel
-            status={analysisStatus}
-            summary={analysisSummary}
-            context={analysisContext}
-            loading={analysisLoading}
-            running={analysisRunning}
-            error={analysisError}
-            sources={analysisSources}
-            sheets={analysisSheets}
-            startMonth={analysisStartMonth}
-            endMonth={analysisEndMonth}
-            mode={analysisMode}
-            model={analysisModel}
-            enabled={useAnalysisContext}
-            providers={AI_PROVIDERS}
-            onRefresh={loadAnalysisStatus}
-            onRun={runPerformanceAnalysis}
-            onSourcesChange={setAnalysisSources}
-            onSheetsChange={setAnalysisSheets}
-            onStartMonthChange={setAnalysisStartMonth}
-            onEndMonthChange={setAnalysisEndMonth}
-            onModeChange={setAnalysisMode}
-            onModelChange={setAnalysisModel}
-            onEnabledChange={setUseAnalysisContext}
-            onImportSummary={importAnalysisSummary}
-            onClear={clearAnalysisContext}
-          />
 
           <div className="section-panel">
             <h3 className="text-sm font-semibold mb-2">Pre-flight summary</h3>
@@ -2165,215 +1988,6 @@ function GenerationBudgetPanel({
       {promptOverridesActive && segments > 3 && (
         <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
           Custom prompt edits disable automatic segment batching. Reset system/user prompt edits for more reliable large-segment runs.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AnalysisPanel({
-  status,
-  summary,
-  context,
-  loading,
-  running,
-  error,
-  sources,
-  sheets,
-  startMonth,
-  endMonth,
-  mode,
-  model,
-  enabled,
-  providers,
-  onRefresh,
-  onRun,
-  onSourcesChange,
-  onSheetsChange,
-  onStartMonthChange,
-  onEndMonthChange,
-  onModeChange,
-  onModelChange,
-  onEnabledChange,
-  onImportSummary,
-  onClear,
-}: {
-  status: AnalysisStatus | null;
-  summary: AnalysisRunSummary | null;
-  context: AnalysisContext | null;
-  loading: boolean;
-  running: boolean;
-  error: string | null;
-  sources: string[];
-  sheets: string[];
-  startMonth: string;
-  endMonth: string;
-  mode: AnalysisMode;
-  model: AIModelSelection;
-  enabled: boolean;
-  providers: AIProviderOption[];
-  onRefresh: () => void;
-  onRun: () => void;
-  onSourcesChange: (value: string[]) => void;
-  onSheetsChange: (value: string[]) => void;
-  onStartMonthChange: (value: string) => void;
-  onEndMonthChange: (value: string) => void;
-  onModeChange: (value: AnalysisMode) => void;
-  onModelChange: (value: AIModelSelection) => void;
-  onEnabledChange: (value: boolean) => void;
-  onImportSummary: (raw: string) => void;
-  onClear: () => void;
-}) {
-  const [importOpen, setImportOpen] = useState(false);
-  const [importValue, setImportValue] = useState("");
-  const sourceOptions = (status?.source_options || []).filter((source) => source.exists);
-  const sheetOptions = status?.workbook_sheets || [];
-  const timeline = status?.timeline_bounds || {};
-  const keyReady = mode !== "ai" || status?.api_keys_configured?.[model.provider];
-  const reportFile = reportFileFromSummary(summary);
-  const reportHref = context?.report_url || (reportFile ? `/api/analysis/report/${encodeURIComponent(reportFile)}` : "");
-  const analysisUnavailable = status?.ok === false && Boolean(status.dependency_error) && sourceOptions.length === 0;
-  const recommendedSheets = sheetOptions.filter((sheet) => sheet.recommended).map((sheet) => sheet.name);
-  const toggleItem = (list: string[], value: string, setter: (value: string[]) => void) => {
-    setter(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
-  };
-  const summaryLine = context
-    ? [
-        context.primary_metric || "Access/Delivered",
-        context.timeline,
-        typeof context.total_sends === "number" ? `${context.total_sends} sends` : "",
-        typeof context.high_severity_count === "number" ? `${context.high_severity_count} high-risk` : "",
-      ].filter(Boolean).join(" · ")
-    : "No analysis context selected";
-
-  return (
-    <div className="section-panel">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-        <div>
-          <h3 className="text-sm font-semibold">Performance analysis</h3>
-          <p className="text-xs text-[var(--muted)] mt-0.5">Workbook, page, and template signals feed the next generation as a compact decision layer.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onRefresh} disabled={loading || running} className="btn-ghost">
-            {loading ? "Refreshing…" : "Refresh data"}
-          </button>
-          <button type="button" onClick={onRun} disabled={loading || running || !keyReady || analysisUnavailable} className="btn-primary">
-            {running ? "Running analysis…" : "Run analysis"}
-          </button>
-        </div>
-      </div>
-
-      {error && <Banner level="fail">{error}</Banner>}
-      {!keyReady && <Banner level="warn">Selected AI analysis provider has no API key configured. Use deterministic mode or configure the provider key.</Banner>}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div>
-          <div className="text-xs font-semibold mb-1">Sources</div>
-          <div className="flex flex-col gap-1">
-            {sourceOptions.length ? sourceOptions.map((source) => (
-              <label key={source.key} className="flex items-start gap-2 text-xs">
-                <input type="checkbox" checked={sources.includes(source.key)} onChange={() => toggleItem(sources, source.key, onSourcesChange)} />
-                <span><strong>{source.label}</strong><br /><span className="text-[var(--muted)]">{source.description}</span></span>
-              </label>
-            )) : <span className="text-xs text-[var(--muted)]">No source status loaded.</span>}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <div className="text-xs font-semibold">Workbook sheets</div>
-            <button type="button" onClick={() => onSheetsChange(recommendedSheets)} className="text-xs underline">Recommended</button>
-          </div>
-          <div className="grid grid-cols-1 gap-1 max-h-32 overflow-auto pr-1">
-            {sheetOptions.length ? sheetOptions.map((sheet) => (
-              <label key={sheet.name} className="flex items-center gap-2 text-xs">
-                <input type="checkbox" checked={sheets.includes(sheet.name)} onChange={() => toggleItem(sheets, sheet.name, onSheetsChange)} />
-                <span>{sheet.name}{sheet.recommended ? <span className="text-[var(--muted)]"> · core</span> : ""}</span>
-              </label>
-            )) : <span className="text-xs text-[var(--muted)]">Load status to inspect sheets.</span>}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Start month">
-              <input type="month" value={startMonth} min={timeline.min_month} max={timeline.max_month} onChange={(e) => onStartMonthChange(e.target.value)} className="input" />
-            </Field>
-            <Field label="End month">
-              <input type="month" value={endMonth} min={timeline.min_month} max={timeline.max_month} onChange={(e) => onEndMonthChange(e.target.value)} className="input" />
-            </Field>
-          </div>
-          <Field label="Analysis mode">
-            <select value={mode} onChange={(e) => onModeChange(e.target.value as AnalysisMode)} className="input">
-              <option value="deterministic">Deterministic</option>
-              <option value="ai">AI narrative</option>
-            </select>
-          </Field>
-          {mode === "ai" && <ModelSelector label="Analysis model" value={model} onChange={onModelChange} providers={providers} />}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-3">
-        <Summary k="Status" v={summaryLine} />
-        <Summary k="Source files" v={`${status?.page_performance_count ?? 0} page CSV · ${status?.win_template_count ?? 0} wins · ${status?.failed_template_count ?? 0} fails`} />
-        <Summary k="Sheets" v={`${sheets.length || 0} selected`} />
-        <Summary k="Mode" v={mode === "ai" ? `${model.provider} · ${model.model}` : "deterministic"} />
-      </div>
-
-      {context && (
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-          <div className="rounded-md border border-[var(--border)] bg-[var(--surface-3)] p-3">
-            <div className="font-semibold mb-1">Selected solution</div>
-            <div className="text-[var(--muted)]">{context.selected_solution?.problem || context.top_recommendations?.[0] || "Use latest performance recommendation."}</div>
-            {context.selected_solution?.solution && <div className="mt-1">{context.selected_solution.solution}</div>}
-          </div>
-          <div className="rounded-md border border-[var(--border)] bg-[var(--surface-3)] p-3">
-            <div className="font-semibold mb-1">Ops route</div>
-            <div className="text-[var(--muted)]">{context.campaign_ops?.content_route || "Use strongest recent content route."}</div>
-            {context.campaign_ops?.measurement_plan && <div className="mt-1">{context.campaign_ops.measurement_plan}</div>}
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-3 mt-3">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={enabled && Boolean(context)} disabled={!context} onChange={(e) => onEnabledChange(e.target.checked)} />
-          Use this analysis in generation
-        </label>
-        {reportHref && <a className="text-sm underline" href={reportHref} target="_blank" rel="noreferrer">Open latest report</a>}
-        <button type="button" onClick={() => setImportOpen((open) => !open)} className="btn-ghost">
-          {importOpen ? "Close import" : "Import summary JSON"}
-        </button>
-        {context && <CopyButton text={JSON.stringify(context, null, 2)} label="Copy context JSON" />}
-        {context && <button type="button" onClick={onClear} className="btn-ghost">Clear analysis</button>}
-        {summary?.ai_error && <span className="text-xs text-[var(--warn)]">AI fallback: {summary.ai_error}</span>}
-      </div>
-      {importOpen && (
-        <div className="mt-3 soft-panel">
-          <Field label="Analysis summary JSON">
-            <textarea
-              value={importValue}
-              onChange={(e) => setImportValue(e.target.value)}
-              className="input min-h-28 mono"
-              placeholder='Paste a summary JSON object, a {"summary": ...} response, or a {"reports":[...]} response.'
-              aria-label="Analysis summary JSON"
-            />
-          </Field>
-          <div className="flex flex-wrap gap-2 mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                onImportSummary(importValue);
-                setImportValue("");
-                setImportOpen(false);
-              }}
-              disabled={!importValue.trim()}
-              className="btn-primary"
-            >
-              Use imported analysis
-            </button>
-            <button type="button" onClick={() => setImportValue("")} disabled={!importValue} className="btn-ghost">Clear paste</button>
-          </div>
         </div>
       )}
     </div>
@@ -3225,7 +2839,7 @@ function moduleLabel(key: EmailModuleKey): string {
 }
 
 function ProductSlotCard({
-  index, slot, catalog, usedSlugs, recentSlugs, onPick, onUrl, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove,
+  index, slot, catalog, usedSlugs, recentSlugs, onPick, onUrl, onCustomChange, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove,
 }: {
   index: number;
   slot: Slot;
@@ -3236,6 +2850,7 @@ function ProductSlotCard({
   recentSlugs: string[];
   onPick: (slug: string) => void;
   onUrl: (url: string) => void;
+  onCustomChange: (patch: Partial<Slot>) => void;
   onScrape: (url: string) => Promise<string>;
   onToggleUsp: (usp: string) => void;
   onAddCustomUsp: () => void;
@@ -3245,17 +2860,24 @@ function ProductSlotCard({
   const [showUrl, setShowUrl] = useState(!!slot.url);
   const [scrapeStatus, setScrapeStatus] = useState("");
   const cat = catalog.find((p) => p.slug === slot.slug);
+  const isCustom = !!slot.isCustom;
+  const selectValue = isCustom ? CUSTOM_PRODUCT_VALUE : slot.slug;
+  const displayName = isCustom ? slot.customName || "custom product" : cat?.name || "Product";
   // Pool = catalog USPs + any scraped from the customer URL (deduped).
-  const pool = Array.from(new Set([...(cat?.usps || []), ...(slot.scrapedUsps || [])]));
+  const pool = Array.from(new Set([...(cat?.usps || []), ...(slot.scrapedUsps || []), ...(slot.scrapedFeatures || [])]));
   // Custom USPs are selected entries not in the pool (rendered as editable inputs).
   const customUsps = slot.usps.map((u, j) => ({ u, j })).filter(({ u }) => !pool.includes(u));
-  const isRecent = slot.slug ? recentSlugs.includes(slot.slug) : false;
+  const isRecent = !isCustom && slot.slug ? recentSlugs.includes(slot.slug) : false;
 
   async function runScrape(url: string) {
     if (!url || !/^https?:\/\//i.test(url)) return;
     setScrapeStatus("Fetching product page…");
     setScrapeStatus(await onScrape(url));
   }
+
+  useEffect(() => {
+    if (isCustom || slot.url) setShowUrl(true);
+  }, [isCustom, slot.url]);
 
   // Auto-scrape when the parent sets a URL (e.g. on product pick) and we have no scraped USPs yet.
   useEffect(() => {
@@ -3279,7 +2901,7 @@ function ProductSlotCard({
           {index > 0 && <button onClick={onRemove} className="text-xs text-[var(--muted)] hover:text-[var(--bad)]">remove</button>}
         </div>
       </div>
-      <select value={slot.slug} aria-label={`${index === 0 ? "Hero" : `Support ${index + 1}`} product`} onChange={(e) => onPick(e.target.value)} className="input">
+      <select value={selectValue} aria-label={`${index === 0 ? "Hero" : `Support ${index + 1}`} product`} onChange={(e) => onPick(e.target.value)} className="input">
         <option value="">— select product —</option>
         {catalog.map((p) => {
           const alreadyUsed = usedSlugs.includes(p.slug) && p.slug !== slot.slug;
@@ -3290,20 +2912,60 @@ function ProductSlotCard({
             </option>
           );
         })}
+        <option value={CUSTOM_PRODUCT_VALUE}>Other product… paste URL</option>
       </select>
 
-      {slot.slug && (
+      {(slot.slug || isCustom) && (
         <>
+          {isCustom && (
+            <div className="custom-product-fields">
+              <label className="field">
+                <span>Product name</span>
+                <input
+                  value={slot.customName || ""}
+                  aria-label="Custom product name"
+                  onChange={(e) => onCustomChange({ customName: e.target.value })}
+                  placeholder="Auto-detected after scouting"
+                  className="input text-xs"
+                />
+              </label>
+              <label className="field">
+                <span>Price</span>
+                <input
+                  value={slot.customPrice || ""}
+                  aria-label="Custom product price"
+                  onChange={(e) => onCustomChange({ customPrice: e.target.value })}
+                  placeholder="e.g. 19.99"
+                  className="input text-xs"
+                />
+              </label>
+              <label className="field custom-product-proof">
+                <span>Review or proof</span>
+                <input
+                  value={slot.customReview || ""}
+                  aria-label="Custom product review"
+                  onChange={(e) => onCustomChange({ customReview: e.target.value })}
+                  placeholder="Optional source-backed quote or proof"
+                  className="input text-xs"
+                />
+              </label>
+            </div>
+          )}
           {showUrl ? (
             <div className="flex flex-col gap-1">
               <input
                 value={slot.url}
-                aria-label={`${cat?.name || "Product"} customer URL`}
+                aria-label={`${displayName} customer URL`}
                 onChange={(e) => onUrl(e.target.value)}
                 onBlur={(e) => runScrape(e.target.value)}
-                placeholder="https://… (blur to auto-extract USPs)"
+                placeholder={isCustom ? "Paste product page URL, then blur or scout" : "https://… (blur to auto-extract USPs)"}
                 className="input mono text-xs"
               />
+              {isCustom && (
+                <button type="button" onClick={() => runScrape(slot.url)} disabled={!/^https?:\/\//i.test(slot.url)} className="btn-subtle text-left self-start">
+                  Scout page for details
+                </button>
+              )}
               {scrapeStatus && (
                 <span className="text-[11px]" style={{ color: scrapeStatus.startsWith("✓") ? "var(--ok)" : "var(--muted)" }}>
                   {scrapeStatus}
@@ -3315,7 +2977,7 @@ function ProductSlotCard({
           )}
 
           <fieldset className="usp-grid">
-            <legend className="sr-only">USPs for {cat?.name || "selected product"}</legend>
+            <legend className="sr-only">USPs for {displayName}</legend>
             {pool.map((usp) => (
               <label key={usp} className={`usp-pill ${slot.usps.includes(usp) ? "usp-pill-selected" : ""}`}>
                 <input type="checkbox" checked={slot.usps.includes(usp)} onChange={() => onToggleUsp(usp)} className="sr-only" />
@@ -3330,7 +2992,8 @@ function ProductSlotCard({
             ))}
             <button onClick={onAddCustomUsp} className="btn-subtle text-left self-start">+ Add custom USP</button>
           </div>
-          {cat?.review && <div className="text-[11px] italic text-[var(--muted)]">{cat.review}</div>}
+          {(cat?.review || slot.customReview) && <div className="text-[11px] italic text-[var(--muted)]">{slot.customReview || cat?.review}</div>}
+          {isCustom && slot.scrapedImage && <div className="text-[11px] text-[var(--muted)] truncate">Image detected: {slot.scrapedImage}</div>}
         </>
       )}
     </div>
@@ -3377,6 +3040,9 @@ function Styles() {
       .summary-tile { border:1px solid var(--border); background:var(--surface-3); border-radius:7px; padding:9px; min-width:0; }
       .product-slot-card { border:1px solid var(--border-strong); border-radius:8px; background:var(--surface); padding:12px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-tiny); }
       .product-slot-hero { border-color:var(--accent); box-shadow:0 0 0 1px rgba(35,102,90,.12), var(--shadow-tiny); }
+      .custom-product-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+      .custom-product-fields .field { display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:600; color:var(--muted); }
+      .custom-product-proof { grid-column:1 / -1; }
       .usp-grid { display:flex; flex-wrap:wrap; gap:6px; }
       fieldset.usp-grid { border:0; margin:0; padding:0; min-inline-size:0; }
       .usp-pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:6px 9px; background:var(--surface); color:var(--muted); font-size:12px; cursor:pointer; max-width:100%; }

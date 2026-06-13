@@ -27,18 +27,28 @@ export function buildUrl(brand: Brand, slug: string | null): string {
   return `https://${brand.domain}/${path}?{{paramurl}}`;
 }
 
+function trackedUrl(raw: string): string {
+  if (!raw) return "";
+  if (raw.includes("{{paramurl}}")) return raw;
+  return `${raw}${raw.includes("?") ? "&" : "?"}{{paramurl}}`;
+}
+
 function accentSpan(text: string, accent: string): string {
   return `<span style="font-family: ${FONT}; font-size: 16px; color: ${accent}"><strong>${text}</strong></span>`;
 }
 
 /** Convert inline markdown to SendGrid-style inline HTML. */
-export function parseInlineMarkdown(input: string, brand: Brand, accent: string): string {
+export function parseInlineMarkdown(input: string, brand: Brand, accent: string, productLinks: Record<string, string> = {}): string {
   let s = escapeHtml(input);
 
   // [Name](slug:productslug) -> product link
   s = s.replace(
     /\[([^\]]+)\]\(slug:([a-z0-9_-]+)\)/g,
-    (_m, label, slug) => `<a clicktracking="off" href="${escapeAttr(buildUrl(brand, slug))}">${accentSpan(label, accent)}</a>`
+    (_m, label, slug) => {
+      const raw = productLinks[slug] || productLinks[String(slug).toLowerCase()] || "";
+      const href = raw ? trackedUrl(raw) : buildUrl(brand, slug);
+      return `<a clicktracking="off" href="${escapeAttr(href)}">${accentSpan(label, accent)}</a>`;
+    }
   );
   // [text](home) -> homepage link
   s = s.replace(
@@ -85,7 +95,8 @@ export function paragraphsToHtml(
   text: string,
   brand: Brand,
   accent: string,
-  align: "left" | "center" = "left"
+  align: "left" | "center" = "left",
+  productLinks: Record<string, string> = {}
 ): string {
   const divs = text
     .split(/\n{2,}/)
@@ -94,7 +105,7 @@ export function paragraphsToHtml(
     .flatMap((p) => splitForScannability(p))
     .map((p) => {
       // Single newlines within a paragraph become <br> (e.g. a multi-line sign-off).
-      const inner = parseInlineMarkdown(p, brand, accent).replace(/\n/g, "<br>");
+      const inner = parseInlineMarkdown(p, brand, accent, productLinks).replace(/\n/g, "<br>");
       return `<div style="font-family: inherit; text-align: ${align}">${inner}</div>`;
     })
     .join("\n");

@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "./supabase";
-import type { AIModelPair, AnalysisContext, BodyLayout, CampaignOps, CampaignStrategy, EmailModuleKey, ImageOverrides, LastSend, OfferType, ProductCopyStyle, Urgency } from "./config/types";
+import type { AIModelPair, BodyLayout, CampaignOps, CampaignStrategy, EmailModuleKey, ImageOverrides, LastSend, OfferType, ProductCopyStyle, Urgency } from "./config/types";
 import type { GenBrief } from "./briefgen";
 import type { ProductLayout } from "./render/email";
 
@@ -20,7 +20,18 @@ export interface VersionPayload {
   /** Selected segment codes (the variant axis; SantaFare = lifecycle tiers). */
   segments: string[];
   /** Per-slot product picks with chosen URL + selected USPs (slot 0 = hero). */
-  slots: { slug: string; url: string; usps: string[] }[];
+  slots: {
+    slug: string;
+    url: string;
+    usps: string[];
+    scrapedUsps?: string[];
+    scrapedFeatures?: string[];
+    isCustom?: boolean;
+    customName?: string;
+    customPrice?: string;
+    customReview?: string;
+    scrapedImage?: string;
+  }[];
   includeLogo: boolean;
   /** Product grid arrangement chosen in the output step. */
   productLayout?: ProductLayout;
@@ -40,7 +51,6 @@ export interface VersionPayload {
   lastSend?: LastSend;
   strategy?: CampaignStrategy;
   ops?: CampaignOps;
-  analysisContext?: AnalysisContext;
   winningContent?: string;
   customPerfContext?: string;
 }

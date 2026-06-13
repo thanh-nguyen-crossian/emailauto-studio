@@ -8,7 +8,7 @@ _EmailAuto full environment replication_
 2. Claude Code CLI installation
 3. Plugin installation (superpowers, superpowers-lab, claude-video-vision)
 4. EmailAuto project clone
-5. Python environment for agents
+5. EmailAuto Studio app setup
 
 ---
 
@@ -156,40 +156,23 @@ cd EmailAuto
 Verify the structure:
 ```bash
 ls
-# Should show: CLAUDE.md  README.md  Source/  agents/  configs/  data/  docs/  studio/  tests/
+# Should show: app/  lib/  docs/  Source/  README.md  package.json
 ```
 
 ---
 
-## Step 7 — Set Up Python Environment (for Agents)
+## Step 7 — Set Up EmailAuto Studio
 
-Install Python 3.11+ from **https://python.org/downloads** (check "Add to PATH" during install).
+Install Node.js 22+ from **https://nodejs.org**.
 
 In the EmailAuto directory (Git Bash or PowerShell):
 ```bash
-# Create virtual environment
-python -m venv .venv
-
-# Activate (PowerShell)
-.\.venv\Scripts\Activate.ps1
-
-# Activate (Git Bash)
-source .venv/Scripts/activate
-
-# Install dependencies
-pip install anthropic pandas numpy sendgrid
+npm install
+cp .env.example .env.local
+npm run dev
 ```
 
-Set your API keys:
-```bash
-# PowerShell — set for current session
-$env:ANTHROPIC_API_KEY = "your-key-here"
-$env:SENDGRID_API_KEY = "your-key-here"
-
-# Or create a .env file (never commit this)
-echo "ANTHROPIC_API_KEY=your-key-here" >> .env
-echo "SENDGRID_API_KEY=your-key-here" >> .env
-```
+Fill `.env.local` with Supabase, AI provider, and optional SendGrid keys. Never commit real keys.
 
 ---
 
@@ -235,29 +218,15 @@ claude --version
 # Plugins
 claude plugins list
 
-# Python + deps
-python -c "import anthropic, pandas, numpy; print('OK')"
-
 # Project
-ls ~/Documents/EmailAuto/agents/analytics/skills/
-# Should show 10 files (5 .md + 5 .py)
+npm run typecheck
+npm run build
 ```
 
 ---
 
-## Skill Counts Per Agent (Post-Setup)
+## Removed Agent Setup
 
-Both agents now have exactly **5 skills each**:
-
-| Agent | Skill | Purpose |
-|---|---|---|
-| analytics | `kpi_compute` | Computes CBH/Delivered, Access/Delivered, optout/spam from CSV exports |
-| analytics | `anomaly_detect` | Flags >2σ deviations per metric per brand with severity tiers |
-| analytics | `rfm_track` | Tracks segment migration (Loyal → At Risk etc.) + health score |
-| analytics | `flow_monitor` | Welcome flow MPP suppression + winback/campaign overlap detection |
-| analytics | `report_generate` | Claude API narrative weekly report → Slack/email/file |
-| automation | `segment_route` | RFM → tier mapping with all exclusion rules applied |
-| automation | `copy_generate` | Claude API email copy (1 call/tier, all product types per call) |
-| automation | `preflight_check` | Quality gate: subject length, banned patterns, color, product count |
-| automation | `campaign_schedule` | SendGrid campaign creation + scheduling |
-| automation | `draft_archive` | Archives every campaign to data/processed/ for analytics cross-reference |
+The standalone automation/analytics agent folders are no longer part of EmailAuto Studio. Current
+production setup only requires the Next.js app, Supabase, AI provider keys, and optional SendGrid
+credentials.

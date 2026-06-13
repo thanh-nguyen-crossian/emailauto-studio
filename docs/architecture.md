@@ -7,9 +7,9 @@ _Updated: 2026-06-09_
 > module map in `README.md` as the source of truth.
 
 ## Overview
-Two AI agents in development:
-1. **Automation Agent** — generates email copy variants, schedules campaigns via SendGrid API, monitors performance
-2. **Analytics Agent** — ingests performance data, detects anomalies, produces weekly insight reports
+EmailAuto Studio is currently a Vercel-hosted Next.js application. Earlier standalone Python
+agent concepts were removed from this repo so production deployment stays focused on the studio
+app and its API routes.
 
 ---
 
@@ -31,28 +31,6 @@ EmailAuto/
 │   ├── email-customer-journey.html   # Lifecycle flow map + proposed flows
 │   ├── welcome_flow_dashboard.html   # Welcome flow performance metrics
 │   └── winback_flow_dashboard.html   # Winback flow performance metrics
-│
-├── agents/
-│   ├── automation/                   # Campaign generation & flow management agent
-│   │   ├── README.md
-│   │   ├── campaign_generator.py     # Core: generates copy variants via Claude API
-│   │   ├── flow_manager.py           # Manages automated flow triggers
-│   │   ├── segment_router.py         # Routes by RFM segment + brand + tier
-│   │   └── prompts/                  # LLM prompt templates
-│   │       ├── system.md             # Base system prompt for email generation
-│   │       ├── rmkt.md               # Remarketing campaign prompt
-│   │       ├── winback.md            # Winback flow prompt
-│   │       ├── welcome.md            # Welcome flow prompt
-│   │       └── loyalty.md            # Loyalty milestone prompt
-│   │
-│   └── analytics/                    # Performance analysis & reporting agent
-│       ├── README.md
-│       ├── performance_analyzer.py   # Main KPI computation + trend detection
-│       ├── anomaly_detector.py       # Flags deviations >2σ from 4-week rolling avg
-│       ├── report_generator.py       # Generates narrative reports via Claude API
-│       └── prompts/
-│           ├── analysis.md           # Analytics interpretation prompt
-│           └── insights.md           # Insight narrative generation prompt
 │
 ├── studio/                           # Email template studio (JSX artifact)
 │   ├── email_template_studio.jsx     # Single-file React artifact for HTML generation

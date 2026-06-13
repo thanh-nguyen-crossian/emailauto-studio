@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchPublicHtml, PublicFetchError } from "@/lib/publicFetch";
-import { extractUSPs } from "@/lib/scrape";
+import { extractProductPageDetails, extractUSPs } from "@/lib/scrape";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
       tooLargeMessage: "Product page is too large to scrape safely",
     });
     const usps = extractUSPs(html);
-    return NextResponse.json({ usps });
+    const product = extractProductPageDetails(html, url);
+    return NextResponse.json({ usps, product });
   } catch (e) {
     const status = e instanceof PublicFetchError ? e.status : 502;
     const error = e instanceof Error ? e.message : "Could not fetch the page";

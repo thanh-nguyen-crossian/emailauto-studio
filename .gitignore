@@ -4,12 +4,11 @@
 node_modules/
 *.log
 
-# Python analysis layer
+# Local Python/tooling artifacts
 .venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
-docs/reports/
 
 # local-only generator secrets
 docs/email-brief-generator.local.js
