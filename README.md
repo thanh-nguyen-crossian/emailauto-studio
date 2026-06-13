@@ -39,6 +39,7 @@ SendGrid is only needed for the sync-to-SendGrid step.
 | `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default `3` |
 | `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default `2` |
 | `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent segment batches after the anchor batch; default `2` |
+| `EMAILSTUDIO_ANALYSIS_URL` | server | optional hosted analysis sidecar; blank means analysis runs local-only and is disabled on Vercel |
 | `SENDGRID_API_KEY` | server | needs Marketing read/write for `/v3/designs` |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | anon / publishable key |
@@ -93,6 +94,9 @@ CONTRIBUTING.md dev workflow, branch/PR conventions, deploy
 | Command | What |
 |---|---|
 | `npm run dev` | local dev server |
+| `npm run typecheck` | TypeScript validation |
+| `npm run test:analytics` | Python analytics test suite |
+| `npm run check` | TypeScript + production build |
 | `npm run build` | production build (don't run while `dev` is up) |
 | `npm run lint` | ESLint |
 | `npx vercel --prod --yes` | deploy to production |

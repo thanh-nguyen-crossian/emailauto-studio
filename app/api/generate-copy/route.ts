@@ -3,7 +3,7 @@ import { generateOptions, providerConfigError } from "@/lib/anthropic";
 import { selectVarietyProfile, type GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
-import { RECIPIENT_NAME_TOKEN, type BodyVarietyProfile, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type Product } from "@/lib/config/types";
+import { RECIPIENT_NAME_TOKEN, type AnalysisContext, type BodyVarietyProfile, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type Product } from "@/lib/config/types";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
@@ -82,6 +82,53 @@ function cleanOps(input: unknown): CampaignOps | undefined {
   return ops;
 }
 
+function cleanStringList(value: unknown, itemMax = 260, maxItems = 6): string[] {
+  return Array.isArray(value)
+    ? value.map((item) => cleanText(item, itemMax)).filter(Boolean).slice(0, maxItems)
+    : [];
+}
+
+function cleanAnalysisContext(input: unknown): AnalysisContext | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const a = input as AnalysisContext;
+  const selected = a.selected_solution || {};
+  const campaignOps = a.campaign_ops || {};
+  const context: AnalysisContext = {
+    brand: cleanText(a.brand, 120),
+    timeline: cleanText(a.timeline, 120),
+    primary_metric: cleanText(a.primary_metric, 80),
+    guardrails: cleanStringList(a.guardrails, 80, 4),
+    executive_summary: cleanStringList(a.executive_summary, 260, 5),
+    top_recommendations: cleanStringList(a.top_recommendations, 320, 4),
+    solution_priorities: cleanStringList(a.solution_priorities, 260, 4),
+    selected_solution: {
+      problem: cleanText(selected.problem, 260),
+      root_cause: cleanText(selected.root_cause, 320),
+      evidence: cleanText(selected.evidence, 320),
+      solution: cleanText(selected.solution, 320),
+      experiment: cleanText(selected.experiment, 260),
+      fallback_if_fail: cleanText(selected.fallback_if_fail, 220),
+    },
+    campaign_ops: {
+      audience_filter: cleanText(campaignOps.audience_filter, 260),
+      content_route: cleanText(campaignOps.content_route, 260),
+      measurement_plan: cleanText(campaignOps.measurement_plan, 260),
+    },
+    report_url: cleanText(a.report_url, 500),
+    total_sends: Number.isFinite(a.total_sends) ? a.total_sends : undefined,
+    anomaly_count: Number.isFinite(a.anomaly_count) ? a.anomaly_count : undefined,
+    high_severity_count: Number.isFinite(a.high_severity_count) ? a.high_severity_count : undefined,
+    ai_status: cleanText(a.ai_status, 80),
+  };
+  const hasSelected = Object.values(context.selected_solution || {}).some(Boolean);
+  const hasOps = Object.values(context.campaign_ops || {}).some(Boolean);
+  if (!hasSelected) delete context.selected_solution;
+  if (!hasOps) delete context.campaign_ops;
+  return Object.values(context).some((value) => Array.isArray(value) ? value.length > 0 : Boolean(value))
+    ? context
+    : undefined;
+}
+
 function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {
   const c = body as Partial<Campaign> & { products?: Product[] };
   if (!c || typeof c !== "object") return { ok: false, error: "Missing body" };
@@ -117,6 +164,7 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
     lastSend: c.lastSend,
     strategy: cleanStrategy(c.strategy),
     ops: cleanOps(c.ops),
+    analysisContext: cleanAnalysisContext(c.analysisContext),
     winningContent: cleanText(c.winningContent, MAX_LONG_TEXT),
     customPerfContext: cleanText(c.customPerfContext, 2500),
   };

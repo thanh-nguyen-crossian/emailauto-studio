@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "./supabase";
-import type { AIModelPair, BodyLayout, CampaignOps, CampaignStrategy, EmailModuleKey, ImageOverrides, LastSend, OfferType, ProductCopyStyle, Urgency } from "./config/types";
+import type { AIModelPair, AnalysisContext, BodyLayout, CampaignOps, CampaignStrategy, EmailModuleKey, ImageOverrides, LastSend, OfferType, ProductCopyStyle, Urgency } from "./config/types";
 import type { GenBrief } from "./briefgen";
 import type { ProductLayout } from "./render/email";
 
@@ -40,6 +40,7 @@ export interface VersionPayload {
   lastSend?: LastSend;
   strategy?: CampaignStrategy;
   ops?: CampaignOps;
+  analysisContext?: AnalysisContext;
   winningContent?: string;
   customPerfContext?: string;
 }

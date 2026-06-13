@@ -14,6 +14,7 @@ import {
   DEFAULT_MODULE_LAYOUT,
   RECIPIENT_NAME_TOKEN,
   type AIModelSelection,
+  type AnalysisContext,
   type BodyLayout,
   type BodyVarietyProfile,
   type Campaign,
@@ -66,6 +67,36 @@ interface Draft {
 }
 const MAX_SLOTS = 8;
 
+type AnalysisMode = "deterministic" | "ai";
+type AnalysisRunSummary = {
+  report_path?: string;
+  report_url?: string;
+  report_date?: string;
+  executive_summary?: unknown[];
+  top_recommendations?: unknown[];
+  solution_priorities?: unknown[];
+  solutions?: unknown[];
+  campaign_ops?: unknown;
+  analysis_scope?: { start_month?: string; end_month?: string; selected_sources?: string[]; selected_sheets?: string[] };
+  anomaly_count?: number;
+  high_severity_count?: number;
+  total_sends?: number;
+  ai_status?: string;
+  ai_error?: string;
+};
+type AnalysisStatus = {
+  ok?: boolean;
+  dependency_error?: string;
+  source_options?: { key: string; label: string; exists: boolean; recommended?: boolean; description?: string }[];
+  workbook_sheets?: { name: string; recommended?: boolean }[];
+  timeline_bounds?: { min_month?: string; max_month?: string; months?: string[] };
+  page_performance_count?: number;
+  win_template_count?: number;
+  failed_template_count?: number;
+  reports?: { report_file: string; report_url?: string; created_at?: number; exists?: boolean; summary?: AnalysisRunSummary }[];
+  api_keys_configured?: Record<string, boolean>;
+};
+
 /** Build the initial slots for a brand: slot 0 = hero (URL + all USPs preselected). */
 function initSlots(brandId: string): Slot[] {
   const b = BRANDS[brandId];
@@ -113,6 +144,12 @@ const CONSENT_OPTIONS = [
   ["winback_existing_customer", "Winback customers"],
   ["unknown", "Unknown"],
 ] as const;
+const ANALYSIS_BRAND_SLUG: Record<string, string> = {
+  bra_goddess: "bragoddess",
+  gents_lux: "gentslux",
+  lux_fitting: "luxfitting",
+  santa_fare: "santafare",
+};
 
 // Format an ISO date (2026-05-31) as the team's naming token: Sun31May26.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -123,6 +160,120 @@ function dateToken(iso: string): string {
   const y = +m[1], mo = +m[2], d = +m[3];
   const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
   return `${DAYS[dow]}${d}${MONS[mo - 1]}${String(y).slice(2)}`;
+}
+
+function compactUnknown(value: unknown, max = 260): string {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim().slice(0, max);
+  if (typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map((item) => compactUnknown(item, 120)).filter(Boolean).join("; ").slice(0, max);
+  if (typeof value === "object") {
+    const item = value as Record<string, unknown>;
+    return [item.action, item.solution, item.problem, item.rationale, item.expected_impact, item.name]
+      .map((part) => compactUnknown(part, 160))
+      .filter(Boolean)
+      .join(" — ")
+      .slice(0, max);
+  }
+  return "";
+}
+
+function compactList(values: unknown[] | undefined, maxItems = 4, itemMax = 260): string[] {
+  return (values || []).map((value) => compactUnknown(value, itemMax)).filter(Boolean).slice(0, maxItems);
+}
+
+function monthRangeLabel(scope?: AnalysisRunSummary["analysis_scope"], fallback?: AnalysisStatus["timeline_bounds"]): string {
+  const start = scope?.start_month || fallback?.min_month || "";
+  const end = scope?.end_month || fallback?.max_month || "";
+  if (start && end) return `${start} to ${end}`;
+  return start || end || "latest available timeline";
+}
+
+function reportFileFromSummary(summary?: AnalysisRunSummary | null): string {
+  const raw = summary?.report_url || summary?.report_path || "";
+  const file = raw.split("/").filter(Boolean).pop() || "";
+  return file.endsWith(".html") ? file : "";
+}
+
+function hasAnalysisSummary(value: unknown): value is AnalysisRunSummary {
+  if (!value || typeof value !== "object") return false;
+  const summary = value as AnalysisRunSummary;
+  return Boolean(
+    summary.report_path ||
+    summary.report_url ||
+    summary.total_sends ||
+    summary.anomaly_count ||
+    summary.high_severity_count ||
+    summary.executive_summary?.length ||
+    summary.top_recommendations?.length ||
+    summary.solution_priorities?.length ||
+    summary.solutions?.length ||
+    summary.campaign_ops
+  );
+}
+
+function parseAnalysisSummaryJson(raw: string): AnalysisRunSummary {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Paste a valid analysis summary JSON object.");
+  }
+  const root = parsed as { summary?: unknown; reports?: { summary?: unknown }[] };
+  const candidate = hasAnalysisSummary(parsed)
+    ? parsed
+    : hasAnalysisSummary(root.summary)
+      ? root.summary
+      : root.reports?.map((report) => report.summary).find(hasAnalysisSummary);
+  if (!hasAnalysisSummary(candidate)) {
+    throw new Error("That JSON does not look like an EmailAuto analysis summary.");
+  }
+  return candidate;
+}
+
+function buildAnalysisContextFromSummary(summary: AnalysisRunSummary | null, status: AnalysisStatus | null, brandId: string): AnalysisContext | undefined {
+  if (!summary) return undefined;
+  const slug = ANALYSIS_BRAND_SLUG[brandId] || brandId;
+  const solutions = Array.isArray(summary.solutions) ? summary.solutions as Record<string, unknown>[] : [];
+  const selected = solutions.find((item) => item.brand_slug === slug) || solutions[0] || {};
+  const campaignOpsRoot = summary.campaign_ops && typeof summary.campaign_ops === "object" ? summary.campaign_ops as Record<string, unknown> : {};
+  const brandPlans = campaignOpsRoot.brands && typeof campaignOpsRoot.brands === "object" ? campaignOpsRoot.brands as Record<string, unknown> : {};
+  const brandPlan = brandPlans[slug] && typeof brandPlans[slug] === "object" ? brandPlans[slug] as Record<string, unknown> : {};
+  const audienceFilter = brandPlan.audience_filter && typeof brandPlan.audience_filter === "object" ? brandPlan.audience_filter as Record<string, unknown> : {};
+  const contentRoute = brandPlan.content_route && typeof brandPlan.content_route === "object" ? brandPlan.content_route as Record<string, unknown> : {};
+  const measurementPlan = brandPlan.measurement_plan && typeof brandPlan.measurement_plan === "object" ? brandPlan.measurement_plan as Record<string, unknown> : {};
+  const experiment = selected.experiment && typeof selected.experiment === "object" ? selected.experiment as Record<string, unknown> : {};
+  const reportFile = reportFileFromSummary(summary);
+  return {
+    brand: BRANDS[brandId]?.name || String(selected.brand || ""),
+    timeline: monthRangeLabel(summary.analysis_scope, status?.timeline_bounds),
+    primary_metric: compactUnknown(experiment.primary_metric, 80) || "Access/Delivered",
+    guardrails: compactList(Array.isArray(experiment.guardrails) ? experiment.guardrails : ["Optout/Delivered", "Spam/Delivered"], 4, 80),
+    executive_summary: compactList(summary.executive_summary, 4, 260),
+    top_recommendations: compactList(summary.top_recommendations, 3, 320),
+    solution_priorities: compactList(summary.solution_priorities, 4, 260),
+    selected_solution: {
+      problem: compactUnknown(selected.problem, 260),
+      root_cause: compactUnknown(selected.root_cause, 320),
+      evidence: compactUnknown(selected.evidence, 320),
+      solution: compactUnknown(selected.solution, 320),
+      experiment: compactUnknown(experiment.name || experiment.hypothesis || experiment.success_rule, 260),
+      fallback_if_fail: compactUnknown(selected.fallback_if_fail, 220),
+    },
+    campaign_ops: {
+      audience_filter: compactUnknown([
+        audienceFilter.include ? `Include ${compactUnknown(audienceFilter.include, 180)}` : "",
+        audienceFilter.exclude ? `Exclude ${compactUnknown(audienceFilter.exclude, 180)}` : "",
+      ].filter(Boolean), 260),
+      content_route: compactUnknown([contentRoute.recommended_type, contentRoute.reason].filter(Boolean), 260),
+      measurement_plan: compactUnknown([measurementPlan.primary, measurementPlan.secondary, measurementPlan.guardrail].filter(Boolean), 260),
+    },
+    report_url: reportFile ? `/api/analysis/report/${encodeURIComponent(reportFile)}` : summary.report_url,
+    total_sends: summary.total_sends,
+    anomaly_count: summary.anomaly_count,
+    high_severity_count: summary.high_severity_count,
+    ai_status: summary.ai_status,
+  };
 }
 
 export default function Studio() {
@@ -153,6 +304,19 @@ export default function Studio() {
   const [customPerfContext, setCustomPerfContext] = useState<string | null>(null);
   const [modelA, setModelA] = useState<AIModelSelection>(DEFAULT_AI_MODELS.a);
   const [modelB, setModelB] = useState<AIModelSelection>(DEFAULT_AI_MODELS.b);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
+  const [analysisSummary, setAnalysisSummary] = useState<AnalysisRunSummary | null>(null);
+  const [analysisContext, setAnalysisContext] = useState<AnalysisContext | null>(null);
+  const [useAnalysisContext, setUseAnalysisContext] = useState(false);
+  const [analysisSources, setAnalysisSources] = useState<string[]>(["master_plan"]);
+  const [analysisSheets, setAnalysisSheets] = useState<string[]>([]);
+  const [analysisStartMonth, setAnalysisStartMonth] = useState("");
+  const [analysisEndMonth, setAnalysisEndMonth] = useState("");
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("deterministic");
+  const [analysisModel, setAnalysisModel] = useState<AIModelSelection>(DEFAULT_AI_MODELS.a);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisRunning, setAnalysisRunning] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [segments, setSegments] = useState<string[]>(
     BRANDS[BRAND_LIST[0].id].productSegments.slice(0, 2).map((s) => s.code)
   );
@@ -287,8 +451,105 @@ export default function Studio() {
     }
   }
 
+  async function loadAnalysisStatus() {
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    try {
+      const res = await fetch("/api/analysis/status", { headers: await authHeader() });
+      const data = await res.json();
+      if (!res.ok) {
+        setAnalysisError(data.error || "Could not load analysis status");
+        return;
+      }
+      const status = data as AnalysisStatus;
+      setAnalysisStatus(status);
+      if (status.dependency_error) setAnalysisError(status.dependency_error);
+      const availableSources = (status.source_options || []).filter((source) => source.exists).map((source) => source.key);
+      if (availableSources.length) setAnalysisSources((prev) => prev.length > 1 ? prev : availableSources);
+      const recommendedSheets = (status.workbook_sheets || []).filter((sheet) => sheet.recommended).map((sheet) => sheet.name);
+      if (recommendedSheets.length) setAnalysisSheets((prev) => prev.length ? prev : recommendedSheets);
+      const months = status.timeline_bounds?.months || [];
+      if (months.length) {
+        setAnalysisStartMonth((prev) => prev || months[Math.max(0, months.length - 6)]);
+        setAnalysisEndMonth((prev) => prev || months[months.length - 1]);
+      }
+      const latest = status.reports?.map((report) => report.summary).find(hasAnalysisSummary) || null;
+      if (latest) {
+        setAnalysisSummary(latest);
+        setUseAnalysisContext(true);
+      }
+    } catch (e) {
+      setAnalysisError(e instanceof Error ? e.message : "Could not load analysis status");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }
+
+  async function runPerformanceAnalysis() {
+    setAnalysisRunning(true);
+    setAnalysisError(null);
+    try {
+      const res = await fetch("/api/analysis/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify({
+          mode: analysisMode,
+          provider: analysisModel.provider,
+          model: analysisModel.model,
+          sources: analysisSources,
+          sheets: analysisSheets,
+          timeline: {
+            start_month: analysisStartMonth,
+            end_month: analysisEndMonth,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) {
+        setAnalysisError(data.error || "Analysis failed");
+        return;
+      }
+      setAnalysisSummary(data.summary || null);
+      setUseAnalysisContext(Boolean(data.summary));
+      setAnalysisStatus((prev) => prev ? { ...prev, reports: data.reports || prev.reports } : prev);
+    } catch (e) {
+      setAnalysisError(e instanceof Error ? e.message : "Analysis failed");
+    } finally {
+      setAnalysisRunning(false);
+    }
+  }
+
+  function importAnalysisSummary(raw: string) {
+    try {
+      const summary = parseAnalysisSummaryJson(raw);
+      setAnalysisSummary(summary);
+      setAnalysisError(null);
+      setUseAnalysisContext(true);
+    } catch (e) {
+      setAnalysisError(e instanceof Error ? e.message : "Could not import analysis summary");
+    }
+  }
+
+  function clearAnalysisContext() {
+    setAnalysisSummary(null);
+    setAnalysisContext(null);
+    setUseAnalysisContext(false);
+    setAnalysisError(null);
+  }
+
+  useEffect(() => {
+    if (authState === "loading" || authState === "out") return;
+    void loadAnalysisStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authState]);
+
   const brand = BRANDS[brandId];
   const layout = brand.layout;
+
+  useEffect(() => {
+    if (!analysisSummary) return;
+    setAnalysisContext(buildAnalysisContextFromSummary(analysisSummary, analysisStatus, brandId) || null);
+  }, [analysisSummary, analysisStatus, brandId]);
 
   const offerParts = [offerValue, offerShipping].map((p) => p.trim()).filter(Boolean);
   const offer = offerParts.length ? offerParts.join(" + ") : "No promo this send";
@@ -307,11 +568,12 @@ export default function Studio() {
       },
       strategy: strategyActive ? strategy : undefined,
       ops,
+      analysisContext: useAnalysisContext && analysisContext ? analysisContext : undefined,
       winningContent,
       customPerfContext: customPerfContext ?? undefined,
       recentProductSlugs: recentProductSlugs.length ? recentProductSlugs : undefined,
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, winningContent, customPerfContext, recentProductSlugs]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, useAnalysisContext, analysisContext, winningContent, customPerfContext, recentProductSlugs]
   );
 
   const varietyProfile: BodyVarietyProfile = useMemo(
@@ -617,6 +879,9 @@ export default function Studio() {
     setLastEmotionalArc(c.lastSend?.emotionalArc || "");
     setStrategy(c.strategy || {});
     setOps(c.ops || DEFAULT_OPS);
+    setAnalysisSummary(null);
+    setAnalysisContext(c.analysisContext || null);
+    setUseAnalysisContext(Boolean(c.analysisContext));
     setWinningContent(c.winningContent || "");
     setCustomPerfContext(c.customPerfContext ?? null);
     setBodyLayout(c.bodyLayout || "continuous");
@@ -803,6 +1068,7 @@ export default function Studio() {
         lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote, openerMechanic: lastOpenerMechanic || undefined, emotionalArc: lastEmotionalArc || undefined },
         strategy: strategyActive ? strategy : undefined,
         ops,
+        analysisContext: useAnalysisContext && analysisContext ? analysisContext : undefined,
         winningContent,
         customPerfContext: customPerfContext ?? undefined,
       };
@@ -851,6 +1117,10 @@ export default function Studio() {
     setCustomPerfContext(null);
     setStrategy({});
     setOps(DEFAULT_OPS);
+    setAnalysisSummary(null);
+    setAnalysisContext(null);
+    setUseAnalysisContext(false);
+    setAnalysisError(null);
     setToneError(null);
     setToneExtracting(false);
     setModelA(DEFAULT_AI_MODELS.a);
@@ -880,6 +1150,9 @@ export default function Studio() {
     setLastEmotionalArc(d.lastSend?.emotionalArc || "");
     setStrategy(d.strategy || {});
     setOps(d.ops || DEFAULT_OPS);
+    setAnalysisSummary(null);
+    setAnalysisContext(d.analysisContext || null);
+    setUseAnalysisContext(Boolean(d.analysisContext));
     setWinningContent(d.winningContent || "");
     setCustomPerfContext(d.customPerfContext ?? null);
     const models = normalizeModelPair(d.models);
@@ -1404,6 +1677,33 @@ export default function Studio() {
             hasLastSend={Boolean(lastHero || lastAngle || lastNote)}
           />
           <OpsReadinessPanel ops={ops} segments={segments.length} />
+          <AnalysisPanel
+            status={analysisStatus}
+            summary={analysisSummary}
+            context={analysisContext}
+            loading={analysisLoading}
+            running={analysisRunning}
+            error={analysisError}
+            sources={analysisSources}
+            sheets={analysisSheets}
+            startMonth={analysisStartMonth}
+            endMonth={analysisEndMonth}
+            mode={analysisMode}
+            model={analysisModel}
+            enabled={useAnalysisContext}
+            providers={AI_PROVIDERS}
+            onRefresh={loadAnalysisStatus}
+            onRun={runPerformanceAnalysis}
+            onSourcesChange={setAnalysisSources}
+            onSheetsChange={setAnalysisSheets}
+            onStartMonthChange={setAnalysisStartMonth}
+            onEndMonthChange={setAnalysisEndMonth}
+            onModeChange={setAnalysisMode}
+            onModelChange={setAnalysisModel}
+            onEnabledChange={setUseAnalysisContext}
+            onImportSummary={importAnalysisSummary}
+            onClear={clearAnalysisContext}
+          />
 
           <div className="section-panel">
             <h3 className="text-sm font-semibold mb-2">Pre-flight summary</h3>
@@ -1865,6 +2165,215 @@ function GenerationBudgetPanel({
       {promptOverridesActive && segments > 3 && (
         <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
           Custom prompt edits disable automatic segment batching. Reset system/user prompt edits for more reliable large-segment runs.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnalysisPanel({
+  status,
+  summary,
+  context,
+  loading,
+  running,
+  error,
+  sources,
+  sheets,
+  startMonth,
+  endMonth,
+  mode,
+  model,
+  enabled,
+  providers,
+  onRefresh,
+  onRun,
+  onSourcesChange,
+  onSheetsChange,
+  onStartMonthChange,
+  onEndMonthChange,
+  onModeChange,
+  onModelChange,
+  onEnabledChange,
+  onImportSummary,
+  onClear,
+}: {
+  status: AnalysisStatus | null;
+  summary: AnalysisRunSummary | null;
+  context: AnalysisContext | null;
+  loading: boolean;
+  running: boolean;
+  error: string | null;
+  sources: string[];
+  sheets: string[];
+  startMonth: string;
+  endMonth: string;
+  mode: AnalysisMode;
+  model: AIModelSelection;
+  enabled: boolean;
+  providers: AIProviderOption[];
+  onRefresh: () => void;
+  onRun: () => void;
+  onSourcesChange: (value: string[]) => void;
+  onSheetsChange: (value: string[]) => void;
+  onStartMonthChange: (value: string) => void;
+  onEndMonthChange: (value: string) => void;
+  onModeChange: (value: AnalysisMode) => void;
+  onModelChange: (value: AIModelSelection) => void;
+  onEnabledChange: (value: boolean) => void;
+  onImportSummary: (raw: string) => void;
+  onClear: () => void;
+}) {
+  const [importOpen, setImportOpen] = useState(false);
+  const [importValue, setImportValue] = useState("");
+  const sourceOptions = (status?.source_options || []).filter((source) => source.exists);
+  const sheetOptions = status?.workbook_sheets || [];
+  const timeline = status?.timeline_bounds || {};
+  const keyReady = mode !== "ai" || status?.api_keys_configured?.[model.provider];
+  const reportFile = reportFileFromSummary(summary);
+  const reportHref = context?.report_url || (reportFile ? `/api/analysis/report/${encodeURIComponent(reportFile)}` : "");
+  const analysisUnavailable = status?.ok === false && Boolean(status.dependency_error) && sourceOptions.length === 0;
+  const recommendedSheets = sheetOptions.filter((sheet) => sheet.recommended).map((sheet) => sheet.name);
+  const toggleItem = (list: string[], value: string, setter: (value: string[]) => void) => {
+    setter(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
+  };
+  const summaryLine = context
+    ? [
+        context.primary_metric || "Access/Delivered",
+        context.timeline,
+        typeof context.total_sends === "number" ? `${context.total_sends} sends` : "",
+        typeof context.high_severity_count === "number" ? `${context.high_severity_count} high-risk` : "",
+      ].filter(Boolean).join(" · ")
+    : "No analysis context selected";
+
+  return (
+    <div className="section-panel">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-sm font-semibold">Performance analysis</h3>
+          <p className="text-xs text-[var(--muted)] mt-0.5">Workbook, page, and template signals feed the next generation as a compact decision layer.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onRefresh} disabled={loading || running} className="btn-ghost">
+            {loading ? "Refreshing…" : "Refresh data"}
+          </button>
+          <button type="button" onClick={onRun} disabled={loading || running || !keyReady || analysisUnavailable} className="btn-primary">
+            {running ? "Running analysis…" : "Run analysis"}
+          </button>
+        </div>
+      </div>
+
+      {error && <Banner level="fail">{error}</Banner>}
+      {!keyReady && <Banner level="warn">Selected AI analysis provider has no API key configured. Use deterministic mode or configure the provider key.</Banner>}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <div className="text-xs font-semibold mb-1">Sources</div>
+          <div className="flex flex-col gap-1">
+            {sourceOptions.length ? sourceOptions.map((source) => (
+              <label key={source.key} className="flex items-start gap-2 text-xs">
+                <input type="checkbox" checked={sources.includes(source.key)} onChange={() => toggleItem(sources, source.key, onSourcesChange)} />
+                <span><strong>{source.label}</strong><br /><span className="text-[var(--muted)]">{source.description}</span></span>
+              </label>
+            )) : <span className="text-xs text-[var(--muted)]">No source status loaded.</span>}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="text-xs font-semibold">Workbook sheets</div>
+            <button type="button" onClick={() => onSheetsChange(recommendedSheets)} className="text-xs underline">Recommended</button>
+          </div>
+          <div className="grid grid-cols-1 gap-1 max-h-32 overflow-auto pr-1">
+            {sheetOptions.length ? sheetOptions.map((sheet) => (
+              <label key={sheet.name} className="flex items-center gap-2 text-xs">
+                <input type="checkbox" checked={sheets.includes(sheet.name)} onChange={() => toggleItem(sheets, sheet.name, onSheetsChange)} />
+                <span>{sheet.name}{sheet.recommended ? <span className="text-[var(--muted)]"> · core</span> : ""}</span>
+              </label>
+            )) : <span className="text-xs text-[var(--muted)]">Load status to inspect sheets.</span>}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Start month">
+              <input type="month" value={startMonth} min={timeline.min_month} max={timeline.max_month} onChange={(e) => onStartMonthChange(e.target.value)} className="input" />
+            </Field>
+            <Field label="End month">
+              <input type="month" value={endMonth} min={timeline.min_month} max={timeline.max_month} onChange={(e) => onEndMonthChange(e.target.value)} className="input" />
+            </Field>
+          </div>
+          <Field label="Analysis mode">
+            <select value={mode} onChange={(e) => onModeChange(e.target.value as AnalysisMode)} className="input">
+              <option value="deterministic">Deterministic</option>
+              <option value="ai">AI narrative</option>
+            </select>
+          </Field>
+          {mode === "ai" && <ModelSelector label="Analysis model" value={model} onChange={onModelChange} providers={providers} />}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-3">
+        <Summary k="Status" v={summaryLine} />
+        <Summary k="Source files" v={`${status?.page_performance_count ?? 0} page CSV · ${status?.win_template_count ?? 0} wins · ${status?.failed_template_count ?? 0} fails`} />
+        <Summary k="Sheets" v={`${sheets.length || 0} selected`} />
+        <Summary k="Mode" v={mode === "ai" ? `${model.provider} · ${model.model}` : "deterministic"} />
+      </div>
+
+      {context && (
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+          <div className="rounded-md border border-[var(--border)] bg-[var(--surface-3)] p-3">
+            <div className="font-semibold mb-1">Selected solution</div>
+            <div className="text-[var(--muted)]">{context.selected_solution?.problem || context.top_recommendations?.[0] || "Use latest performance recommendation."}</div>
+            {context.selected_solution?.solution && <div className="mt-1">{context.selected_solution.solution}</div>}
+          </div>
+          <div className="rounded-md border border-[var(--border)] bg-[var(--surface-3)] p-3">
+            <div className="font-semibold mb-1">Ops route</div>
+            <div className="text-[var(--muted)]">{context.campaign_ops?.content_route || "Use strongest recent content route."}</div>
+            {context.campaign_ops?.measurement_plan && <div className="mt-1">{context.campaign_ops.measurement_plan}</div>}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3 mt-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={enabled && Boolean(context)} disabled={!context} onChange={(e) => onEnabledChange(e.target.checked)} />
+          Use this analysis in generation
+        </label>
+        {reportHref && <a className="text-sm underline" href={reportHref} target="_blank" rel="noreferrer">Open latest report</a>}
+        <button type="button" onClick={() => setImportOpen((open) => !open)} className="btn-ghost">
+          {importOpen ? "Close import" : "Import summary JSON"}
+        </button>
+        {context && <CopyButton text={JSON.stringify(context, null, 2)} label="Copy context JSON" />}
+        {context && <button type="button" onClick={onClear} className="btn-ghost">Clear analysis</button>}
+        {summary?.ai_error && <span className="text-xs text-[var(--warn)]">AI fallback: {summary.ai_error}</span>}
+      </div>
+      {importOpen && (
+        <div className="mt-3 soft-panel">
+          <Field label="Analysis summary JSON">
+            <textarea
+              value={importValue}
+              onChange={(e) => setImportValue(e.target.value)}
+              className="input min-h-28 mono"
+              placeholder='Paste a summary JSON object, a {"summary": ...} response, or a {"reports":[...]} response.'
+              aria-label="Analysis summary JSON"
+            />
+          </Field>
+          <div className="flex flex-wrap gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                onImportSummary(importValue);
+                setImportValue("");
+                setImportOpen(false);
+              }}
+              disabled={!importValue.trim()}
+              className="btn-primary"
+            >
+              Use imported analysis
+            </button>
+            <button type="button" onClick={() => setImportValue("")} disabled={!importValue} className="btn-ghost">Clear paste</button>
+          </div>
         </div>
       )}
     </div>

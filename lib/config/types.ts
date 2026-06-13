@@ -154,6 +154,37 @@ export interface CampaignOps {
   complianceNotes?: string;
 }
 
+export interface AnalysisSolution {
+  problem?: string;
+  root_cause?: string;
+  evidence?: string;
+  solution?: string;
+  experiment?: string;
+  fallback_if_fail?: string;
+}
+
+/** Performance-analysis context from the EmailAuto analytics layer. */
+export interface AnalysisContext {
+  brand?: string;
+  timeline?: string;
+  primary_metric?: string;
+  guardrails?: string[];
+  executive_summary?: string[];
+  top_recommendations?: string[];
+  solution_priorities?: string[];
+  selected_solution?: AnalysisSolution;
+  campaign_ops?: {
+    audience_filter?: string;
+    content_route?: string;
+    measurement_plan?: string;
+  };
+  report_url?: string;
+  total_sends?: number;
+  anomaly_count?: number;
+  high_severity_count?: number;
+  ai_status?: string;
+}
+
 export interface BodyVarietyProfile {
   openerMechanic:
     | "story"
@@ -216,6 +247,8 @@ export interface Campaign {
   strategy?: CampaignStrategy;
   /** Optional production/send-readiness context. */
   ops?: CampaignOps;
+  /** Optional workbook/page/template analysis context from EmailAuto. */
+  analysisContext?: AnalysisContext;
   /** Optional winning-email reference to mirror structure/pacing. */
   winningContent?: string;
   /** Optional edited performance guidance injected into the system prompt. */

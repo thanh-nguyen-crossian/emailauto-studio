@@ -1,0 +1,12 @@
+.claude/
+.pytest_cache/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local/offline analysis assets. Production can use EMAILSTUDIO_ANALYSIS_URL for a hosted sidecar.
+agents/
+requirements.txt
+tests/
+Source/
+docs/reports/

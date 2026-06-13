@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:analytics": "if [ -x .venv/bin/python ]; then .venv/bin/python -m pytest tests/analytics; else python -m pytest tests/analytics; fi",
+    "check": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

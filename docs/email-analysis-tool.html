@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EmailAuto Analysis Tool</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-2: #f8fafc;
+      --ink: #152033;
+      --muted: #647086;
+      --line: #dbe3ef;
+      --line-strong: #c5cfdf;
+      --blue: #315ee8;
+      --blue-dark: #173ea9;
+      --green: #117a5b;
+      --green-soft: #e6f6f0;
+      --amber: #a45d09;
+      --amber-soft: #fff5df;
+      --red: #b7363d;
+      --red-soft: #fdecee;
+      --violet: #6d47c7;
+      --shadow: 0 18px 60px rgba(26, 38, 64, 0.11);
+      --radius: 8px;
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(49, 94, 232, 0.08), rgba(17, 122, 91, 0.06) 38%, transparent 72%),
+        var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button, a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid rgba(49, 94, 232, 0.35);
+      outline-offset: 2px;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: 12px;
+      z-index: 10;
+      transform: translateY(-160%);
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 12px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 286px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .rail {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(22px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 4px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mark {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.1;
+    }
+
+    .brand span:last-child {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .rail-block {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 14px;
+    }
+
+    .rail-title,
+    .section-label {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-line,
+    .metric-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 28px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .status-line + .status-line,
+    .metric-line + .metric-line {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--line-strong);
+      flex: 0 0 auto;
+    }
+
+    .dot.ok { background: var(--green); }
+    .dot.warn { background: var(--amber); }
+    .dot.bad { background: var(--red); }
+
+    .status-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .status-name span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .small-value {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .rail-links {
+      display: grid;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .rail-link {
+      color: var(--blue-dark);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .rail-link:hover {
+      border-color: var(--blue);
+      background: #fff;
+    }
+
+    main {
+      min-width: 0;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .subhead {
+      margin: 10px 0 0;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      padding: 0 14px;
+      background: var(--panel);
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      border-color: var(--blue);
+      color: var(--blue-dark);
+    }
+
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 10px 28px rgba(49, 94, 232, 0.24);
+    }
+
+    .btn.primary:hover {
+      background: var(--blue-dark);
+      color: #fff;
+    }
+
+    .btn[disabled] {
+      cursor: progress;
+      opacity: 0.7;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(248, 250, 252, 0.78);
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .run-form {
+      display: grid;
+      gap: 16px;
+    }
+
+    .control-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .control-fieldset {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    .control-fieldset legend {
+      margin: 0;
+      padding: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .providers {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .seg {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+      color: var(--ink);
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .seg:hover {
+      border-color: var(--blue);
+    }
+
+    .seg.is-active {
+      border-color: var(--blue);
+      background: #eef3ff;
+      color: var(--blue-dark);
+      box-shadow: inset 0 0 0 1px rgba(49, 94, 232, 0.18);
+    }
+
+    select,
+    input[type="month"] {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 0 12px;
+    }
+
+    .inline-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .check-card,
+    .sheet-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .check-card:has(input:checked),
+    .sheet-option:has(input:checked) {
+      border-color: var(--blue);
+      background: #eef3ff;
+      box-shadow: inset 0 0 0 1px rgba(49, 94, 232, 0.14);
+    }
+
+    .check-card input,
+    .sheet-option input {
+      margin-top: 2px;
+      accent-color: var(--blue);
+    }
+
+    .check-card strong,
+    .sheet-option span {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.25;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .check-card small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      margin-top: 3px;
+    }
+
+    .sheet-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .mini-btn {
+      min-height: 30px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 0 9px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .mini-btn:hover {
+      border-color: var(--blue);
+      color: var(--blue-dark);
+    }
+
+    .sheet-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      max-height: 230px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .sheet-option {
+      min-height: 42px;
+      align-items: center;
+    }
+
+    .sheet-option span {
+      overflow-wrap: anywhere;
+    }
+
+    .scope-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .run-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding-top: 4px;
+    }
+
+    .fine-print {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.78);
+      padding: 13px;
+      min-height: 92px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1;
+      margin-bottom: 7px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .latest {
+      grid-column: 1 / -1;
+    }
+
+    .latest-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 18px;
+    }
+
+    .summary-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+      padding: 14px;
+    }
+
+    .summary-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+
+    .clean-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--ink);
+      line-height: 1.55;
+      font-size: 13px;
+    }
+
+    .clean-list li + li {
+      margin-top: 6px;
+    }
+
+    .empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 26px;
+      padding: 0 9px;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.ok {
+      border-color: rgba(17, 122, 91, 0.25);
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .badge.warn {
+      border-color: rgba(164, 93, 9, 0.28);
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .badge.bad {
+      border-color: rgba(183, 54, 61, 0.28);
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .report-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .report-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .report-name {
+      min-width: 0;
+    }
+
+    .report-name strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .report-name span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .log {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #0f172a;
+      color: #dbeafe;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-top-color: #fff;
+      display: none;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .is-running .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .rail {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .rail-links {
+        margin-top: 0;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 860px) {
+      main {
+        padding: 18px;
+      }
+
+      .topbar,
+      .layout,
+      .latest-grid {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .top-actions {
+        justify-content: stretch;
+      }
+
+      .top-actions .btn {
+        flex: 1;
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .rail,
+      main {
+        padding: 14px;
+      }
+
+      .rail-links,
+      .metrics-grid,
+      .segmented,
+      .providers,
+      .inline-controls,
+      .check-grid,
+      .sheet-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="shell">
+    <aside class="rail" aria-label="Analysis navigation">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">EA</div>
+        <div>
+          <strong>EmailAuto</strong>
+          <span>Analysis Tool</span>
+        </div>
+      </div>
+
+      <section class="rail-block" aria-labelledby="source-title">
+        <p class="rail-title" id="source-title">Source Readiness</p>
+        <div id="sourceFiles">
+          <div class="status-line">
+            <span class="status-name"><span class="dot"></span><span>Loading sources</span></span>
+            <span class="small-value">...</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="rail-block" aria-labelledby="keys-title">
+        <p class="rail-title" id="keys-title">AI Keys</p>
+        <div id="keyStatus"></div>
+      </section>
+
+      <nav class="rail-links" aria-label="Related tools">
+        <a class="rail-link" href="/docs/email-campaign-playbook.html" target="_blank" rel="noreferrer">Campaign Playbook</a>
+        <a class="rail-link" href="/docs/email-brief-generator.html" target="_blank" rel="noreferrer">Brief Generator</a>
+        <a class="rail-link" href="/api/reports" target="_blank" rel="noreferrer">Report JSON</a>
+      </nav>
+    </aside>
+
+    <main id="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Email performance control room</p>
+          <h1>Run analysis, get the report, move to the next send.</h1>
+          <p class="subhead">Access rate, list health, page signal, content route, and solution experiments in one local workflow.</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn" type="button" id="refreshBtn">Refresh</button>
+          <a class="btn" id="latestReportBtn" href="/api/reports" target="_blank" rel="noreferrer" aria-disabled="true">Open Latest</a>
+        </div>
+      </header>
+
+      <section class="metrics-grid" aria-label="Analysis metrics">
+        <div class="metric">
+          <strong id="metricReports">0</strong>
+          <span>Generated reports</span>
+        </div>
+        <div class="metric">
+          <strong id="metricPages">0</strong>
+          <span>Page performance months</span>
+        </div>
+        <div class="metric">
+          <strong id="metricWins">0</strong>
+          <span>Winning templates</span>
+        </div>
+        <div class="metric">
+          <strong id="metricFails">0</strong>
+          <span>Failed templates</span>
+        </div>
+      </section>
+
+      <section class="layout">
+        <section class="panel" aria-labelledby="run-title">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">Run</p>
+              <h2 id="run-title">Analysis Setup</h2>
+            </div>
+            <span class="badge ok" id="runModeBadge">Local</span>
+          </div>
+          <div class="panel-body">
+            <form class="run-form" id="runForm">
+              <fieldset class="control-fieldset">
+                <legend>Sources</legend>
+                <div class="check-grid" id="sourceOptions">
+                  <label class="check-card">
+                    <input type="checkbox" value="master_plan" checked>
+                    <span><strong>RMKT Master Plan.xlsx</strong><small>Canonical workbook source</small></span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <div class="control-row">
+                <label>Timeline</label>
+                <div class="inline-controls">
+                  <div>
+                    <label for="startMonth">Start</label>
+                    <input id="startMonth" type="month" min="2023-01">
+                  </div>
+                  <div>
+                    <label for="endMonth">End</label>
+                    <input id="endMonth" type="month" min="2023-01">
+                  </div>
+                </div>
+              </div>
+
+              <fieldset class="control-fieldset">
+                <legend>Workbook Sheets</legend>
+                <div class="sheet-toolbar">
+                  <button class="mini-btn" type="button" id="coreSheetsBtn">Core</button>
+                  <button class="mini-btn" type="button" id="allSheetsBtn">All</button>
+                  <button class="mini-btn" type="button" id="clearSheetsBtn">Clear</button>
+                  <span class="scope-note" id="sheetCount">0 selected</span>
+                </div>
+                <div class="sheet-grid" id="sheetOptions" aria-label="RMKT workbook sheets"></div>
+              </fieldset>
+
+              <div class="control-row">
+                <label>Mode</label>
+                <div class="segmented" role="group" aria-label="Analysis mode">
+                  <button class="seg is-active" type="button" data-mode="deterministic">Deterministic</button>
+                  <button class="seg" type="button" data-mode="ai">AI Assisted</button>
+                </div>
+              </div>
+
+              <div class="control-row" id="providerControls" hidden>
+                <label>Provider</label>
+                <div class="segmented providers" role="group" aria-label="AI provider">
+                  <button class="seg is-active" type="button" data-provider="claude">Claude</button>
+                  <button class="seg" type="button" data-provider="gemini">Gemini</button>
+                  <button class="seg" type="button" data-provider="openai">OpenAI</button>
+                </div>
+              </div>
+
+              <div class="control-row" id="modelControls" hidden>
+                <label for="modelSelect">Model</label>
+                <select id="modelSelect" name="model"></select>
+              </div>
+
+              <div class="run-actions">
+                <button class="btn primary" type="submit" id="runBtn">
+                  <span class="spinner" aria-hidden="true"></span>
+                  <span id="runBtnText">Run Analysis</span>
+                </button>
+                <span class="fine-print" id="runNote">Uses local metrics and deterministic solution rules.</span>
+              </div>
+
+              <div class="log" id="runLog" aria-live="polite">Ready.</div>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="history-title">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">History</p>
+              <h2 id="history-title">Recent Reports</h2>
+            </div>
+            <span class="badge" id="historyCount">0</span>
+          </div>
+          <div class="panel-body">
+            <div class="report-list" id="reportList">
+              <p class="empty">No reports yet.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel latest" aria-labelledby="latest-title">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">Output</p>
+              <h2 id="latest-title">Latest Run</h2>
+            </div>
+            <span class="badge" id="aiStatus">Waiting</span>
+          </div>
+          <div class="panel-body">
+            <div class="latest-grid">
+              <div class="summary-card">
+                <h3>Executive Summary</h3>
+                <ol class="clean-list" id="executiveSummary">
+                  <li>Run an analysis to populate this panel.</li>
+                </ol>
+              </div>
+              <div class="summary-card">
+                <h3>Solution Priorities</h3>
+                <ol class="clean-list" id="solutionPriorities">
+                  <li>Priorities will appear after the next report.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const MODEL_OPTIONS = {
+      claude: ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-8"],
+      gemini: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+      openai: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o", "o4-mini"]
+    };
+
+    const state = {
+      mode: "deterministic",
+      provider: "claude",
+      selectedSources: ["master_plan"],
+      selectedSheets: [],
+      workbookSheets: [],
+      reports: []
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatTime(seconds) {
+      if (!seconds) return "";
+      return new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(new Date(seconds * 1000));
+    }
+
+    function setLog(message) {
+      $("#runLog").textContent = message;
+    }
+
+    function setRunning(isRunning) {
+      document.body.classList.toggle("is-running", isRunning);
+      $("#runBtn").disabled = isRunning;
+      $("#runBtnText").textContent = isRunning ? "Running..." : "Run Analysis";
+    }
+
+    function setActiveButton(selector, attr, value) {
+      $$(selector).forEach((button) => {
+        button.classList.toggle("is-active", button.dataset[attr] === value);
+      });
+    }
+
+    function getSelectedValues(selector) {
+      return $$(selector)
+        .filter((input) => input.checked)
+        .map((input) => input.value);
+    }
+
+    function updateSheetCount() {
+      const count = getSelectedValues("[data-sheet-option]").length;
+      $("#sheetCount").textContent = `${count} selected`;
+    }
+
+    function setSheetSelection(mode) {
+      $$("[data-sheet-option]").forEach((input) => {
+        if (mode === "all") input.checked = true;
+        if (mode === "clear") input.checked = false;
+        if (mode === "core") {
+          input.checked = input.dataset.recommended === "true";
+        }
+      });
+      updateSheetCount();
+    }
+
+    function renderSourceOptions(options) {
+      const values = options && options.length ? options : [{
+        key: "master_plan",
+        label: "RMKT Master Plan.xlsx",
+        exists: true,
+        recommended: true,
+        description: "Canonical workbook source"
+      }];
+
+      $("#sourceOptions").innerHTML = values.map((item) => {
+        const checked = state.selectedSources.includes(item.key) || item.recommended;
+        return `
+          <label class="check-card">
+            <input type="checkbox" value="${escapeHtml(item.key)}" data-source-option ${checked ? "checked" : ""} ${item.exists ? "" : "disabled"}>
+            <span>
+              <strong>${escapeHtml(item.label)}</strong>
+              <small>${escapeHtml(item.exists ? item.description : "Missing")}</small>
+            </span>
+          </label>
+        `;
+      }).join("");
+      state.selectedSources = getSelectedValues("[data-source-option]");
+    }
+
+    function renderSheetOptions(sheets) {
+      state.workbookSheets = sheets || [];
+      if (!state.workbookSheets.length) {
+        $("#sheetOptions").innerHTML = '<p class="empty">No workbook sheets found.</p>';
+        updateSheetCount();
+        return;
+      }
+
+      const selected = new Set(state.selectedSheets.length
+        ? state.selectedSheets
+        : state.workbookSheets.filter((item) => item.recommended).map((item) => item.name));
+      $("#sheetOptions").innerHTML = state.workbookSheets.map((item) => `
+        <label class="sheet-option">
+          <input type="checkbox" value="${escapeHtml(item.name)}" data-sheet-option data-recommended="${item.recommended ? "true" : "false"}" ${selected.has(item.name) ? "checked" : ""}>
+          <span>${escapeHtml(item.name)}</span>
+        </label>
+      `).join("");
+      updateSheetCount();
+    }
+
+    function setTimelineDefaults(bounds) {
+      const startInput = $("#startMonth");
+      const endInput = $("#endMonth");
+      const months = bounds?.months || [];
+      const min = bounds?.min_month || "";
+      const max = bounds?.max_month || "";
+      if (min) {
+        startInput.min = min;
+        endInput.min = min;
+      }
+      if (max) {
+        startInput.max = max;
+        endInput.max = max;
+      }
+      if (!startInput.value && months.length) {
+        startInput.value = months[Math.max(0, months.length - 7)];
+      }
+      if (!endInput.value && max) {
+        endInput.value = max;
+      }
+    }
+
+    function syncModeUi() {
+      const aiMode = state.mode === "ai";
+      $("#providerControls").hidden = !aiMode;
+      $("#modelControls").hidden = !aiMode;
+      $("#runModeBadge").textContent = aiMode ? "AI assisted" : "Local";
+      $("#runModeBadge").className = aiMode ? "badge warn" : "badge ok";
+      $("#runNote").textContent = aiMode
+        ? "Uses selected provider; falls back to local analysis if unavailable."
+        : "Uses local metrics and deterministic solution rules.";
+      setActiveButton("[data-mode]", "mode", state.mode);
+    }
+
+    function syncProviderUi() {
+      setActiveButton("[data-provider]", "provider", state.provider);
+      const select = $("#modelSelect");
+      const options = MODEL_OPTIONS[state.provider] || [];
+      select.innerHTML = options
+        .map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`)
+        .join("");
+    }
+
+    function renderStatus(status) {
+      const required = status.required_files || [];
+      const readyCount = required.filter((item) => item.exists).length;
+      $("#metricReports").textContent = (status.reports || []).length;
+      $("#metricPages").textContent = status.page_performance_count || 0;
+      $("#metricWins").textContent = status.win_template_count || 0;
+      $("#metricFails").textContent = status.failed_template_count || 0;
+
+      renderSourceOptions(status.source_options || []);
+      renderSheetOptions(status.workbook_sheets || []);
+      setTimelineDefaults(status.timeline_bounds || {});
+
+      $("#sourceFiles").innerHTML = required.map((item) => `
+        <div class="status-line">
+          <span class="status-name">
+            <span class="dot ${item.exists ? "ok" : "bad"}"></span>
+            <span>${escapeHtml(item.name)}</span>
+          </span>
+          <span class="small-value">${item.exists ? "ready" : "missing"}</span>
+        </div>
+      `).join("") + `
+        <div class="status-line">
+          <span class="status-name">
+            <span class="dot ${status.page_performance_count ? "ok" : "warn"}"></span>
+            <span>Page CSVs</span>
+          </span>
+          <span class="small-value">${status.page_performance_count || 0} months</span>
+        </div>
+      `;
+
+      const keys = status.api_keys_configured || {};
+      $("#keyStatus").innerHTML = ["claude", "gemini", "openai"].map((name) => `
+        <div class="status-line">
+          <span class="status-name">
+            <span class="dot ${keys[name] ? "ok" : "warn"}"></span>
+            <span>${name[0].toUpperCase() + name.slice(1)}</span>
+          </span>
+          <span class="small-value">${keys[name] ? "set" : "not set"}</span>
+        </div>
+      `).join("");
+
+      state.reports = status.reports || [];
+      renderReports(state.reports);
+      const latest = state.reports[0]?.summary;
+      if (latest) renderLatest(latest);
+
+      setLog(`Workbook ready: ${readyCount}/${required.length}. Timeline: ${$("#startMonth").value || "start"} to ${$("#endMonth").value || "latest"}.`);
+    }
+
+    function renderReports(reports) {
+      $("#historyCount").textContent = String(reports.length);
+      if (!reports.length) {
+        $("#reportList").innerHTML = '<p class="empty">No reports yet.</p>';
+        $("#latestReportBtn").href = "/api/reports";
+        $("#latestReportBtn").setAttribute("aria-disabled", "true");
+        return;
+      }
+
+      const latest = reports[0];
+      $("#latestReportBtn").href = latest.report_url;
+      $("#latestReportBtn").removeAttribute("aria-disabled");
+
+      $("#reportList").innerHTML = reports.slice(0, 8).map((report) => {
+        const summary = report.summary || {};
+        const count = summary.anomaly_count ?? "-";
+        return `
+          <div class="report-row">
+            <div class="report-name">
+              <strong>${escapeHtml(report.report_file)}</strong>
+              <span>${escapeHtml(formatTime(report.created_at))} - ${escapeHtml(summary.ai_status || "report")} - ${count} anomalies</span>
+            </div>
+            <a class="btn" href="${escapeHtml(report.report_url)}" target="_blank" rel="noreferrer">Open</a>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderList(selector, items, fallback) {
+      const list = $(selector);
+      const values = (items || []).filter(Boolean);
+      list.innerHTML = values.length
+        ? values.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+        : `<li>${escapeHtml(fallback)}</li>`;
+    }
+
+    function renderLatest(summary) {
+      renderList("#executiveSummary", summary.executive_summary, "No executive summary was returned.");
+      renderList("#solutionPriorities", summary.solution_priorities, "No solution priorities were returned.");
+
+      const aiStatus = summary.ai_status || "waiting";
+      $("#aiStatus").textContent = aiStatus.replaceAll("_", " ");
+      $("#aiStatus").className = aiStatus.includes("fallback")
+        ? "badge warn"
+        : aiStatus === "deterministic"
+          ? "badge ok"
+          : "badge";
+    }
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch("/api/status");
+        if (!response.ok) throw new Error(`Status failed: ${response.status}`);
+        renderStatus(await response.json());
+      } catch (error) {
+        setLog(`Unable to reach the analysis server. ${error.message}`);
+      }
+    }
+
+    async function runAnalysis(event) {
+      event.preventDefault();
+      setRunning(true);
+      setLog("Reading sources, detecting anomalies, building solution plan...");
+
+      try {
+        const payload = {
+          mode: state.mode,
+          provider: state.provider,
+          model: $("#modelSelect").value,
+          sources: getSelectedValues("[data-source-option]"),
+          sheets: getSelectedValues("[data-sheet-option]"),
+          timeline: {
+            start_month: $("#startMonth").value,
+            end_month: $("#endMonth").value
+          }
+        };
+        const response = await fetch("/api/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || `Run failed: ${response.status}`);
+
+        state.reports = data.reports || [];
+        renderReports(state.reports);
+        renderLatest(data.summary);
+        const scope = data.summary.analysis_scope || {};
+        setLog(`Done. ${scope.start_month || "start"} to ${scope.end_month || "latest"}. Report saved: ${data.summary.report_url || "docs/reports"}`);
+      } catch (error) {
+        setLog(`Run failed. ${error.message}`);
+      } finally {
+        setRunning(false);
+      }
+    }
+
+    $("[data-mode='deterministic']").addEventListener("click", () => {
+      state.mode = "deterministic";
+      syncModeUi();
+    });
+
+    $("[data-mode='ai']").addEventListener("click", () => {
+      state.mode = "ai";
+      syncModeUi();
+    });
+
+    $$("[data-provider]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.provider = button.dataset.provider;
+        syncProviderUi();
+      });
+    });
+
+    $("#refreshBtn").addEventListener("click", refreshStatus);
+    $("#runForm").addEventListener("submit", runAnalysis);
+    $("#coreSheetsBtn").addEventListener("click", () => setSheetSelection("core"));
+    $("#allSheetsBtn").addEventListener("click", () => setSheetSelection("all"));
+    $("#clearSheetsBtn").addEventListener("click", () => setSheetSelection("clear"));
+    $("#sourceOptions").addEventListener("change", () => {
+      state.selectedSources = getSelectedValues("[data-source-option]");
+    });
+    $("#sheetOptions").addEventListener("change", () => {
+      state.selectedSheets = getSelectedValues("[data-sheet-option]");
+      updateSheetCount();
+    });
+
+    syncModeUi();
+    syncProviderUi();
+    refreshStatus();
+  </script>
+</body>
+</html>
