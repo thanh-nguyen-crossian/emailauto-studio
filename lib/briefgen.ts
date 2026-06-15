@@ -821,7 +821,17 @@ function segMeta(brandId: string, code: string): string {
 function segGuidance(brandId: string, code: string): string {
   return BRANDS[brandId]?.productSegments.find((s) => s.code === code)?.guidance || "";
 }
-function segmentBodyDirectionLines(campaign: Campaign): string {
+
+export function segmentPromptContext(campaign: Campaign): string {
+  return campaign.segments
+    .map((id) => {
+      const g = segGuidance(campaign.brandId, id);
+      return `${id}: ${segLabel(campaign.brandId, id)} | ${segMeta(campaign.brandId, id)}${g ? " | " + g : ""}`;
+    })
+    .join("\n");
+}
+
+export function segmentBodyDirectionLines(campaign: Campaign): string {
   const seed = hashSeed([
     campaign.brandId,
     campaign.sendDate,
@@ -963,7 +973,7 @@ function truncateForPrompt(text: string, max = 1200): string {
   const clean = String(text || "").trim();
   return clean.length > max ? clean.slice(0, max).trimEnd() + "\n[truncated]" : clean;
 }
-function renderPromptLayers(layers: { title: string; body?: string }[]): string {
+export function renderPromptLayers(layers: { title: string; body?: string }[]): string {
   return layers
     .map((layer) => ({ ...layer, body: layer.body?.trim() }))
     .filter((layer) => layer.body)
@@ -1031,6 +1041,10 @@ function brandBriefPatternLayer(brandId: string): string {
   return BRAND_BRIEF_PATTERN_LAYER[brandId] || "";
 }
 
+export function brandPlaybookRuleBlock(brandId: string): string {
+  return BRAND_PLAYBOOK_RULES[brandId] || "";
+}
+
 // ---- prompt builders ----
 /** The clause appended to Option B's system prompt forcing a different angle + framework than A. */
 export function contrastInstruction(optionADirection: GenCreativeDirection): string {
@@ -1051,12 +1065,7 @@ export function buildSystemPrompt(
       return `${i + 1}${i === 0 ? " HERO" : ""}. ${p.name} | slug:${p.slug} | ${p.url || "no URL"} | 💲${p.price} | USP: ${usps.join("; ") || "none"} | review: ${p.review || "none"}`;
     })
     .join("\n");
-  const segContext = campaign.segments
-    .map((id) => {
-      const g = segGuidance(campaign.brandId, id);
-      return `${id}: ${segLabel(campaign.brandId, id)} | ${segMeta(campaign.brandId, id)}${g ? " | " + g : ""}`;
-    })
-    .join("\n");
+  const segContext = segmentPromptContext(campaign);
 
   const subjectSchema = campaign.segments
     .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"strategic","model_hint":"Claude strategic","subject":"","preheader":"","shared_thread":""},{"style":"curiosity","model_hint":"Gemini curiosity","subject":"","preheader":"","shared_thread":""},{"style":"direct-response","model_hint":"ChatGPT direct-response","subject":"","preheader":"","shared_thread":""}]}`)

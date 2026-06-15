@@ -495,10 +495,20 @@ export default function Studio() {
         headers: { "Content-Type": "application/json", ...(await authHeader()) },
         body: JSON.stringify({ url }),
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: {
+        usps?: string[];
+        product?: Partial<{ name: string; price: string; review: string; image: string; highlights: string[] }>;
+        error?: string;
+      } = {};
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        return res.ok ? "Could not read product details" : `Scout failed (HTTP ${res.status})`;
+      }
       if (!res.ok) return data.error || "Could not fetch the page";
       const usps: string[] = data.usps || [];
-      const product = data.product && typeof data.product === "object" ? data.product as Partial<{ name: string; price: string; review: string; image: string; highlights: string[] }> : {};
+      const product = data.product && typeof data.product === "object" ? data.product : {};
       const features = Array.isArray(product.highlights) ? product.highlights.filter(Boolean) : [];
       if (!usps.length && !features.length && !product.name && !product.price) return "No product details found — add them manually below";
       let imageSlug = "";
@@ -591,7 +601,7 @@ export default function Studio() {
   const systemPromptEdited = systemOverride !== null && systemOverride !== systemPromptA;
   const userPromptEdited = userOverride !== null && userOverride !== userPromptA;
   const promptOverridesActive = systemPromptEdited || userPromptEdited;
-  const autoSegmentBatching = segments.length > 3 && !promptOverridesActive;
+  const autoSegmentBatching = segments.length > 2 && !promptOverridesActive;
 
   function stopGenTimer() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -1554,7 +1564,7 @@ export default function Studio() {
               Automatic segment batching is on for this run: shared strategy is generated first, then segment copy is split into smaller batches and merged into one A/B brief.
             </Banner>
           )}
-          {segments.length > 3 && promptOverridesActive && (
+          {segments.length > 2 && promptOverridesActive && (
             <Banner level="warn">
               Custom system/user prompt edits disable automatic segment batching. Reset those prompt edits before generating if this many segments keeps timing out.
             </Banner>
@@ -1966,7 +1976,7 @@ function GenerationBudgetPanel({
   const baseCalls = batchCount * 2;
   const totalOutputBudget = outputPerOption * 2;
   const highRisk =
-    promptOverridesActive && segments > 3 ||
+    promptOverridesActive && segments > 2 ||
     inputTokens > 9000 ||
     totalOutputBudget > 14000 ||
     [modelA, modelB].some((m) => modelOpsProfile(m).tier === "premium");
@@ -1985,13 +1995,13 @@ function GenerationBudgetPanel({
         <Summary k="Input estimate" v={`${inputTokens.toLocaleString()} tokens`} />
         <Summary k="Output estimate" v={`~${Math.round(totalOutputBudget / 1000)}k tokens`} />
         <Summary k="Base calls" v={`${baseCalls} call${baseCalls === 1 ? "" : "s"}`} />
-        <Summary k="Batching" v={autoBatching ? `${batchCount} segment batches` : promptOverridesActive && segments > 3 ? "Off: prompt edited" : "Single batch"} />
+        <Summary k="Batching" v={autoBatching ? `${batchCount} segment batches` : promptOverridesActive && segments > 2 ? "Off: prompt edited" : "Single batch"} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
         <ModelBudgetCard label="Option A" selection={modelA} />
         <ModelBudgetCard label="Option B" selection={modelB} />
       </div>
-      {promptOverridesActive && segments > 3 && (
+      {promptOverridesActive && segments > 2 && (
         <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
           Custom prompt edits disable automatic segment batching. Reset system/user prompt edits for more reliable large-segment runs.
         </div>
@@ -2865,6 +2875,8 @@ function ProductSlotCard({
 }) {
   const [showUrl, setShowUrl] = useState(!!slot.url);
   const [scrapeStatus, setScrapeStatus] = useState("");
+  const scrapeRequestRef = useRef(0);
+  const autoScrapedUrlRef = useRef("");
   const cat = catalog.find((p) => p.slug === slot.slug);
   const isCustom = !!slot.isCustom;
   const selectValue = isCustom ? CUSTOM_PRODUCT_VALUE : slot.slug;
@@ -2877,8 +2889,10 @@ function ProductSlotCard({
 
   async function runScrape(url: string) {
     if (!url || !/^https?:\/\//i.test(url)) return;
+    const requestId = ++scrapeRequestRef.current;
     setScrapeStatus("Fetching product page…");
-    setScrapeStatus(await onScrape(url));
+    const status = await onScrape(url);
+    if (scrapeRequestRef.current === requestId) setScrapeStatus(status);
   }
 
   useEffect(() => {
@@ -2887,12 +2901,19 @@ function ProductSlotCard({
 
   // Auto-scrape when the parent sets a URL (e.g. on product pick) and we have no scraped USPs yet.
   useEffect(() => {
-    if (slot.url && (!slot.scrapedUsps || slot.scrapedUsps.length === 0)) {
+    const shouldAutoScrape =
+      !isCustom &&
+      !!cat?.url &&
+      slot.url === cat.url &&
+      autoScrapedUrlRef.current !== slot.url &&
+      (!slot.scrapedUsps || slot.scrapedUsps.length === 0);
+    if (shouldAutoScrape) {
+      autoScrapedUrlRef.current = slot.url;
       runScrape(slot.url);
     }
     // Only react to URL or scrapedUsps changes, not every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slot.url]);
+  }, [slot.url, slot.slug, cat?.url, isCustom, slot.scrapedUsps?.length]);
 
   return (
     <div className={`product-slot-card ${index === 0 ? "product-slot-hero" : ""}`}>
@@ -2904,7 +2925,16 @@ function ProductSlotCard({
               recent
             </span>
           )}
-          {index > 0 && <button onClick={onRemove} className="text-xs text-[var(--muted)] hover:text-[var(--bad)]">remove</button>}
+          {index > 0 && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`Remove support product ${index + 1}`}
+              className="text-xs text-[var(--muted)] hover:text-[var(--bad)]"
+            >
+              remove
+            </button>
+          )}
         </div>
       </div>
       <select value={selectValue} aria-label={`${index === 0 ? "Hero" : `Support ${index + 1}`} product`} onChange={(e) => onPick(e.target.value)} className="input">
@@ -2979,7 +3009,7 @@ function ProductSlotCard({
               )}
             </div>
           ) : (
-            <button onClick={() => setShowUrl(true)} className="btn-subtle text-left self-start">Override customer URL</button>
+            <button type="button" onClick={() => setShowUrl(true)} className="btn-subtle text-left self-start">Override customer URL</button>
           )}
 
           <fieldset className="usp-grid">
@@ -2996,7 +3026,7 @@ function ProductSlotCard({
             {customUsps.map(({ u, j }) => (
               <input key={`c${j}`} value={u} aria-label={`Custom USP ${j + 1}`} onChange={(e) => onSetCustomUsp(j, e.target.value)} placeholder="Custom USP" className="input text-xs" />
             ))}
-            <button onClick={onAddCustomUsp} className="btn-subtle text-left self-start">+ Add custom USP</button>
+            <button type="button" onClick={onAddCustomUsp} className="btn-subtle text-left self-start">+ Add custom USP</button>
           </div>
           {(cat?.review || slot.customReview) && <div className="text-[11px] italic text-[var(--muted)]">{slot.customReview || cat?.review}</div>}
           {isCustom && slot.scrapedImage && <div className="text-[11px] text-[var(--muted)] truncate">Image detected: {slot.scrapedImage}</div>}

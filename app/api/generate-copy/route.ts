@@ -3,7 +3,7 @@ import { generateOptions, providerConfigError } from "@/lib/anthropic";
 import { selectVarietyProfile, type GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
-import { RECIPIENT_NAME_TOKEN, type BodyVarietyProfile, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type Product } from "@/lib/config/types";
+import { RECIPIENT_NAME_TOKEN, type BodyLayout, type BodyVarietyProfile, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type LastSend, type OfferType, type Product, type ProductCopyStyle, type Urgency } from "@/lib/config/types";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
@@ -12,6 +12,10 @@ const MAX_TEXT = 1200;
 const MAX_LONG_TEXT = 9000;
 const VALID_MAIL_PROVIDERS = new Set<CampaignMailProvider>(["sendgrid", "smtp", "ses", "mailgun", "postmark", "local", "other"]);
 const VALID_CONSENT_BASIS = new Set<CampaignConsentBasis>(["prior_purchase_or_opt_in", "double_opt_in", "manual_import", "winback_existing_customer", "unknown"]);
+const VALID_OFFER_TYPES = new Set<OfferType>(["sitewide_pct", "fixed_price", "free_ship", "none"]);
+const VALID_URGENCY = new Set<Urgency>(["h24", "h48", "weekend", "none"]);
+const VALID_BODY_LAYOUTS = new Set<BodyLayout>(["continuous", "interspersed", "custom"]);
+const VALID_PRODUCT_COPY_STYLES = new Set<ProductCopyStyle>(["headline_winner", "benefit_pair", "proof_badge", "urgency_badge", "price_prominent"]);
 
 export const runtime = "nodejs";
 // A/B generations run in parallel; B retries only when contrast collapses across route/copy shape.
@@ -82,6 +86,20 @@ function cleanOps(input: unknown): CampaignOps | undefined {
   return ops;
 }
 
+function cleanLastSend(input: unknown): LastSend | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const l = input as Partial<LastSend>;
+  const lastSend: LastSend = {
+    ctr: cleanText(l.ctr, 20),
+    hero: cleanText(l.hero, 120),
+    angle: cleanText(l.angle, 120),
+    note: cleanText(l.note, 500),
+    openerMechanic: cleanText(l.openerMechanic, 60),
+    emotionalArc: cleanText(l.emotionalArc, 60),
+  };
+  return Object.values(lastSend).some(Boolean) ? lastSend : undefined;
+}
+
 function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {
   const c = body as Partial<Campaign> & { products?: Product[] };
   if (!c || typeof c !== "object") return { ok: false, error: "Missing body" };
@@ -101,20 +119,20 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
     segments,
     layout: c.layout || brand.layout,
     theme: cleanText(c.theme, 180) || "Limited-time offer",
-    offerType: c.offerType || "none",
+    offerType: VALID_OFFER_TYPES.has(c.offerType as OfferType) ? c.offerType as OfferType : "none",
     offerValue: cleanText(c.offerValue, 80),
     offerShipping: cleanText(c.offerShipping, 80),
-    urgency: c.urgency || "none",
+    urgency: VALID_URGENCY.has(c.urgency as Urgency) ? c.urgency as Urgency : "none",
     offer: cleanText(c.offer, 180),
-    bodyLayout: c.bodyLayout || "continuous",
+    bodyLayout: VALID_BODY_LAYOUTS.has(c.bodyLayout as BodyLayout) ? c.bodyLayout as BodyLayout : "continuous",
     moduleLayout: Array.isArray(c.moduleLayout)
       ? (c.moduleLayout as string[]).filter((k) => VALID_MODULE_KEYS.has(k)) as EmailModuleKey[]
       : undefined,
-    productCopyStyle: c.productCopyStyle || "headline_winner",
+    productCopyStyle: VALID_PRODUCT_COPY_STYLES.has(c.productCopyStyle as ProductCopyStyle) ? c.productCopyStyle as ProductCopyStyle : "headline_winner",
     hookContract: cleanText(c.hookContract, 700),
     recipientName: RECIPIENT_NAME_TOKEN,
-    recentProductSlugs: Array.isArray(c.recentProductSlugs) ? c.recentProductSlugs as string[] : undefined,
-    lastSend: c.lastSend,
+    recentProductSlugs: Array.isArray(c.recentProductSlugs) ? c.recentProductSlugs.map((s) => cleanText(s, 120)).filter(Boolean).slice(0, 12) : undefined,
+    lastSend: cleanLastSend(c.lastSend),
     strategy: cleanStrategy(c.strategy),
     ops: cleanOps(c.ops),
     winningContent: cleanText(c.winningContent, MAX_LONG_TEXT),

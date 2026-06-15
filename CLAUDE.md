@@ -50,7 +50,7 @@ npx tsc --noEmit     # type-check without emitting
 | `AI_PROVIDER_TIMEOUT_MS` | server | optional per-provider generation timeout override; default 145000 |
 | `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
 | `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default 78 |
-| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default 3 |
+| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default 2 |
 | `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default 2 |
 | `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent continuation batches after anchor; default 2 |
 | `SENDGRID_API_KEY` | server | needs Marketing + Templates scopes for `/v3/designs` |

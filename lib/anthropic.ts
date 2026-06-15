@@ -2,16 +2,23 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { AIModelPair, AIModelSelection, Campaign, Product } from "./config/types";
 import { normalizeModelPair, providerLabel } from "./config/aiModels";
 import {
+  brandPlaybookRuleBlock,
   briefContrastIssues,
   buildSystemPrompt,
   buildUserPrompt,
   contrastInstruction,
   isHighImpactFlag,
+  promoLine,
   PROMPT_REGISTRY_VERSION,
+  renderPromptLayers,
+  segJsonKey,
+  segmentBodyDirectionLines,
+  segmentPromptContext,
   validateBrief,
   validateBriefPair,
   type GenBrief,
 } from "./briefgen";
+import { BRANDS } from "./config/brands";
 
 // Generation engine wiring. Produces two contrasting options (A/B) — each a combined
 // content + design brief — using the ported brief-generator prompt, with parse-retry and
@@ -49,7 +56,7 @@ Do not wait to see Option A; make Option B a clearly different usable challenger
 
 const REPAIR_SYSTEM = `You are an email copy repair specialist. Fix the listed playbook violations in the provided brief with minimal rewriting. Preserve all creative direction, product facts, prices, URLs, and supplied reviews. Return one complete JSON object in the same schema — no prose, no fences.`;
 
-const SEGMENT_BATCH_THRESHOLD = Math.max(2, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 3));
+const SEGMENT_BATCH_THRESHOLD = Math.max(2, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 2));
 const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 2));
 const SEGMENT_BATCH_CONCURRENCY = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY || 2));
 
@@ -347,6 +354,7 @@ interface SegmentBatchContext {
   index: number;
   total: number;
   allSegments: string[];
+  allSegmentContext?: string;
   optionAAnchor?: GenBrief;
   optionBAnchor?: GenBrief;
 }
@@ -379,6 +387,237 @@ function sharedAnchorSummary(brief?: GenBrief) {
   };
 }
 
+interface SegmentCopyPatch {
+  subject_lines?: GenBrief["subject_lines"];
+  body?: GenBrief["body"];
+  body_options?: GenBrief["body_options"];
+}
+
+type SegmentBatchPart = GenBrief | SegmentCopyPatch;
+
+function isFullBrief(part: SegmentBatchPart): part is GenBrief {
+  return !!(part as GenBrief).creative_direction && !!(part as GenBrief).banner && !!(part as GenBrief).products;
+}
+
+function compactAnchorSummary(brief: GenBrief) {
+  return {
+    creative_direction: brief.creative_direction,
+    theme: brief.theme,
+    banner: brief.banner,
+    body_examples: brief.body,
+    ps: brief.ps,
+    products: brief.products,
+    body_variety: brief.body_variety,
+  };
+}
+
+function productContextLines(products: Product[]): string {
+  return products
+    .map((p, i) => {
+      const usps = (p.usps || []).filter(Boolean).slice(0, 6).join("; ") || "none";
+      return `${i + 1}${i === 0 ? " HERO" : ""}. ${p.name} | slug:${p.slug} | ${p.url || "no URL"} | 💲${p.price || "TBD"} | USP: ${usps} | review: ${p.review || "none"}`;
+    })
+    .join("\n");
+}
+
+function subjectPatchSchema(campaign: Campaign): string {
+  return campaign.segments
+    .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"strategic","model_hint":"Claude strategic","subject":"","preheader":"","shared_thread":""},{"style":"curiosity","model_hint":"Gemini curiosity","subject":"","preheader":"","shared_thread":""},{"style":"direct-response","model_hint":"ChatGPT direct-response","subject":"","preheader":"","shared_thread":""}]}`)
+    .join(",\n    ");
+}
+
+function bodyPatchSchema(campaign: Campaign): string {
+  return campaign.segments.map((id) => `"${segJsonKey(id)}":""`).join(",\n    ");
+}
+
+function segmentPatchOutputSchema(campaign: Campaign): string {
+  return `{
+  "subject_lines": {
+    ${subjectPatchSchema(campaign)}
+  },
+  "body": {
+    ${bodyPatchSchema(campaign)}
+  }
+}`;
+}
+
+function keyVariants(key: string): string[] {
+  return [key, key.toLowerCase(), key.toUpperCase()];
+}
+
+function pickRecordValue<T>(record: Record<string, T> | undefined, key: string): T | undefined {
+  if (!record) return undefined;
+  for (const variant of keyVariants(key)) {
+    if (variant in record) return record[variant];
+  }
+  return undefined;
+}
+
+function normalizeSegmentPatch(raw: Record<string, unknown>, campaign: Campaign): SegmentCopyPatch {
+  const rawSubjects = raw.subject_lines && typeof raw.subject_lines === "object"
+    ? raw.subject_lines as GenBrief["subject_lines"]
+    : undefined;
+  const rawBody = raw.body && typeof raw.body === "object" ? raw.body as GenBrief["body"] : undefined;
+  const rawBodyOptions = raw.body_options && typeof raw.body_options === "object"
+    ? raw.body_options as GenBrief["body_options"]
+    : undefined;
+  const subject_lines: GenBrief["subject_lines"] = {};
+  const body: GenBrief["body"] = {};
+  const body_options: GenBrief["body_options"] = {};
+
+  campaign.segments.forEach((segment) => {
+    const key = segJsonKey(segment);
+    const subject = pickRecordValue(rawSubjects, key);
+    const bodyText = pickRecordValue(rawBody, key);
+    const options = pickRecordValue(rawBodyOptions, key);
+    if (subject) subject_lines[key] = subject;
+    if (typeof bodyText === "string") body[key] = bodyText;
+    if (Array.isArray(options)) body_options[key] = options;
+  });
+
+  if (!Object.keys(subject_lines).length && !Object.keys(body).length) {
+    throw new Error("Segment batch returned no subject_lines or body entries");
+  }
+
+  return {
+    subject_lines: Object.keys(subject_lines).length ? subject_lines : undefined,
+    body: Object.keys(body).length ? body : undefined,
+    body_options: Object.keys(body_options).length ? body_options : undefined,
+  };
+}
+
+function feedbackForSegmentPatch(revision?: RevisionFeedback): string {
+  const feedback = revision?.feedback?.trim();
+  return feedback
+    ? `Apply this user feedback to this segment batch without rewriting shared banner/product sections:\n${feedback}`
+    : "";
+}
+
+function buildSegmentPatchPrompt(
+  campaign: Campaign,
+  products: Product[],
+  optionLabel: "A" | "B",
+  anchor: GenBrief,
+  ctx: SegmentBatchContext,
+  selection: AIModelSelection,
+  revision?: RevisionFeedback
+): { system: string; user: string } {
+  const brand = BRANDS[campaign.brandId];
+  const anchorJson = JSON.stringify(compactAnchorSummary(anchor)).slice(0, 12000);
+  const system = renderPromptLayers([
+    {
+      title: "Role",
+      body: `You are finishing Option ${optionLabel} segment copy for ${brand.name}. The complete brief already exists; write only the requested segment subject/preheader/body patch.`,
+    },
+    {
+      title: "Output Contract",
+      body: `Return ONLY valid JSON. No prose, no markdown fence. Include only these segment keys. Schema:\n${segmentPatchOutputSchema(campaign)}`,
+    },
+    {
+      title: "Playbook Rules",
+      body: `${brandPlaybookRuleBlock(campaign.brandId)}
+Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 60-90 char preheader, {{first_name}} in subject OR preheader only, offer signal required.
+Body: 120-150 words per segment, no {{first_name}}, personal-note first, one calm urgency beat, product-name markdown link by paragraph 2, 2-4 formatting/link beats, no hard-sell command stack.
+Use renderer-safe tokens only: ==accent==, **bold**, [Product](slug:slug), [home text](home). Use supplied facts only for reviews, prices, proof, counts, shipping, stock, and urgency.`,
+    },
+  ]);
+
+  const user = renderPromptLayers([
+    {
+      title: "Batch",
+      body: `Batch ${ctx.index} of ${ctx.total}. Full selected segment list: ${ctx.allSegments.join(", ")}. Current batch segments: ${campaign.segments.join(", ")}.`,
+    },
+    {
+      title: "Campaign",
+      body: `Brand: ${brand.name}
+Theme: ${campaign.theme}
+Send date: ${campaign.sendDate}
+Promo: ${promoLine(campaign)}
+Products:
+${productContextLines(products)}
+
+Segments:
+${segmentPromptContext(campaign)}`,
+    },
+    {
+      title: "Anchor Brief",
+      body: `Preserve Option ${optionLabel}'s hook contract, branch, visual route, product strategy, and tone. Do not rewrite shared banner/product/P.S. fields.
+${anchorJson}`,
+    },
+    { title: "Segment Differentiation", body: segmentBodyDirectionLines(campaign) },
+    {
+      title: "Model Lens",
+      body: `${modelExecutionStyle(selection)}
+This lens should affect sentence architecture and proof path, not recipient-facing model names.`,
+    },
+    { title: "User Feedback", body: feedbackForSegmentPatch(revision) },
+  ]);
+
+  return { system, user };
+}
+
+interface SegmentCopyResult {
+  a?: SegmentCopyPatch;
+  b?: SegmentCopyPatch;
+  error?: string;
+  warning?: string;
+}
+
+async function createSegmentPatch(
+  campaign: Campaign,
+  products: Product[],
+  optionLabel: "A" | "B",
+  anchor: GenBrief,
+  ctx: SegmentBatchContext,
+  selection: AIModelSelection,
+  revision?: RevisionFeedback
+): Promise<SegmentCopyPatch> {
+  const { system, user } = buildSegmentPatchPrompt(campaign, products, optionLabel, anchor, ctx, selection, revision);
+  const parsed = await createAndParseWithModel(system, user, selection, optionLabel === "B" ? 0.76 : 0.64);
+  return normalizeSegmentPatch(parsed, campaign);
+}
+
+async function generateSegmentCopyBatch(
+  campaign: Campaign,
+  products: Product[],
+  models: AIModelPair,
+  revision: RevisionFeedback | undefined,
+  batchContext: SegmentBatchContext
+): Promise<SegmentCopyResult> {
+  const tasks: Promise<SegmentCopyPatch>[] = [];
+  const labels: ("A" | "B")[] = [];
+
+  if (batchContext.optionAAnchor) {
+    labels.push("A");
+    tasks.push(createSegmentPatch(campaign, products, "A", batchContext.optionAAnchor, batchContext, models.a, revision));
+  }
+  if (batchContext.optionBAnchor) {
+    labels.push("B");
+    tasks.push(createSegmentPatch(campaign, products, "B", batchContext.optionBAnchor, batchContext, models.b, revision));
+  }
+
+  if (!tasks.length) return { error: "No anchor option available for segment-only batch" };
+
+  const settled = await Promise.allSettled(tasks);
+  const result: SegmentCopyResult = {};
+  const warnings: string[] = [];
+  settled.forEach((item, index) => {
+    const label = labels[index];
+    if (item.status === "fulfilled") {
+      if (label === "A") result.a = item.value;
+      else result.b = item.value;
+    } else {
+      warnings.push(`Option ${label}: ${errMessage(item.reason)}`);
+    }
+  });
+  const rejectedReasons = settled
+    .filter((item): item is PromiseRejectedResult => item.status === "rejected")
+    .map((item) => item.reason);
+  if (!result.a && !result.b) return { error: bestFailureMessage(rejectedReasons) };
+  if (warnings.length) result.warning = warnings.join(" · ");
+  return result;
+}
+
 function appendSegmentBatchContext(user: string, optionLabel: "A" | "B", ctx?: SegmentBatchContext): string {
   if (!ctx) return user;
   const anchor = optionLabel === "A" ? ctx.optionAAnchor : ctx.optionBAnchor;
@@ -391,6 +630,7 @@ function appendSegmentBatchContext(user: string, optionLabel: "A" | "B", ctx?: S
 
 MULTI-SEGMENT BATCH MODE:
 Batch ${ctx.index} of ${ctx.total}. Full selected segment list: ${ctx.allSegments.join(", ")}.
+${ctx.allSegmentContext ? `Full segment context:\n${ctx.allSegmentContext}\n` : ""}
 The system schema already lists only the segment keys for this batch.
 Return a complete JSON object for this batch. Do not mention omitted segments. The server will merge batches into one final A/B brief.${anchorInstruction}`;
 }
@@ -415,27 +655,32 @@ async function mapWithConcurrency<T, R>(
 function mergeOptionBatches(
   campaign: Campaign,
   products: Product[],
-  briefs: GenBrief[],
+  parts: SegmentBatchPart[],
   provider?: string,
   model?: string
 ): GenBrief {
-  const base = JSON.parse(JSON.stringify(briefRevisionSummary(briefs[0]))) as GenBrief;
+  const anchor = parts.find(isFullBrief);
+  if (!anchor) throw new Error("Cannot merge segment batches without a full anchor brief");
+  const base = JSON.parse(JSON.stringify(briefRevisionSummary(anchor))) as GenBrief;
   const mergedSubjects: GenBrief["subject_lines"] = {};
   const mergedBody: GenBrief["body"] = { base: base.body?.base || "" };
+  const mergedBodyOptions: GenBrief["body_options"] = {};
 
-  briefs.forEach((brief) => {
-    Object.assign(mergedSubjects, brief.subject_lines || {});
-    Object.entries(brief.body || {}).forEach(([key, value]) => {
+  parts.forEach((part) => {
+    Object.assign(mergedSubjects, part.subject_lines || {});
+    Object.entries(part.body || {}).forEach(([key, value]) => {
       if (key === "base") {
         if (!mergedBody.base && value) mergedBody.base = value;
       } else {
         mergedBody[key] = value;
       }
     });
+    Object.assign(mergedBodyOptions, part.body_options || {});
   });
 
   base.subject_lines = mergedSubjects;
   base.body = mergedBody;
+  if (Object.keys(mergedBodyOptions).length) base.body_options = mergedBodyOptions;
   const validated = validateBrief(base, campaign, products);
   validated._provider = provider;
   validated._model = model;
@@ -610,6 +855,7 @@ async function generateOptionsBatched(
     const chunks = segmentChunks(campaign.segments);
     const total = chunks.length;
     const models = normalizeModelPair(modelInput);
+    const allSegmentContext = segmentPromptContext(campaign);
     const startedAt = Date.now();
     console.info(`[generate-copy] batching ${campaign.segments.length} segments into ${total} batches of up to ${SEGMENT_BATCH_SIZE}`);
 
@@ -619,7 +865,7 @@ async function generateOptionsBatched(
       undefined,
       models,
       revision,
-      { index: 1, total, allSegments: campaign.segments }
+      { index: 1, total, allSegments: campaign.segments, allSegmentContext }
     );
     if (first.error && !first.a && !first.b) return first;
 
@@ -628,23 +874,23 @@ async function generateOptionsBatched(
       remainingChunks,
       SEGMENT_BATCH_CONCURRENCY,
       (segments, index) =>
-        generateOptionsSingle(
+        generateSegmentCopyBatch(
           withSegments(campaign, segments),
           products,
-          undefined,
           models,
           revision,
           {
             index: index + 2,
             total,
             allSegments: campaign.segments,
+            allSegmentContext,
             optionAAnchor: first.a,
             optionBAnchor: first.b,
           }
         )
     );
 
-    const batchResults = [first, ...remaining];
+    const batchResults: Array<GenerationResult | SegmentCopyResult> = [first, ...remaining];
     const warnings: string[] = [];
     batchResults.forEach((result, index) => {
       const label = `batch ${index + 1}/${total}`;
@@ -654,17 +900,17 @@ async function generateOptionsBatched(
       if (!result.b) warnings.push(`${label}: missing Option B`);
     });
 
-    const aBatches = batchResults.map((result) => result.a).filter((brief): brief is GenBrief => !!brief);
-    const bBatches = batchResults.map((result) => result.b).filter((brief): brief is GenBrief => !!brief);
+    const aBatches = batchResults.map((result) => result.a).filter((brief): brief is SegmentBatchPart => !!brief);
+    const bBatches = batchResults.map((result) => result.b).filter((brief): brief is SegmentBatchPart => !!brief);
     if (!aBatches.length && !bBatches.length) {
       return { error: warnings[0] || "No segment batch returned usable output" };
     }
 
     let a = aBatches.length
-      ? mergeOptionBatches(campaign, products, aBatches, aBatches[0]._provider, aBatches[0]._model)
+      ? mergeOptionBatches(campaign, products, aBatches, first.a?._provider, first.a?._model)
       : undefined;
     let b = bBatches.length
-      ? mergeOptionBatches(campaign, products, bBatches, bBatches[0]._provider, bBatches[0]._model)
+      ? mergeOptionBatches(campaign, products, bBatches, first.b?._provider, first.b?._model)
       : undefined;
     if (a && b) [a, b] = validateBriefPair(a, b);
 
