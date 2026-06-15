@@ -36,6 +36,14 @@ export interface RenderOptions {
   bodyLayout?: BodyLayout;
   /** Drag/drop module flow when bodyLayout is custom. */
   moduleLayout?: EmailModuleKey[];
+  /**
+   * Whether to render the brief's product copy (badge/headline/USPs/review/CTA) as an email-safe
+   * text fallback. In production these are baked into the product image, so the default "auto" only
+   * renders the copy when the product image is still a placeholder — making previews show the
+   * generated copy instead of a blank box, and giving image-blocking inboxes crawlable text.
+   * "always" forces the copy (useful for text-based review/exports); "never" keeps image-only.
+   */
+  productCopyFallback?: "auto" | "always" | "never";
 }
 
 
@@ -265,19 +273,83 @@ function bannerCaptionBlock(brand: Brand, accent: string, banner: GenBrief["bann
   return textBlock(parts.join("\n\n"), brand, accent, muid, "center");
 }
 
+const CARD_FONT = "arial, helvetica, sans-serif";
+
+function escText(s: string): string {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Decide whether to render the brief copy as a text fallback for one product image. */
+function showProductCopy(src: string, mode: RenderOptions["productCopyFallback"]): boolean {
+  if (mode === "never") return false;
+  if (mode === "always") return true;
+  return isPlaceholderImage(src); // "auto" (default)
+}
+
+/**
+ * The brief's product copy rendered as an email-safe text card — used when the product image is a
+ * placeholder. Surfaces popup_badge, headline, sub_text, USPs, review, and a CTA button so the
+ * preview reflects what the model wrote (these are otherwise baked into the product image asset).
+ */
+function productCopyContent(brand: Brand, accent: string, product: Product | undefined, pb: GenProductBlock): string {
+  const href = productHref(brand, product);
+  const lines: string[] = [];
+  if (pb.popup_badge) {
+    lines.push(`<div style="font-family:${CARD_FONT}; font-size:11px; font-weight:bold; color:${accent}; text-transform:uppercase; letter-spacing:0.04em; padding-bottom:4px;">${escText(pb.popup_badge)}</div>`);
+  }
+  const name = pb.main_text || pb.name || product?.name || "Product";
+  lines.push(`<div style="font-family:${CARD_FONT}; font-size:16px; font-weight:bold; color:#000000; padding-bottom:4px;">${escText(name)}</div>`);
+  if (pb.sub_text) {
+    lines.push(`<div style="font-family:${CARD_FONT}; font-size:13px; color:#333333; padding-bottom:6px;">${escText(pb.sub_text)}</div>`);
+  }
+  const usps = (pb.usps || []).filter(Boolean);
+  if (usps.length) {
+    lines.push(`<div style="font-family:${CARD_FONT}; font-size:12px; color:#555555; padding-bottom:6px;">${usps.map((u) => `&#10003; ${escText(u)}`).join("&nbsp;&nbsp;")}</div>`);
+  }
+  if (pb.review) {
+    lines.push(`<div style="font-family:${CARD_FONT}; font-size:12px; font-style:italic; color:#555555; padding-bottom:8px;">&ldquo;${escText(pb.review)}&rdquo;</div>`);
+  }
+  const cta = pb.cta || "Shop now";
+  lines.push(`<div><a clicktracking="off" href="${attr(href)}" style="display:inline-block; font-family:${CARD_FONT}; font-size:13px; font-weight:bold; color:#ffffff; background-color:${accent}; padding:9px 20px; text-decoration:none; border-radius:3px;">${escText(cta)}</a></div>`);
+  return `<div style="text-align:center;">${lines.join("\n")}</div>`;
+}
+
 /** A full-width product image block. Text/CTA are expected inside the generated image asset. */
-function productBlock(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string): string {
+function productBlock(
+  brand: Brand,
+  product: Product | undefined,
+  pb: GenProductBlock,
+  images: ImageOverrides,
+  muid: () => string,
+  accent: string,
+  copyMode: RenderOptions["productCopyFallback"]
+): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(564, 280, pb.name || product?.name || "Product"));
-  const img = imageModule(muid(), productHref(brand, product), src, pb.alt_text || pb.name || product?.name || "Product", 564, 0, true);
-  return columnsSingle(img, "0px 9px 18px 9px", 564, "0px 9px 0px 9px");
+  const withCopy = showProductCopy(src, copyMode);
+  const img = imageModule(muid(), productHref(brand, product), src, pb.alt_text || pb.name || product?.name || "Product", 564, withCopy ? 6 : 0, true);
+  const inner = withCopy
+    ? img + textModule(muid(), productCopyContent(brand, accent, product, pb), 20, "0px 18px 4px 18px")
+    : img;
+  return columnsSingle(inner, "0px 9px 18px 9px", 564, "0px 9px 0px 9px");
 }
 
 /** A product image cell for one column of a multi-up row. */
-function productCellInner(brand: Brand, product: Product | undefined, pb: GenProductBlock, images: ImageOverrides, muid: () => string, imgW: number): string {
+function productCellInner(
+  brand: Brand,
+  product: Product | undefined,
+  pb: GenProductBlock,
+  images: ImageOverrides,
+  muid: () => string,
+  imgW: number,
+  accent: string,
+  copyMode: RenderOptions["productCopyFallback"]
+): string {
   const slug = product?.slug || null;
   const src = attr((slug && images.products?.[slug]) || ph(imgW, Math.round(imgW * 0.9), pb.name || product?.name || "Product"));
-  return imageModule(muid(), productHref(brand, product), src, pb.alt_text || pb.name || product?.name || "Product", imgW, 0, true);
+  const img = imageModule(muid(), productHref(brand, product), src, pb.alt_text || pb.name || product?.name || "Product", imgW, showProductCopy(src, copyMode) ? 6 : 0, true);
+  if (!showProductCopy(src, copyMode)) return img;
+  return img + textModule(muid(), productCopyContent(brand, accent, product, pb), 18, "0px 6px 4px 6px");
 }
 
 /**
@@ -350,8 +422,9 @@ export function renderEmailHTML(
 
   // Product grid — arrangement chosen by the user.
   const layout = options.productLayout || "stack";
+  const copyMode = options.productCopyFallback || "auto";
   const cell = (idx: number, imgW: number) =>
-    idx < blocks.length ? productCellInner(brand, ordered[idx], blocks[idx], images, muid, imgW) : "";
+    idx < blocks.length ? productCellInner(brand, ordered[idx], blocks[idx], images, muid, imgW, accent, copyMode) : "";
   const pushGridRows = (start: number, perRow: number, colW: number, imgW: number, gutter: number) => {
     for (let i = start; i < blocks.length; i += perRow) {
       const cells = Array.from({ length: perRow }, (_, j) => cell(i + j, imgW));
@@ -362,7 +435,7 @@ export function renderEmailHTML(
     const available = blocks.slice(start, Math.min(end, blocks.length));
     if (!available.length) return;
     if (available.length === 1 || layout === "stack") {
-      available.forEach((pb, j) => mods.push(productBlock(brand, ordered[start + j], pb, images, muid)));
+      available.forEach((pb, j) => mods.push(productBlock(brand, ordered[start + j], pb, images, muid, accent, copyMode)));
       return;
     }
     if (layout === "three") {
@@ -396,10 +469,10 @@ export function renderEmailHTML(
     } else if (layout === "three") {
       pushGridRows(0, 3, 176, 176, 12);
     } else if (layout === "hero_grid") {
-      if (blocks[0]) mods.push(productBlock(brand, ordered[0], blocks[0], images, muid));
+      if (blocks[0]) mods.push(productBlock(brand, ordered[0], blocks[0], images, muid, accent, copyMode));
       pushGridRows(1, 2, 282, 282, 18);
     } else {
-      blocks.forEach((pb, i) => mods.push(productBlock(brand, ordered[i], pb, images, muid)));
+      blocks.forEach((pb, i) => mods.push(productBlock(brand, ordered[i], pb, images, muid, accent, copyMode)));
     }
     const psText = brief.ps ? `P.S. ${brief.ps}` : "";
     const closingText = [afterProducts, psText].filter(Boolean).join("\n\n");

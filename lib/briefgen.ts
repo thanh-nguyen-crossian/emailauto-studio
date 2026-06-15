@@ -3,6 +3,7 @@
 
 import { BRANDS } from "./config/brands";
 import { intelligencePromptBlock, getBrandIntelligence } from "./config/intelligence";
+import { performanceFeedbackPromptBlock } from "./performance/feedback";
 import type { Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 
 export const PROMPT_REGISTRY_VERSION = "emailstudio-email-brief-v2026-06-12.1";
@@ -842,6 +843,16 @@ function segmentBodyDirectionLines(campaign: Campaign): string {
 function wordCount(s: string): number {
   return String(s || "").trim().split(/\s+/).filter(Boolean).length;
 }
+// Word-boundary lexeme match for the spam/weak/optout/proof banks. Substring matching produced
+// false positives — e.g. the bank word "winner" matched the schema field value "headline_winner"
+// on every brief, and "off" matched "offer". Anchor with \b only where the term edge is a word
+// char so trailing-space phrases ("meet the ") still match.
+function containsLexeme(haystack: string, term: string): boolean {
+  const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pre = /^\w/.test(term) ? "\\b" : "";
+  const post = /\w$/.test(term) ? "\\b" : "";
+  return new RegExp(`${pre}${esc}${post}`, "i").test(haystack);
+}
 function norm(s: string): string {
   return String(s || "").toLowerCase().replace(/[^a-z0-9{}]+/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -1128,6 +1139,7 @@ export function buildSystemPrompt(
     { title: "Brand Brief Pattern Memory", body: brandBriefPatternLayer(campaign.brandId) },
     { title: "Brand Rules", body: BRAND_PLAYBOOK_RULES[campaign.brandId] || "" },
     { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
+    { title: "Adaptive Performance Feedback", body: performanceFeedbackPromptBlock(campaign.performanceHistory, campaign.brandId) },
     { title: "Option Contrast", body: contrast },
     { title: "Winning Reference", body: winning },
     {
@@ -1384,10 +1396,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const accentMarks = richText.match(ACCENT_MARKER)?.length || 0;
   const boldMarks = richText.match(BOLD_MARKER)?.length || 0;
   const full = JSON.stringify({ s: brief.subject_lines, t: brief.theme, ba: brief.banner, bo: brief.body, p: brief.products }).toLowerCase();
-  SPAM_WORDS.forEach((w) => full.includes(w) && addFlag(brief, "warn", `Spam word: "${w}"`));
-  WEAK_COPY.forEach((w) => full.includes(w) && addFlag(brief, "warn", `Weak/generic copy: "${w}"`));
-  OPTOUT_RISK.forEach((w) => full.includes(w) && addFlag(brief, "warn", `Opt-out risk wording: "${w}"`));
-  UNSUPPLIED_PROOF.forEach((w) => full.includes(w) && addFlag(brief, "warn", `Possibly invented proof: "${w}"`));
+  SPAM_WORDS.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Spam word: "${w}"`));
+  WEAK_COPY.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Weak/generic copy: "${w}"`));
+  OPTOUT_RISK.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Opt-out risk wording: "${w}"`));
+  UNSUPPLIED_PROOF.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Possibly invented proof: "${w}"`));
   UNSUPPLIED_PROOF_PATTERNS.forEach(({ label, pattern }) => {
     if (pattern.test(full)) addFlag(brief, "warn", `Possibly invented proof: ${label}`);
   });

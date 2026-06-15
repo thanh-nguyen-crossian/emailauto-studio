@@ -3,6 +3,13 @@
 import type { Flag } from "@/lib/briefgen";
 import { flagTier, flagTierCounts } from "@/lib/briefgen";
 import type { BodyVarietyProfile } from "@/lib/config/types";
+import type { DeliverabilityReport } from "@/lib/quality/deliverability";
+
+const DELIVERABILITY_LABEL: Record<string, string> = {
+  block: "Block",
+  risk: "Risk",
+  polish: "Polish",
+};
 
 const CATEGORIES = [
   {
@@ -39,7 +46,55 @@ function VarietyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PreflightPanel({ flags, score, variety }: { flags?: Flag[]; score?: number; variety?: BodyVarietyProfile }) {
+function DeliverabilityCard({ report }: { report: DeliverabilityReport }) {
+  const color = report.score >= 90 ? "var(--ok)" : report.score >= 70 ? "var(--warn)" : "var(--bad)";
+  const top = [...report.findings]
+    .sort((a, b) => {
+      const order = { block: 0, risk: 1, polish: 2 } as const;
+      return order[a.severity] - order[b.severity];
+    })
+    .slice(0, 6);
+  return (
+    <div className="mb-4 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+          Deliverability / Inbox placement
+        </span>
+        <span className="text-sm font-extrabold leading-none" style={{ color }}>
+          {report.score}/100 · {report.grade}
+        </span>
+      </div>
+      {report.findings.length === 0 ? (
+        <p className="text-xs" style={{ color: "var(--ok)" }}>
+          Clean spam, punctuation, emoji, currency, merge-tag, and accessibility profile.
+        </p>
+      ) : (
+        <>
+          <p className="text-[10px] text-[var(--muted)] mb-1.5">
+            {report.counts.block} block · {report.counts.risk} risk · {report.counts.polish} polish
+          </p>
+          <ul className="flex flex-col gap-1">
+            {top.map((f, i) => {
+              const c = f.severity === "block" ? "var(--bad)" : f.severity === "risk" ? "var(--warn)" : "var(--muted)";
+              return (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="status-pill shrink-0 mt-0.5" style={{ color: c }}>
+                    {DELIVERABILITY_LABEL[f.severity]}
+                  </span>
+                  <span className="text-xs leading-relaxed" style={{ color: c }}>
+                    <span className="text-[var(--muted)]">{f.surface}:</span> {f.message}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function PreflightPanel({ flags, score, variety, deliverability }: { flags?: Flag[]; score?: number; variety?: BodyVarietyProfile; deliverability?: DeliverabilityReport }) {
   const list = flags || [];
   const errors = list.filter((f) => f.type === "error");
   const warns = list.filter((f) => f.type === "warn");
@@ -62,6 +117,7 @@ export function PreflightPanel({ flags, score, variety }: { flags?: Flag[]; scor
 
   return (
     <div className="section-panel">
+      {deliverability && <DeliverabilityCard report={deliverability} />}
       {variety && (
         <div className="mb-4 rounded-lg border p-3 flex flex-col gap-1.5" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
           <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-0.5">Body Variety — auto-selected</span>

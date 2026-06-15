@@ -2,7 +2,11 @@
 // Source of truth for brand/tier/product logic — copy prompts must derive from these,
 // never duplicate the logic (see CLAUDE.md "Never duplicate brand/tier/product logic").
 
+import type { SendOutcome } from "../performance/feedback";
+
 export type LayoutType = "narrative" | "simple";
+
+export type { SendOutcome };
 
 export interface ProductSegment {
   /** Segment code, e.g. "21" (BraGoddess) or "1-A" (SantaFare lifecycle tier). */
@@ -222,6 +226,12 @@ export interface Campaign {
   customPerfContext?: string;
   /** Slugs of products featured in the last 3 sends for this brand; model tries to avoid repeating them. */
   recentProductSlugs?: string[];
+  /**
+   * Optional window of past send outcomes (levers chosen + CTR/optout earned). When present, an
+   * adaptive performance-feedback block is derived and injected into the generation prompt so the
+   * model biases toward what is converting for this brand. See lib/performance/feedback.ts.
+   */
+  performanceHistory?: SendOutcome[];
   /** Auto-computed variety profile for this send. Never user-typed. */
   bodyVariety?: BodyVarietyProfile;
 }

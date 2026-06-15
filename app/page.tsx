@@ -37,6 +37,7 @@ import {
 } from "@/lib/briefgen";
 import { getBrandIntelligence, intelligencePromptBlock, PROGRAM_INTELLIGENCE } from "@/lib/config/intelligence";
 import { renderEmailHTML, type ProductLayout } from "@/lib/render/email";
+import { analyzeBriefDeliverability } from "@/lib/quality/deliverability";
 import { Preview } from "./components/Preview";
 import { PreflightPanel } from "./components/PreflightPanel";
 import { ImageEditor } from "./components/ImageEditor";
@@ -1790,7 +1791,12 @@ export default function Studio() {
                   </div>
                   <div className="flex flex-col gap-4 lg:sticky lg:top-4 self-start">
                     <ImageEditor brand={brand} products={selectedProducts} images={images} onChange={setImages} includeLogo={includeLogo} onToggleLogo={setIncludeLogo} />
-                    <PreflightPanel flags={activeBrief._flags} score={activeBrief._score} variety={varietyProfile} />
+                    <PreflightPanel
+                      flags={activeBrief._flags}
+                      score={activeBrief._score}
+                      variety={varietyProfile}
+                      deliverability={analyzeBriefDeliverability(activeBrief, htmlFor(activeOption, activeSegment))}
+                    />
                   </div>
                 </div>
               )}
