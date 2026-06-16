@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { AIModelPair, AIModelSelection, Campaign, Product } from "./config/types";
+import { randomUUID } from "crypto";
+import type { AIModelPair, AIModelSelection, BodyVarietyProfile, Campaign, Product } from "./config/types";
 import { normalizeModelPair, providerLabel } from "./config/aiModels";
 import {
   brandPlaybookRuleBlock,
@@ -7,6 +8,7 @@ import {
   buildSystemPrompt,
   buildUserPrompt,
   contrastInstruction,
+  isComplianceRepairFlag,
   isHighImpactFlag,
   promoLine,
   PROMPT_REGISTRY_VERSION,
@@ -14,6 +16,7 @@ import {
   segJsonKey,
   segmentBodyDirectionLines,
   segmentPromptContext,
+  selectVarietyProfile,
   validateBrief,
   validateBriefPair,
   type GenBrief,
@@ -48,6 +51,17 @@ const FIX_JSON_NOTE =
   '\n\nYour previous response was NOT valid JSON. Return ONLY one valid JSON object — escape every double-quote inside a string value as \\", escape newlines as \\n, no trailing commas, no comments, no prose.';
 
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS || 145_000);
+function envNumber(name: string, fallback: number, min: number, max: number): number {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw)) return fallback;
+  return Math.min(max, Math.max(min, raw));
+}
+
+const AI_TEMP_A = envNumber("AI_TEMP_A", 0.85, 0, 1);
+const AI_TEMP_B = envNumber("AI_TEMP_B", 1.0, 0, 1);
+const AI_TEMP_B_RETRY = envNumber("AI_TEMP_B_RETRY", 0.9, 0, 1);
+const AI_TOP_P = envNumber("AI_TOP_P", 0.95, 0.1, 1);
+const AI_REPAIR_TEMP = envNumber("AI_REPAIR_TEMP", 0.6, 0, 1);
 
 const OPTION_B_INITIAL_CONTRAST = `\nOPTION B CONTRAST REQUIREMENT:
 You are writing Option B in parallel with Option A. Deliberately avoid the obvious/default route.
@@ -115,10 +129,10 @@ async function fetchJsonWithTimeout<T>(
   }
 }
 
-async function createText(system: string, user: string, selection: AIModelSelection, temperature?: number): Promise<string> {
-  if (selection.provider === "claude") return callClaude(system, user, selection.model, temperature);
-  if (selection.provider === "gemini") return callGemini(system, user, selection.model, temperature);
-  if (selection.provider === "openai") return callOpenAI(system, user, selection.model, temperature);
+async function createText(system: string, user: string, selection: AIModelSelection, temperature?: number, topP = AI_TOP_P): Promise<string> {
+  if (selection.provider === "claude") return callClaude(system, user, selection.model, temperature, topP);
+  if (selection.provider === "gemini") return callGemini(system, user, selection.model, temperature, topP);
+  if (selection.provider === "openai") return callOpenAI(system, user, selection.model, temperature, topP);
   throw new Error(`Unsupported AI provider: ${selection.provider}`);
 }
 
@@ -126,11 +140,12 @@ async function createAndParseWithModel(
   system: string,
   user: string,
   selection: AIModelSelection,
-  temperature?: number
+  temperature?: number,
+  topP = AI_TOP_P
 ): Promise<Record<string, unknown>> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await createText(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection, temperature);
+    const raw = await createText(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection, temperature, topP);
     try {
       return parseStrictJson(raw);
     } catch (err) {
@@ -140,7 +155,7 @@ async function createAndParseWithModel(
   throw lastErr instanceof Error ? lastErr : new Error("Failed to parse model output");
 }
 
-async function callClaude(system: string, user: string, model: string, temperature = 0.65): Promise<string> {
+async function callClaude(system: string, user: string, model: string, temperature = AI_TEMP_A, topP = AI_TOP_P): Promise<string> {
   let resp;
   try {
     resp = await getClient().messages.create(
@@ -148,6 +163,7 @@ async function callClaude(system: string, user: string, model: string, temperatu
         model,
         max_tokens: MAX_OUTPUT_TOKENS,
         temperature,
+        top_p: topP,
         system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: user }],
       },
@@ -164,7 +180,7 @@ async function callClaude(system: string, user: string, model: string, temperatu
   return textPart && textPart.type === "text" ? textPart.text : "";
 }
 
-async function callGemini(system: string, user: string, model: string, temperature = 0.65): Promise<string> {
+async function callGemini(system: string, user: string, model: string, temperature = AI_TEMP_A, topP = AI_TOP_P): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
   const { res, data } = await fetchJsonWithTimeout<{
@@ -181,6 +197,7 @@ async function callGemini(system: string, user: string, model: string, temperatu
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
         temperature,
+        topP,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         responseMimeType: "application/json",
       },
@@ -191,7 +208,7 @@ async function callGemini(system: string, user: string, model: string, temperatu
   return data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
 }
 
-async function callOpenAI(system: string, user: string, model: string, temperature = 0.65): Promise<string> {
+async function callOpenAI(system: string, user: string, model: string, temperature = AI_TEMP_A, topP = AI_TOP_P): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
   const payload: Record<string, unknown> = {
@@ -203,9 +220,9 @@ async function callOpenAI(system: string, user: string, model: string, temperatu
     ],
     max_output_tokens: MAX_OUTPUT_TOKENS,
     temperature,
-    text: { format: { type: "json_object" }, verbosity: "low" },
+    top_p: topP,
+    text: { format: { type: "json_object" } },
   };
-  if (/^gpt-5/i.test(model)) payload.reasoning = { effort: "low" };
 
   const { res, data } = await fetchJsonWithTimeout<{
     output_text?: string;
@@ -323,13 +340,31 @@ Regenerate complete updated briefs in the same JSON schema. Preserve what still 
 function modelExecutionStyle(selection: AIModelSelection): string {
   const label = `${providerLabel(selection.provider)} ${selection.model}`;
   if (selection.provider === "claude") {
-    return `${label}: use a disciplined strategist lens. Prioritize playbook compliance, precise segment reasoning, clean proof logic, and restrained body copy. Avoid generic urgency and keep every claim tied to supplied inputs.`;
+    // Structural bias: proof-ladder routes, mechanism-first frameworks, restrained language.
+    return `${label} — STRUCTURAL ROLE: proof-ladder strategist.
+Framework bias: Proof Ladder or Feature-Benefit. Route bias: Proof-Led Announcement or high-evidence segment reward.
+Sentence architecture: short declarative → specific mechanism proof → single risk reducer → quiet CTA.
+Subject style: concrete fact or named mechanism (e.g. "The 3-second snap" not "Feel the difference").
+Body: one product reason per paragraph, evidence before emotion, no urgency stacking.
+Keep every claim tied to a supplied fact; if proof is absent, qualify ("designed to", not "proven to").`;
   }
   if (selection.provider === "gemini") {
-    return `${label}: use a visual-curiosity lens. Make the banner/image brief more scene-specific, vary sensory language and subject curiosity, and keep factual claims strictly supplied. Avoid decorative-only visuals.`;
+    // Structural bias: visual-scene openers, sensory language, suspended-loop subjects.
+    return `${label} — STRUCTURAL ROLE: visual-curiosity storyteller.
+Framework bias: Sensory-Scene or Mystery/Reveal. Route bias: Occasion Hook or sensory segment reward.
+Sentence architecture: scene-setting image detail → suspended-loop tension → product as resolution.
+Subject style: a moment or sensation (e.g. "The morning you didn't adjust once" not "Save 💲12").
+Body: open with a vivid sensory observation, product named mid-paragraph not sentence 1, richer image_guidance.
+Balance emotional scene with product-readability; no purely decorative visuals.`;
   }
   if (selection.provider === "openai") {
-    return `${label}: use a direct-response editor lens. Make the offer path, CTA logic, and product block hierarchy sharper, but keep the tone personal-note first rather than hype or hard sell.`;
+    // Structural bias: direct-response clarity, offer-first subjects, tight CTA logic.
+    return `${label} — STRUCTURAL ROLE: direct-response editor.
+Framework bias: PAS or AIDA. Route bias: Direct Offer or Urgency Anchor.
+Sentence architecture: problem statement → product as named solution → price/deadline → single action word CTA.
+Subject style: offer-anchored (e.g. "Your Daisy Bra is 💲12.99, {{first_name}}" — price or % in subject).
+Body: offer in sentence 1, feature-benefit in sentence 2, transition word before CTA, no filler.
+Tighten product hierarchy: hero first, supporting products briefer, CTA copy ≤3 words.`;
   }
   return `${label}: use the provider's strengths while preserving the required route, playbook, proof, and JSON contracts.`;
 }
@@ -337,16 +372,39 @@ function modelExecutionStyle(selection: AIModelSelection): string {
 function appendModelExecutionStyle(user: string, optionLabel: "A" | "B", selection: AIModelSelection): string {
   return `${user}
 
-MODEL EXECUTION LENS FOR OPTION ${optionLabel}:
+MODEL EXECUTION LENS FOR OPTION ${optionLabel} — follow this structural role:
 ${modelExecutionStyle(selection)}
-This lens should change reasoning, sentence architecture, subject style, visual detail, and proof path. Do not expose provider/model names as recipient-facing copy.`;
+This changes reasoning priority, sentence architecture, subject style, visual depth, and proof path — not just tone. Do not expose provider/model names as recipient-facing copy.`;
 }
 
-function stampBrief(brief: GenBrief | undefined, selection: AIModelSelection): GenBrief | undefined {
+function cleanBodyVarietyProfile(variety?: BodyVarietyProfile): BodyVarietyProfile | undefined {
+  if (!variety) return undefined;
+  return {
+    openerMechanic: variety.openerMechanic,
+    openerMechanicLabel: variety.openerMechanicLabel,
+    namedCharacter: variety.namedCharacter,
+    characterRole: variety.characterRole,
+    painPoint: variety.painPoint,
+    sensoryPhrase: variety.sensoryPhrase,
+    emotionalArc: variety.emotionalArc,
+    emotionalArcLabel: variety.emotionalArcLabel,
+    creativeLens: variety.creativeLens,
+    proofRole: variety.proofRole,
+    subjectStyle: variety.subjectStyle,
+    visualDirection: variety.visualDirection,
+  };
+}
+
+function withOptionVariety(campaign: Campaign, nonce: string): Campaign {
+  return { ...campaign, bodyVariety: selectVarietyProfile(campaign, nonce) };
+}
+
+function stampBrief(brief: GenBrief | undefined, selection: AIModelSelection, variety?: BodyVarietyProfile): GenBrief | undefined {
   if (!brief) return brief;
   brief._provider = providerLabel(selection.provider);
   brief._model = selection.model;
   brief._prompt_version = PROMPT_REGISTRY_VERSION;
+  if (variety) brief.body_variety = cleanBodyVarietyProfile(variety);
   return brief;
 }
 
@@ -573,7 +631,7 @@ async function createSegmentPatch(
   revision?: RevisionFeedback
 ): Promise<SegmentCopyPatch> {
   const { system, user } = buildSegmentPatchPrompt(campaign, products, optionLabel, anchor, ctx, selection, revision);
-  const parsed = await createAndParseWithModel(system, user, selection, optionLabel === "B" ? 0.76 : 0.64);
+  const parsed = await createAndParseWithModel(system, user, selection, optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A);
   return normalizeSegmentPatch(parsed, campaign);
 }
 
@@ -681,6 +739,7 @@ function mergeOptionBatches(
   base.subject_lines = mergedSubjects;
   base.body = mergedBody;
   if (Object.keys(mergedBodyOptions).length) base.body_options = mergedBodyOptions;
+  if (anchor.body_variety) base.body_variety = anchor.body_variety;
   const validated = validateBrief(base, campaign, products);
   validated._provider = provider;
   validated._model = model;
@@ -696,17 +755,17 @@ function qualityRepairEnabled(): boolean {
 }
 
 function repairFlagsFor(brief: GenBrief): string[] {
-  // Severity is classified by briefgen's flagTier — the single source of truth co-located with the
-  // flag wording — so this gating can no longer silently desync from validateBrief's messages.
-  const warnMsgs = (brief._flags || []).filter((f) => f.type === "warn").map((f) => f.msg);
-  const highImpact = warnMsgs.filter(isHighImpactFlag);
+  // Repair only safety/compliance/deliverability flags. Creative scoring remains visible in the UI,
+  // but does not trigger a homogenizing model rewrite.
+  const complianceMsgs = (brief._flags || []).map((f) => f.msg).filter(isComplianceRepairFlag);
+  const highImpact = complianceMsgs.filter(isHighImpactFlag);
   const lowScore = typeof brief._score === "number" && brief._score < QUALITY_REPAIR_THRESHOLD;
-  if (!highImpact.length && (!lowScore || warnMsgs.length < 3)) return [];
-  return (highImpact.length ? highImpact : warnMsgs).slice(0, QUALITY_REPAIR_MAX_FLAGS);
+  if (!complianceMsgs.length || (!highImpact.length && !lowScore)) return [];
+  return (highImpact.length ? highImpact : complianceMsgs).slice(0, QUALITY_REPAIR_MAX_FLAGS);
 }
 
-function countHighImpact(brief: GenBrief): number {
-  return (brief._flags || []).filter((f) => f.type === "warn" && isHighImpactFlag(f.msg)).length;
+function countComplianceImpact(brief: GenBrief): number {
+  return (brief._flags || []).filter((f) => isComplianceRepairFlag(f.msg)).length;
 }
 
 // Lexicographic: prefer fewer errors, then fewer serious/structural warnings, then higher score.
@@ -715,8 +774,8 @@ function shouldKeepRepair(original: GenBrief, repaired: GenBrief): boolean {
   const oErr = (original._flags || []).filter((f) => f.type === "error").length;
   const rErr = (repaired._flags || []).filter((f) => f.type === "error").length;
   if (rErr !== oErr) return rErr < oErr;
-  const hi = countHighImpact(repaired) - countHighImpact(original);
-  if (hi !== 0) return hi < 0;
+  const compliance = countComplianceImpact(repaired) - countComplianceImpact(original);
+  if (compliance !== 0) return compliance < 0;
   return (repaired._score ?? 0) >= (original._score ?? 0);
 }
 
@@ -724,7 +783,7 @@ function buildQualityRepairPrompt(optionLabel: "A" | "B", brief: GenBrief, flags
   const current = JSON.stringify(briefRevisionSummary(brief)).slice(0, 18000);
   return `QUALITY REPAIR PASS FOR OPTION ${optionLabel}
 
-Fix only the playbook/output-quality problems below. Preserve the current creative direction where it is valid, but revise any copy that violates email-campaign-playbook.html.
+Fix only the compliance, proof-safety, deliverability, and hard length problems below. Preserve the current creative direction, route, hook, product order, and sentence architecture wherever they are valid.
 
 Problems to fix:
 ${flags.map((flag, i) => `${i + 1}. ${flag}`).join("\n")}
@@ -749,7 +808,7 @@ async function repairBriefIfNeeded(
 
   try {
     const repaired = validateBrief(
-      (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, 0.30)) as unknown as GenBrief,
+      (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, AI_REPAIR_TEMP)) as unknown as GenBrief,
       campaign,
       products
     );
@@ -775,26 +834,31 @@ async function generateOptionsSingle(
 ): Promise<GenerationResult> {
   try {
     const models = normalizeModelPair(modelInput);
-    const sysA = overrides?.system?.trim() || buildSystemPrompt(campaign, products, false);
-    const usrABase = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaign, false), revision);
+    const autoPrompts = !hasPromptOverrides(overrides);
+    const nonceA = `${randomUUID()}:${models.a.provider}:${models.a.model}:A`;
+    const nonceB = `${randomUUID()}:${models.b.provider}:${models.b.model}:B`;
+    const campaignA = autoPrompts ? withOptionVariety(campaign, nonceA) : { ...campaign, bodyVariety: campaign.bodyVariety || selectVarietyProfile(campaign, nonceA) };
+    const campaignB = autoPrompts ? withOptionVariety(campaign, nonceB) : { ...campaign, bodyVariety: campaign.bodyVariety || selectVarietyProfile(campaign, nonceB) };
+    const sysA = overrides?.system?.trim() || buildSystemPrompt(campaignA, products, false, undefined, nonceA);
+    const usrABase = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaignA, false), revision);
     const usrA = appendSegmentBatchContext(appendModelExecutionStyle(usrABase, "A", models.a), "A", batchContext);
 
     // B system prompt: same structure as A (keeps Claude system-prompt cache warm for retry).
     // Contrast instruction goes in the user message so it doesn't fragment the cached prefix.
     const sysBInitial = overrides?.system?.trim()
       ? overrides.system.trim()
-      : buildSystemPrompt(campaign, products, true);
+      : buildSystemPrompt(campaignB, products, true, undefined, nonceB);
     const usrBBase = overrides?.user?.trim()
       ? overrides.user.trim() + "\n\nGenerate Option B now — make it a clearly different challenger from Option A."
-      : buildUserPrompt(campaign, true) + OPTION_B_INITIAL_CONTRAST;
+      : buildUserPrompt(campaignB, true) + OPTION_B_INITIAL_CONTRAST;
     const usrB = appendSegmentBatchContext(appendModelExecutionStyle(appendRevisionFeedback(usrBBase, revision), "B", models.b), "B", batchContext);
 
     const startedAt = Date.now();
     // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa) — the
     // marketer waited minutes and one usable option beats zero. Only a both-failed run is fatal.
     const [aSettled, bSettled] = await Promise.allSettled([
-      createAndParseWithModel(sysA, usrA, models.a, 0.65),
-      createAndParseWithModel(sysBInitial, usrB, models.b, 0.75),
+      createAndParseWithModel(sysA, usrA, models.a, AI_TEMP_A),
+      createAndParseWithModel(sysBInitial, usrB, models.b, AI_TEMP_B),
     ]);
     if (aSettled.status === "rejected" && bSettled.status === "rejected") {
       // Surface the more informative of the two errors (truncation/timeout beats a generic parse note).
@@ -807,8 +871,8 @@ async function generateOptionsSingle(
       a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
       b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
     ]);
-    stampBrief(a, models.a);
-    stampBrief(b, models.b);
+    stampBrief(a, models.a, campaignA.bodyVariety);
+    stampBrief(b, models.b, campaignB.bodyVariety);
 
     // One option failed — return the survivor with a non-fatal warning the UI can show.
     if (!a || !b) {
@@ -824,16 +888,16 @@ async function generateOptionsSingle(
     if (contrastProblems.length > 0) {
       const sysB = overrides?.system?.trim()
         ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
-        : buildSystemPrompt(campaign, products, true, a.creative_direction);
+        : buildSystemPrompt(campaignB, products, true, a.creative_direction, `${nonceB}:retry`);
       const retry = `${usrB}
 
 WARNING: A/B contrast failed:
 ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
-      b = validateBrief((await createAndParseWithModel(sysB, retry, models.b, 0.80)) as unknown as GenBrief, campaign, products);
+      b = validateBrief((await createAndParseWithModel(sysB, retry, models.b, AI_TEMP_B_RETRY)) as unknown as GenBrief, campaign, products);
       b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
-      stampBrief(b, models.b);
+      stampBrief(b, models.b, campaignB.bodyVariety);
     }
 
     [a, b] = validateBriefPair(a, b);

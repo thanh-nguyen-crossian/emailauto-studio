@@ -6,7 +6,7 @@ import { intelligencePromptBlock, getBrandIntelligence } from "./config/intellig
 import { performanceFeedbackPromptBlock } from "./performance/feedback";
 import type { Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 
-export const PROMPT_REGISTRY_VERSION = "emailstudio-email-brief-v2026-06-12.1";
+export const PROMPT_REGISTRY_VERSION = "emailstudio-email-brief-v2026-06-16.1";
 
 // ---- generated output shape (snake_case, matching the prompt schema) ----
 export interface GenHookContract {
@@ -192,6 +192,15 @@ SUBJECT: 42-56 chars; name often in preheader; use SAVING/O.F.F; reluctant deadl
 // ---- validation pattern banks ----
 const SPAM_WORDS = ["free!", "winner", "congratulations", "click here", "limited time offer", "act now", "urgent"];
 const WEAK_COPY = ["i hope this email finds you well", "meet your new favorite", "meet the ", "meet your ", "introducing the ", "amazing value", "great quality", "don't miss out", "dont miss out", "be hurry"];
+// LLM-tell phrases that signal AI-generated copy and erode trust/deliverability.
+const AI_SLOP_PHRASES = [
+  "seamlessly", "leverage", "leveraging", "ignite your", "igniting", "empower yourself", "empowers you",
+  "furthermore,", "in conclusion,", "in summary,", "to summarize,",
+  "dive into", "delve into", "delving into", "transformative", "game-changer", "game changer",
+  "game-changing", "revolutionize", "cutting-edge", "state-of-the-art", "unlock the power",
+  "elevate your", "elevate the", "harness the power", "take your to the next level",
+  "journey to", "experience the magic", "it's more than just", "it's not just a",
+];
 const BODY_HARD_SELL_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "act now", pattern: /\bact now\b/gi },
   { label: "buy now", pattern: /\bbuy now\b/gi },
@@ -247,6 +256,21 @@ const VARIETY_BANKS: Record<string, {
       { name: "Rose", role: "sister" },
       { name: "Margaret", role: "woman from my book club" },
       { name: "Linda", role: "coworker" },
+      { name: "Helen", role: "customer who wrote in" },
+      { name: "Sharon", role: "repeat buyer" },
+      { name: "Claire", role: "woman from our community" },
+      { name: "Judith", role: "longtime subscriber" },
+      { name: "Martha", role: "friend from church" },
+      { name: "Ellen", role: "retired teacher" },
+      { name: "Nina", role: "customer service caller" },
+      { name: "Patricia", role: "daily comfort shopper" },
+      { name: "Susan", role: "reader who replied last week" },
+      { name: "Joanne", role: "woman comparing sizes" },
+      { name: "Elaine", role: "customer buying for travel" },
+      { name: "Betty", role: "friend who avoids underwire" },
+      { name: "Marilyn", role: "VIP buyer" },
+      { name: "Ruth", role: "woman who wanted front closure" },
+      { name: "Cynthia", role: "customer shopping for softer straps" },
     ],
     painPoints: [
       "underwire digging in by noon",
@@ -254,6 +278,21 @@ const VARIETY_BANKS: Record<string, {
       "cups that gap or wrinkle under clothes",
       "a bra that rides up in the back",
       "side boning that leaves marks at the end of the day",
+      "reaching behind the back for tiny hooks",
+      "red strap marks after a long errand day",
+      "support that feels firm for one hour and harsh by dinner",
+      "bra edges showing through a light summer top",
+      "the uncomfortable choice between lift and softness",
+      "adjusting the band every time you stand up",
+      "fuller cups that still spill at the sides",
+      "a neckline that needs shape without underwire",
+      "hot fabric that feels heavy in warm weather",
+      "a closure that twists when fingers are tired",
+      "straps that dig once a purse is on the shoulder",
+      "bras that feel fine in the mirror but not in the car",
+      "support panels that scratch near the underarm",
+      "the drawer full of bras that never feel quite right",
+      "comfort that disappears after the first wash",
     ],
     sensoryPhrases: [
       "no digging, no pinching",
@@ -261,6 +300,21 @@ const VARIETY_BANKS: Record<string, {
       "so light you forget you're wearing it",
       "lifts without squeezing",
       "buttery soft against the skin",
+      "soft support that stays put",
+      "smooth under a simple tee",
+      "gentle lift without the bite",
+      "easy front closure, no twisting",
+      "cooler than a heavy padded bra",
+      "wide straps that settle softly",
+      "a clean shape without wire pressure",
+      "light on the shoulders by evening",
+      "fabric that moves when you breathe",
+      "support you do not have to keep fixing",
+      "soft edges that do not scratch",
+      "a smoother line under summer layers",
+      "the quiet relief of no red marks",
+      "secure without feeling locked in",
+      "easy to fasten, easy to forget",
     ],
   },
   gents_lux: {
@@ -270,6 +324,21 @@ const VARIETY_BANKS: Record<string, {
       { name: "David", role: "subscriber who emailed me" },
       { name: "Tony", role: "coworker" },
       { name: "Ray", role: "customer" },
+      { name: "Calvin", role: "customer who travels for work" },
+      { name: "Eddie", role: "weekend golfer" },
+      { name: "Paul", role: "reader who hates stiff denim" },
+      { name: "Victor", role: "subscriber comparing fits" },
+      { name: "Henry", role: "dad who walks everywhere" },
+      { name: "Sam", role: "warehouse manager" },
+      { name: "George", role: "repeat buyer" },
+      { name: "Leo", role: "customer service caller" },
+      { name: "Brian", role: "guy dressing for casual Fridays" },
+      { name: "Nate", role: "outdoor weekend buyer" },
+      { name: "Walter", role: "man who wanted cooler shorts" },
+      { name: "Chris", role: "customer who sits through long drives" },
+      { name: "Derek", role: "subscriber who asked about stretch" },
+      { name: "Mason", role: "builder who needs durable pants" },
+      { name: "Alan", role: "customer shopping a cleaner fit" },
     ],
     painPoints: [
       "stiff denim that restricts movement all day",
@@ -277,6 +346,21 @@ const VARIETY_BANKS: Record<string, {
       "jeans that look professional but feel like a straitjacket",
       "camo that looks cool but runs hot after an hour",
       "pants that won't stretch when you actually need them to",
+      "waistbands that dig after lunch",
+      "thick fabric that feels heavy in humid weather",
+      "pants that bag at the knees by afternoon",
+      "shorts that cling when you sit in the car",
+      "jeans that pass the mirror test but fail the stairs",
+      "pockets that pull and wrinkle the whole fit",
+      "casual pants that look too sloppy for dinner",
+      "fabric that chafes during a long walk",
+      "camo that feels loud instead of sharp",
+      "stretch pants that lose shape after one wear",
+      "denim that pinches when you bend down",
+      "shorts that look fine standing but tight sitting",
+      "a fit that makes warm-weather errands feel heavier",
+      "pants that cannot handle work-to-weekend plans",
+      "cheap-looking shine on supposedly premium fabric",
     ],
     sensoryPhrases: [
       "moves with you, not against you",
@@ -284,6 +368,21 @@ const VARIETY_BANKS: Record<string, {
       "four-way stretch you actually feel",
       "lightweight — like it's barely there",
       "built to wear everywhere, all day",
+      "clean enough for dinner, easy enough for errands",
+      "stretch that snaps back, not sags out",
+      "room where you bend, structure where it counts",
+      "a waistband that sits flat without biting",
+      "breathes better than heavy denim",
+      "soft inside, sharp outside",
+      "handles stairs, drives, and long walks",
+      "light fabric with a real shape",
+      "cooler legs without looking underdressed",
+      "durable without feeling stiff",
+      "smooth movement from hip to knee",
+      "keeps its line after hours of sitting",
+      "utility you can feel in the first step",
+      "the rare pair that does not need breaking in",
+      "structured comfort without the gym-pant look",
     ],
   },
   lux_fitting: {
@@ -293,6 +392,21 @@ const VARIETY_BANKS: Record<string, {
       { name: "Susan", role: "woman from our community" },
       { name: "Claire", role: "subscriber who messaged us" },
       { name: "Pam", role: "customer" },
+      { name: "Megan", role: "teacher who is on her feet" },
+      { name: "Lisa", role: "customer who wanted summer pieces" },
+      { name: "Diane", role: "reader shopping for travel outfits" },
+      { name: "Natalie", role: "woman comparing fit notes" },
+      { name: "Erin", role: "repeat buyer" },
+      { name: "Monica", role: "customer who avoids clingy fabric" },
+      { name: "April", role: "subscriber who loves soft sets" },
+      { name: "Teresa", role: "woman rebuilding her basics drawer" },
+      { name: "Kim", role: "customer who walks after work" },
+      { name: "Angela", role: "reader asking about opacity" },
+      { name: "Valerie", role: "mom needing quick outfits" },
+      { name: "Sophie", role: "customer shopping between sizes" },
+      { name: "Rebecca", role: "woman who wanted breathable layers" },
+      { name: "Laura", role: "loyal buyer from last season" },
+      { name: "Janice", role: "subscriber who dislikes tight waistbands" },
     ],
     painPoints: [
       "activewear that goes sheer when you bend over",
@@ -300,6 +414,21 @@ const VARIETY_BANKS: Record<string, {
       "shorts that dig in when you sit",
       "clothes that don't move with your body",
       "nothing in the closet that fits properly off the rack",
+      "a waistband that folds the second you move",
+      "fabric that clings in the heat",
+      "tops that pull across the chest but hang loose elsewhere",
+      "leggings that feel supportive until the first squat",
+      "outfits that look put together but feel restrictive",
+      "shorts that bunch under a longer top",
+      "pants that lose shape after a few hours",
+      "seams that rub during a walk",
+      "thin fabric that shows every line",
+      "a closet full of pieces that do not pair easily",
+      "summer layers that feel heavier than they look",
+      "a fit that needs constant adjusting",
+      "comfortable basics that still look too plain",
+      "a dressy-casual gap before errands or lunch",
+      "stretch that squeezes instead of smoothing",
     ],
     sensoryPhrases: [
       "cool and breathable from the first wear",
@@ -307,6 +436,21 @@ const VARIETY_BANKS: Record<string, {
       "stretches four ways without going sheer",
       "hugs the right places without restricting movement",
       "feels like wearing nothing at all",
+      "soft stretch that keeps its shape",
+      "easy movement without the thin-fabric worry",
+      "light on skin, polished in the mirror",
+      "a waistband that lies flat",
+      "moves through errands without tugging",
+      "smooth under tees and tunics",
+      "breathable enough for warm afternoons",
+      "gentle hold, not compression pressure",
+      "fabric with drape instead of cling",
+      "opaque when you bend and walk",
+      "comfortable enough to forget, neat enough to wear out",
+      "a clean line without pinching",
+      "soft seams that stay quiet",
+      "stretch that follows, not fights",
+      "the kind of easy fit you reach for twice a week",
     ],
   },
   santa_fare: {
@@ -316,6 +460,21 @@ const VARIETY_BANKS: Record<string, {
       { name: "Janet", role: "someone I know" },
       { name: "Diane", role: "a longtime customer" },
       { name: "Barbara", role: "who asked me for gift ideas" },
+      { name: "Elaine", role: "friend shopping for a niece" },
+      { name: "Patricia", role: "customer planning early gifts" },
+      { name: "Nancy", role: "woman who loves personalized pieces" },
+      { name: "Gloria", role: "reader buying for her daughter" },
+      { name: "Catherine", role: "repeat holiday buyer" },
+      { name: "Anne", role: "friend who avoids generic gifts" },
+      { name: "Molly", role: "customer who wanted a keepsake" },
+      { name: "Theresa", role: "subscriber planning birthdays" },
+      { name: "Lillian", role: "woman who likes practical luxury" },
+      { name: "Paula", role: "customer shopping for travel gifts" },
+      { name: "Rebecca", role: "friend who keeps a gift drawer" },
+      { name: "Carmen", role: "buyer comparing leather finishes" },
+      { name: "Donna", role: "reader looking for a thoughtful surprise" },
+      { name: "Marie", role: "customer choosing initials" },
+      { name: "Angela", role: "woman buying for a winter trip" },
     ],
     painPoints: [
       "no idea what to get them for their birthday",
@@ -323,6 +482,21 @@ const VARIETY_BANKS: Record<string, {
       "needing a gift that travels well and lasts",
       "finding something they'd never splurge on for themselves",
       "they already have everything — except something really thoughtful",
+      "a present that feels chosen without feeling overdone",
+      "finding a keepsake that still gets used",
+      "a small luxury that does not look last-minute",
+      "wanting the personalization to feel subtle, not flashy",
+      "needing a gift that can be mailed easily",
+      "choosing something pretty that will not sit in a drawer",
+      "a birthday that is close enough to need a decision",
+      "a holiday gift that works beyond the holiday",
+      "finding an option that feels grown-up and warm",
+      "wanting a gift with texture, not another gadget",
+      "a travel-friendly piece that feels special",
+      "not knowing their exact size or style",
+      "a gift that says thoughtfulness without a long explanation",
+      "choosing a premium-looking piece within budget",
+      "a recipient who notices small finishing details",
     ],
     sensoryPhrases: [
       "the kind of gift they'll reach for every single day",
@@ -330,6 +504,21 @@ const VARIETY_BANKS: Record<string, {
       "substantial but never heavy",
       "luxurious to carry, easy to love",
       "opens smoothly, closes clean — that quality you can feel",
+      "a keepsake feel in a practical size",
+      "smooth hardware and a clean close",
+      "rich color without holiday clutter",
+      "personal detail that feels quietly special",
+      "soft grain you notice in the hand",
+      "a gift that looks considered immediately",
+      "light enough to carry, polished enough to remember",
+      "warm heritage color with premium texture",
+      "a small piece with a grown-up finish",
+      "the kind of detail that makes wrapping feel easy",
+      "classic enough for daily use",
+      "personal without being overly sweet",
+      "clean edges, thoughtful finish, lasting feel",
+      "a little luxury that travels well",
+      "practical beauty they can use right away",
     ],
   },
 };
@@ -346,24 +535,88 @@ const CREATIVE_LEVER_BANKS: Record<string, {
       "confidence ritual: the product upgrades a familiar daily routine",
       "first-look comfort reward for buyers who already trust the brand",
       "collection completion: bra plus support item feels like the missing piece",
+      "front-closure ease: make the fastening moment the practical breakthrough",
+      "summer underlayer relief: lighter support under warm-weather clothes",
+      "drawer audit: replace the bra she keeps avoiding with one easy choice",
+      "noon discomfort reversal: show the moment comfort usually breaks down",
+      "soft support reassurance: make lift feel gentle, not medical or corrective",
+      "return-to-favorite: reconnect a previous buyer to why Daisy/Posy worked",
+      "occasion-ready comfort: dress, tee, errands, or travel needs a calmer bra",
+      "fit confidence bridge: solve visible lines, shifting straps, or gapping",
+      "small mechanism, big relief: closure, straps, panels, or fabric drive click",
+      "quiet proof note: one supplied customer sentence makes the choice believable",
+      "price permission: value removes hesitation after the comfort reason lands",
+      "gentle urgency: time limit sounds like a practical reminder from Sandra",
+      "support pairing: hero plus companion pieces answer related comfort pains",
+      "first-wear promise: emphasize what she should notice within minutes",
+      "mature fit realism: speak to everyday movement, not generic confidence",
+      "private recommendation: Sandra shares one item before the offer closes",
     ],
     proofRoles: [
       "use the supplied review as a quiet reassurance, not the headline",
       "use price as the proof of why now, then comfort as the reason to stay",
       "use product mechanism as proof: closure, straps, lift, smoothing, fabric",
       "use shipping/return facts only as friction removal near the action",
+      "use the hero product's USP as the proof anchor in paragraph 1",
+      "use one tactile phrase as soft proof, then name the product",
+      "use a supplied customer quote only if it exactly matches product context",
+      "use offer value to lower risk, not to replace the human reason",
+      "use product order as proof: hero solves main pain, supports solve adjacent pains",
+      "use before-after feeling language without fake clinical or medical claims",
+      "use fit detail as proof instead of broad empowerment language",
+      "use front-closure or strap detail as the designer-visible proof cue",
+      "use review text as a trust booster near banner/body transition",
+      "use price and shipping together only when both are supplied",
+      "use one named pain as proof that the send understands the reader",
+      "use brand persona sign-off as reassurance, not pressure",
+      "use markdown product link early as proof-path clarity",
+      "use supplied page USP over invented bestseller/rating language",
+      "use calm urgency to explain timing, not scarcity theatrics",
+      "use product image notes to reinforce proof visually",
     ],
     subjectStyles: [
       "emotion-first with price second",
       "soft curiosity with comfort payoff",
       "specific pain relief with deadline beat",
       "warm personal note with offer reveal",
+      "front-snap mechanism with name token in preheader",
+      "reader pain question with exact price in the answer",
+      "Sandra note with one concrete comfort clue",
+      "quiet deadline with product benefit first",
+      "one body-comfort moment plus shipping cue",
+      "review-fragment curiosity with offer in preheader",
+      "drawer/fit problem with hero product reveal",
+      "soft reactivation note without guilt language",
+      "single product relief promise under 55 chars",
+      "price permission after comfort image",
+      "strap/band/closure detail as the subject hook",
+      "gentle personal recommendation",
+      "offer as courtesy, not headline blast",
+      "summer underlayer clue",
+      "fit fix with one tactile word",
+      "calm last-call phrasing without panic",
     ],
     visualDirections: [
       "mature model, natural smile, hero bra clearly visible, rose-crimson palette",
       "close crop on fit/support detail with simple price badge",
       "soft lifestyle dressing moment with product and CTA above fold",
       "clean product-forward hero with one comfort proof line",
+      "front-closure close-up paired with a warm model crop",
+      "simple dresser or morning-routine scene, no cluttered collage",
+      "rose background with product edge and strap detail readable",
+      "two-image hierarchy: hero worn shot plus closure macro",
+      "soft fabric texture panel behind a concise comfort headline",
+      "above-fold price chip balanced with one support cue",
+      "mature model in a light top showing smooth neckline",
+      "side-support detail callout with restrained arrows",
+      "front-on fit shot with deep crimson CTA contrast",
+      "calm welcome-back banner with generous white space",
+      "review chip near hero product, no fake rating wall",
+      "comfort comparison: no-wire visual cue without medical tone",
+      "supporting product pair shown smaller under the hero",
+      "mobile-safe headline stacked in three short lines",
+      "warm indoor light, fabric color true, no neon pink",
+      "product-first composition with Sandra-note handwriting accent",
     ],
   },
   gents_lux: {
@@ -372,24 +625,88 @@ const CREATIVE_LEVER_BANKS: Record<string, {
       "understated scarcity: the useful item may not stay at this price",
       "wardrobe completion: the missing bottom/top makes existing pieces work harder",
       "premium practicality: sharp enough outside, comfortable enough all day",
+      "sit-and-bend test: prove comfort in a normal man's day",
+      "heat management: make cooling/breathability the practical reason",
+      "work-to-weekend bridge: one pair handles both without looking sloppy",
+      "fit upgrade: cleaner silhouette without stiff denim tradeoff",
+      "utility detail: pockets, waistband, stretch, or fabric carries the proof",
+      "plainspoken recommendation: Jordan names why this pair earned the send",
+      "low-hype scarcity: limited timing without shouting",
+      "outfit math: fewer decisions because the hero pair goes with more",
+      "movement before price: physical benefit first, offer second",
+      "durability confidence: built-for-use angle only from supplied USPs",
+      "weather-ready practical: hot day, long drive, walk, or casual dinner",
+      "comfort reset: replace the pair he keeps tolerating",
+      "premium restraint: sharper look through details, not luxury claims",
+      "quick decision: one reason, one price, one direct CTA",
+      "repeat-wear proof: why a previous buyer reaches for the item again",
+      "hero-detail contrast: zoom into the one feature competitors miss",
     ],
     proofRoles: [
       "use one material/mechanism fact as the trust anchor",
       "use price reveal as the payoff after curiosity",
       "use supplied review as plainspoken evidence from another man",
       "use durability/cooling/stretch as proof only when supplied by product USPs",
+      "use movement language tied to a supplied stretch or fabric USP",
+      "use waistband/pocket detail as proof if present in product data",
+      "use restrained review language, no fake verified badges or ratings",
+      "use price as the nudge after the practical problem is solved",
+      "use product order as proof: hero fit first, support products as alternates",
+      "use one exact offer/shipping fact, not multiple discount claims",
+      "use visual proof notes to show bend, walk, sit, or cooling",
+      "use segment context to explain why this man needs this item now",
+      "use scarcity only as timing, not fear",
+      "use fabric hand-feel as qualitative proof when no numbers exist",
+      "use a direct CTA after the product has earned it",
+      "use supplied page facts before performance-intelligence assumptions",
+      "use premium finish as proof through visual detail, not adjectives",
+      "use one review line near the risk reducer",
+      "use product URL/slug link early to keep the click path clear",
+      "use optout-safe language; never insult old clothes or body shape",
     ],
     subjectStyles: [
       "curiosity gap with offer reveal in preheader",
       "scarcity with restrained language",
       "mechanism-first promise",
       "direct practical problem",
+      "movement test with price second",
+      "cooling/weather cue with product reveal",
+      "clean-fit promise without hype",
+      "Jordan note with one plainspoken detail",
+      "limited timing framed as useful reminder",
+      "work-to-weekend hook",
+      "waistband or stretch mechanism clue",
+      "understated review fragment",
+      "practical question answered in preheader",
+      "price anchor after benefit",
+      "VIP/restock-style curiosity without false scarcity",
+      "driver/walker/sitter use-case subject",
+      "wardrobe fix with exact hero product",
+      "one-word tactile lead plus offer",
+      "plain sale subject with stronger preheader",
+      "gift-for-him angle only when theme supports it",
     ],
     visualDirections: [
       "deep navy product-forward studio shot, no loud hype",
       "movement pose showing bend/walk/sit without stiffness",
       "detail shot of waistband/pockets/fabric with restrained badge",
       "outdoor practical scene with CTA and price visible above fold",
+      "side-by-side standing and seated crop to prove ease",
+      "navy backdrop with fabric texture and one price chip",
+      "walking stride shot, product fit readable, no busy street scene",
+      "pocket/waistband macro with short mechanism label",
+      "casual dinner or travel-ready look, restrained contrast",
+      "cooling fabric close-up with blue-gray light, no icy gimmicks",
+      "hero jeans centered with support shorts/camo smaller below",
+      "model bending or stepping up, CTA still above fold",
+      "product flat-lay with belt/shoe context, not luxury props",
+      "dark navy CTA bar with clean product depth shadow",
+      "review chip as simple text, no fake star wall",
+      "mobile-first large product crop and compact headline",
+      "outdoor practical shot with neutral background",
+      "fabric stretch arrows used sparingly and clearly",
+      "work-to-weekend outfit transition visual",
+      "plainspoken offer badge; avoid neon, flames, or loud sale graphics",
     ],
   },
   lux_fitting: {
@@ -398,24 +715,88 @@ const CREATIVE_LEVER_BANKS: Record<string, {
       "outfit ease: one piece solves a daily getting-ready problem",
       "movement confidence: fabric follows the body without fuss",
       "practical seasonal tip: one styling/use moment justifies the send",
+      "opacity reassurance: bend/walk confidence without overexplaining",
+      "waistband relief: comfort starts where other pieces fail",
+      "closet gap: one easy piece makes more outfits work",
+      "heat-friendly dressing: light fabric solves the seasonal problem",
+      "polished comfort: errands-to-lunch use case without athleisure cliche",
+      "fit forgiveness: smooths gently without body-shaming",
+      "repeat-wear staple: why this belongs in weekly rotation",
+      "travel-ready ease: packable, breathable, simple styling",
+      "soft structure: shape and drape instead of compression",
+      "movement proof: show the product behaving during normal activity",
+      "price permission: offer appears after the tactile reason",
+      "customer-note opener: one woman names the fit issue",
+      "seasonal transition: a piece that handles cool morning and warm afternoon",
+      "top-and-bottom pairing: product blocks act like outfit solutions",
+      "low-risk try: link early, remove hesitation calmly",
+      "fresh basics refresh: update a familiar wardrobe category",
     ],
     proofRoles: [
       "use price as the quick decision proof",
       "use sensory language as the reason to click, not vague empowerment",
       "use supplied review as a tactile confirmation",
       "use fabric/stretch mechanism as proof when the product USP supports it",
+      "use opacity/smoothing only when product facts support the claim",
+      "use waistband or seam detail as the concrete trust cue",
+      "use styling context as proof of usefulness, not decoration",
+      "use exact offer/shipping after the body problem is clear",
+      "use review text as one quiet confirmation, not the lead",
+      "use product image notes to show drape, movement, or fabric weight",
+      "use segment motivation to change the risk reducer",
+      "use supplied page cues before broad confidence language",
+      "use CTA only after one product link and one proof beat",
+      "use tactile vocabulary as qualitative proof, never fake metrics",
+      "use product grid order to build outfit logic",
+      "use color/palette notes to keep visual trust high",
+      "use one practical occasion as the reason for urgency",
+      "use price as permission, not pressure",
+      "use a single hook across surfaces to avoid fatigue",
+      "use optout-safe language; never shame fit, size, or age",
     ],
     subjectStyles: [
       "price-anchored sensory comparison",
       "specific comfort question",
       "outfit problem with quick reveal",
       "deadline escalation without panic",
+      "soft fabric cue with offer in preheader",
+      "waistband/fit relief question",
+      "outfit-ready benefit with exact product",
+      "seasonal use case plus price",
+      "movement verb subject line",
+      "reader note from Sarah/Mia persona style",
+      "quiet urgency with tactile payoff",
+      "review-fragment plus price anchor",
+      "closet refresh without generic sale wording",
+      "opacity/smoothness clue",
+      "travel/errand moment hook",
+      "one easy fit promise",
+      "product-name curiosity with comfort preheader",
+      "offer as helpful detail",
+      "warm-weather fabric lead",
+      "simple direct subject, richer preheader",
     ],
     visualDirections: [
       "movement silhouette with product shape readable and pink-red palette",
       "close textile/drape detail with concise price badge",
       "bright but elegant outfit-ready scene, no crowded collage",
       "product-forward hero with one practical styling cue",
+      "model walking or reaching, waistband and drape readable",
+      "fabric texture close-up beside full-body outfit shot",
+      "clean pink-red CTA with large mobile-safe headline",
+      "one hero piece styled three-quarter view, no color-strip clutter",
+      "soft natural light, product edges clear, no over-filtering",
+      "before-errands/lunch scene with practical accessory only",
+      "opacity/movement visual cue without awkward pose",
+      "paired product blocks arranged like outfit choices",
+      "textile detail panel behind one concise comfort line",
+      "review chip near product, not a fake rating wall",
+      "price badge small but readable above fold",
+      "seasonal backdrop secondary to product fit",
+      "model smiling in full-body crop, fabric silhouette clear",
+      "simple drawer/closet refresh scene with hero product front",
+      "supporting images show seam, waistband, or drape",
+      "avoid thin fonts; use high-contrast accent sparingly",
     ],
   },
   santa_fare: {
@@ -424,24 +805,88 @@ const CREATIVE_LEVER_BANKS: Record<string, {
       "named gift story: one recipient moment makes the product desirable",
       "reluctant deadline: calm urgency without countdown energy",
       "personalization value: the small detail makes the gift feel chosen",
+      "practical keepsake: beauty plus everyday use makes the gift easier",
+      "recipient-specific choice: one person/use case guides product order",
+      "quiet luxury reveal: premium feel without loud luxury wording",
+      "early planner note: useful reminder for people who buy ahead",
+      "not-a-gift-card alternative: personal, tangible, still safe",
+      "travel-ready gift: small leather piece as daily companion",
+      "heritage color story: warm red/scarlet visual carries brand memory",
+      "personal detail payoff: initials, finish, texture, or closure make it special",
+      "gift drawer rescue: something ready for the next date on the calendar",
+      "understated occasion: birthday, anniversary, holiday, or thank-you angle",
+      "last-minute without panic: decision help, not countdown pressure",
+      "recipient delight: imagine the first use, not abstract sentiment",
+      "premium within reach: offer removes hesitation after the story",
+      "small object, big thought: compact gift feels considered",
+      "keepsake-plus-utility: durable use case supports emotional value",
+      "Mary's private recommendation: a warm note about who this fits",
     ],
     proofRoles: [
       "use material/personalization facts as proof of thoughtfulness",
       "use price as the reason to act after the gift story",
       "use supplied review as a gentle trust cue, not a fake verified claim",
       "use shipping/deadline only when supplied and relevant to gifting",
+      "use leather/finish/closure facts from product data as proof",
+      "use recipient use-case as proof of practicality",
+      "use personalization as emotional proof only when supplied",
+      "use exact offer after the gift feels meaningful",
+      "use review text sparingly and faithfully if it matches the product",
+      "use product order as proof: safest gift first, special details after",
+      "use visual notes to show texture and scale clearly",
+      "use holiday/birthday timing only if theme or send date supports it",
+      "use calm urgency as planning help, not fear",
+      "use material words over unsupported luxury claims",
+      "use a single keepsake reason across subject, banner, and body",
+      "use markdown product link early to make the gift concrete",
+      "use shipping or archive facts only when supplied",
+      "use gift-fit benefits instead of broad sentimental language",
+      "use support products as alternate recipient/use-case paths",
+      "use optout-safe, non-guilting reminder language",
     ],
     subjectStyles: [
       "suspended loop with name in preheader",
       "reluctant deadline reveal",
       "gift status curiosity",
       "thoughtful recommendation with price or saving second",
+      "recipient story with product clue",
+      "personalized detail plus offer in preheader",
+      "gift drawer/early planner hook",
+      "keepsake utility question",
+      "heritage color or leather texture lead",
+      "birthday/occasion cue without hook stacking",
+      "Mary note with practical gift reveal",
+      "quiet luxury curiosity",
+      "not-a-gift-card alternative",
+      "travel-ready gift angle",
+      "small detail, big thought subject",
+      "last-minute decision help without panic",
+      "review-fragment gift trust",
+      "exact price after emotional cue",
+      "one recipient use case",
+      "simple direct gift offer with warm preheader",
     ],
     visualDirections: [
       "deep scarlet gift scene with product close-up and calm CTA",
       "hands/personalization detail, premium texture, no cheerful clutter",
       "recipient moment with Pouchic or TimelessMark visible above fold",
       "clean product pair with engraving detail and reluctant deadline badge",
+      "macro leather grain plus full product scale shot",
+      "warm gift table scene, one product hero, minimal ribbon",
+      "initials/engraving close-up if supplied, no fake personalization",
+      "heritage red backdrop with readable gold/cream contrast",
+      "hands opening pouch/wallet, product clearly visible",
+      "recipient-use scene secondary to product detail",
+      "small premium price badge placed away from engraving/detail",
+      "gift-note handwriting accent, not a full text card",
+      "four-product guide layout with clear recipient/use-case labels",
+      "mobile-first hero: product, CTA, one gift line above fold",
+      "review chip near the object, no star-wall proof",
+      "travel bag/purse context showing practical size",
+      "timeless product cutout on deep scarlet with soft shadow",
+      "avoid pink, neon, or busy holiday ornament piles",
+      "texture and closure detail as supporting image",
+      "calm urgency ribbon with true deadline only",
     ],
   },
 };
@@ -541,7 +986,7 @@ const SEGMENT_SOFT_SELL_MODES = [
   "The offer appears after the human reason, as a helpful detail.",
   "Use one calm CTA sentence; avoid hurry/grab/claim language in the body.",
   "Make the urgency reluctant or practical, never countdown energy.",
-  "Use a service tone: 'I picked this because...', not 'you must buy now'.",
+  "Use a service tone that explains the choice before asking for action.",
   "Let product proof do the selling; the discount should not carry the paragraph.",
 ] as const;
 
@@ -647,7 +1092,7 @@ const CREATIVE_ROUTE_BANK: CreativeRouteProfile[] = [
   },
 ];
 
-export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
+export function selectVarietyProfile(campaign: Campaign, nonce = ""): BodyVarietyProfile {
   const seed = hashSeed([
     campaign.brandId,
     campaign.sendDate,
@@ -655,6 +1100,7 @@ export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
     campaign.offerValue,
     campaign.offerShipping,
     campaign.segments.join("|"),
+    nonce,
   ].join("::"));
   const banks = VARIETY_BANKS[campaign.brandId] || VARIETY_BANKS.bra_goddess;
   const levers = CREATIVE_LEVER_BANKS[campaign.brandId] || CREATIVE_LEVER_BANKS.bra_goddess;
@@ -669,7 +1115,7 @@ export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
   // Block arcs that conflict with the selected route's framework to prevent contradictory
   // prompt layers (e.g. gratitude_surprise opener is in the WEAK_COPY deny-list, so it can't
   // combine with BAB which forces a "before" state that reads as gratitude).
-  const routeForA = selectCreativeRoute(campaign, false);
+  const routeForA = selectCreativeRoute(campaign, false, nonce);
   const incompatibleArcs: Partial<Record<string, BodyVarietyProfile["emotionalArc"][]>> = {
     "BAB": ["gratitude_surprise"],
     "Short": ["curiosity_reveal"],    // Short Sale needs direct premise, not a withheld reveal
@@ -706,7 +1152,7 @@ export function selectVarietyProfile(campaign: Campaign): BodyVarietyProfile {
   } as BodyVarietyProfile & { _openerDirective: string; _arcDirective: string };
 }
 
-function selectCreativeRoute(campaign: Campaign, isOptionB: boolean): CreativeRouteProfile {
+function selectCreativeRoute(campaign: Campaign, isOptionB: boolean, nonce = ""): CreativeRouteProfile {
   const seed = hashSeed([
     campaign.brandId,
     campaign.sendDate,
@@ -715,6 +1161,7 @@ function selectCreativeRoute(campaign: Campaign, isOptionB: boolean): CreativeRo
     campaign.offerShipping,
     campaign.segments.join("|"),
     campaign.lastSend?.angle || "",
+    nonce,
   ].join("::"));
   const aIndex = seed % CREATIVE_ROUTE_BANK.length;
   if (!isOptionB) return CREATIVE_ROUTE_BANK[aIndex];
@@ -725,8 +1172,8 @@ function selectCreativeRoute(campaign: Campaign, isOptionB: boolean): CreativeRo
   return CREATIVE_ROUTE_BANK[(aIndex + oddOffset) % CREATIVE_ROUTE_BANK.length];
 }
 
-function creativeRoutePrompt(campaign: Campaign, isOptionB: boolean): string {
-  const route = selectCreativeRoute(campaign, isOptionB);
+function creativeRoutePrompt(campaign: Campaign, isOptionB: boolean, nonce = ""): string {
+  const route = selectCreativeRoute(campaign, isOptionB, nonce);
   return `Excel-style production branch for Option ${isOptionB ? "B" : "A"}:
 • Branch: ${route.branch}
 • Brief route: ${route.route}
@@ -740,8 +1187,8 @@ function creativeRoutePrompt(campaign: Campaign, isOptionB: boolean): string {
 • Visual pattern: ${route.visualPattern}
 • Proof texture: ${route.proofTexture}
 • Avoid: ${route.avoid}
-The body architecture "${route.bodyArchitecture}" is a LITERAL paragraph order, not a suggestion. The first paragraph executes stage 1, the second executes stage 2 — do not invert or collapse stages.
-Write creative_direction.branch="${route.branch}", creative_direction.brief_route="${route.route}", and creative_direction.source_pattern="${route.sourcePattern}". Deviating from this body architecture is INVALID.`;
+Treat the body architecture "${route.bodyArchitecture}" as a suggested arc, not a fixed paragraph order. You may reorder, compress, or extend the stages for freshness as long as the single hook contract stays coherent across subject, banner, body, product blocks, and CTA.
+Write creative_direction.branch="${route.branch}", creative_direction.brief_route="${route.route}", and creative_direction.source_pattern="${route.sourcePattern}". Do not repeat a prior skeleton when another natural arc fits the hook better.`;
 }
 
 // ---- helpers ----
@@ -996,6 +1443,7 @@ Multi-segment body copy must not be cloned paragraph skeletons. Change the first
 
 const COMPONENT_PROMPT_LAYER = `SUBJECT / PREHEADER — write these FIRST, before body copy:
 For EVERY segment write 3 paired options with distinct style lenses (strategic/curiosity/direct-response). Each pair MUST: (1) subject 42-60 chars, preheader 60-90 chars — count characters literally; (2) preheader introduces a NEW beat not in the subject — a different proof, deadline, product angle, or tension, NOT a paraphrase of the subject; (3) no two options share the same opening verb or emotional frame; (4) every subject must include an offer signal (price, %, o.f.f, 💲, or shipping cue); (5) {{first_name}} in subject OR preheader, not both, never in body. Write subjects before body copy — the subject hook informs the body, not the reverse.
+Gmail AI summarisation (2026): Gmail's inbox AI reads the first 150-200 characters of live body text — not just the preheader — to generate the summary card. The opening body sentence is therefore a SECOND subject line. It must name the hero product, carry the single offer/proof beat, and pull the reader in. Do not open with a greeting, brand tagline, or social opener.
 Body: 120-150 words per segment, persona-signed, selected opener in 2-3 sentences, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words. Tone is personal-note first: product fit before promo, one calm urgency beat, no hard-sell command stack.
 Banner: main_text_1 must be a tension or hook statement (NOT a discount headline). main_text_2 names the product mechanism or proof (NOT a brand tagline). main_text_3 resolves with the offer or CTA. The banner tells a 3-beat story: tension → proof → resolution. If all three lines follow the same discount-headline pattern, rewrite them. main_text_1/2/3 and sub_text_1/2/3 each use distinct angles; image_guidance is 4-6 compact bullets covering first 200px, product, offer, palette, crop, CTA path.
 Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words, sub_text carries price/proof/deadline. HTML product modules use linked images only, so product text/CTA should be written as text to bake into each image.
@@ -1056,7 +1504,8 @@ export function buildSystemPrompt(
   campaign: Campaign,
   products: Product[],
   isOptionB: boolean,
-  optionADirection?: GenCreativeDirection
+  optionADirection?: GenCreativeDirection,
+  nonce = ""
 ): string {
   const brand = BRANDS[campaign.brandId];
   const productContext = products
@@ -1141,7 +1590,7 @@ export function buildSystemPrompt(
     },
     { title: "Core Rules", body: CORE_PROMPT_LAYER },
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
-    { title: "Production Brief Pattern", body: creativeRoutePrompt(campaign, isOptionB) },
+    { title: "Production Brief Pattern", body: creativeRoutePrompt(campaign, isOptionB, nonce) },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
     { title: "SendGrid HTML Fit", body: SENDGRID_HTML_PROMPT_LAYER },
     { title: "Email Content XLSX Reference", body: EXCEL_BRIEF_REFERENCE_LAYER },
@@ -1170,34 +1619,7 @@ export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
       : "";
 
   const variety = campaign.bodyVariety as (BodyVarietyProfile & { _openerDirective?: string; _arcDirective?: string }) | undefined;
-  // Option B gets a shifted variety profile so its opener mechanic, arc, character, and pain
-  // are structurally different from A's — preventing synonym-swap bodies at the sentence level.
-  let effectiveVariety = variety;
-  if (isB && variety) {
-    const banks = VARIETY_BANKS[campaign.brandId] || VARIETY_BANKS.bra_goddess;
-    const persona = BRANDS[campaign.brandId]?.persona || "Sandra";
-    const seed2 = hashSeed([campaign.brandId, campaign.sendDate, campaign.theme, "_B"].join("::"));
-    const availMechanics = OPENER_MECHANICS.filter((m) => m.key !== variety.openerMechanic);
-    const availArcs = EMOTIONAL_ARCS.filter((a) => a.key !== variety.emotionalArc);
-    const mechB = availMechanics[seed2 % availMechanics.length];
-    const arcB = availArcs[(seed2 >> 5) % availArcs.length];
-    const charB = banks.characters[(seed2 >> 3) % banks.characters.length];
-    const painB = banks.painPoints[(seed2 >> 7) % banks.painPoints.length];
-    const sensoryB = banks.sensoryPhrases[(seed2 >> 11) % banks.sensoryPhrases.length];
-    effectiveVariety = {
-      ...variety,
-      openerMechanic: mechB.key,
-      openerMechanicLabel: mechB.label,
-      namedCharacter: charB.name,
-      characterRole: charB.role,
-      painPoint: painB,
-      sensoryPhrase: sensoryB,
-      emotionalArc: arcB.key,
-      emotionalArcLabel: arcB.label,
-      _openerDirective: mechB.directive(charB.name, charB.role, painB, persona),
-      _arcDirective: arcB.directive,
-    } as typeof variety;
-  }
+  const effectiveVariety = variety;
 
   const varietyMandate = effectiveVariety
     ? `\nCREATIVE VARIETY DIRECTION — required constraints, not a script:
@@ -1224,8 +1646,7 @@ Reader-position rule: each segment must anchor the reader at a DIFFERENT positio
     : "";
   const winToneMandate = `\nWINEMAILTEMPS TONE CALIBRATION — required:
 Recent winning emails read like a short personal note: one concrete moment or pain, then product fit, then offer as a helpful detail. The body should not sound like a sale alert.
-Use calm phrasing such as "I picked this because...", "take a look while it is still open", or "this may be useful if..." instead of stacking "hurry", "grab", "claim", "act now", or "don't miss".
-Do not copy those example phrases verbatim across segments; they show tone only.
+Use a calm, useful recommendation register: human reason first, product proof second, offer/urgency as a practical detail. Avoid hard-sell command stacks, alarm language, and recycled example phrasing.
 Mention price/offer/urgency clearly, but limit the body to one sales command at most. Let the product proof and segment motive do most of the selling.`;
 
   return renderPromptLayers([
@@ -1276,6 +1697,16 @@ export function flagTier(msg: string): FlagTier {
 /** True for serious/structural warnings — used to gate the targeted quality-repair pass. */
 export function isHighImpactFlag(msg: string): boolean {
   return flagTier(msg) !== "cosmetic";
+}
+
+// Repair is narrower than scoring. These are safety/compliance/deliverability issues where a
+// model rewrite helps; stylistic nudges (paragraph rhythm, P.S. length, banner beats, enums) stay
+// advisory so the repair pass does not average every creative route back to one template.
+const COMPLIANCE_REPAIR_FLAG =
+  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing/i;
+
+export function isComplianceRepairFlag(msg: string): boolean {
+  return COMPLIANCE_REPAIR_FLAG.test(msg);
 }
 
 const FLAG_TIER_WEIGHT: Record<FlagTier, number> = { serious: 10, structural: 5, cosmetic: 2 };
@@ -1407,6 +1838,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const full = JSON.stringify({ s: brief.subject_lines, t: brief.theme, ba: brief.banner, bo: brief.body, p: brief.products }).toLowerCase();
   SPAM_WORDS.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Spam word: "${w}"`));
   WEAK_COPY.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Weak/generic copy: "${w}"`));
+  AI_SLOP_PHRASES.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `AI-tell phrase — rewrite: "${w}"`));
   OPTOUT_RISK.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Opt-out risk wording: "${w}"`));
   UNSUPPLIED_PROOF.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Possibly invented proof: "${w}"`));
   UNSUPPLIED_PROOF_PATTERNS.forEach(({ label, pattern }) => {
@@ -1705,6 +2137,26 @@ export function briefContrastIssues(a: GenBrief, b: GenBrief): string[] {
   if (directionTextA && directionTextB && similarity(directionTextA, directionTextB) > 0.7) {
     issues.push("A/B creative direction text is too similar; make the test hypothesis and route visibly different");
   }
+
+  // Idea-level contrast: compare hook contract fields (A2-2).
+  // Two briefs with the same emotional hook and segment insight are the same idea with different words.
+  const aHc = aCd.hook_contract || ({} as GenHookContract);
+  const bHc = bCd.hook_contract || ({} as GenHookContract);
+  if (aHc.emotion && bHc.emotion && norm(aHc.emotion) === norm(bHc.emotion)) {
+    issues.push("A/B hook contracts share the same emotion; B must target a different emotional register (e.g. A=relief → B=aspiration or curiosity)");
+  }
+  const aInsight = norm(aHc.segment_insight || "");
+  const bInsight = norm(bHc.segment_insight || "");
+  if (aInsight && bInsight && aInsight.length > 12 && similarity(aInsight, bInsight) > 0.72) {
+    issues.push("A/B segment insights are too similar; B must frame the reader's problem or opportunity differently");
+  }
+  // Payoff check: differentiator should differ meaningfully
+  const aPayoff = norm(aCd.differentiator || "");
+  const bPayoff = norm(bCd.differentiator || "");
+  if (aPayoff && bPayoff && aPayoff.length > 10 && similarity(aPayoff, bPayoff) > 0.75) {
+    issues.push("A/B differentiators are too similar; each option must have a distinct proof path, hero emphasis, or offer angle");
+  }
+
   const bodyA = briefBodyText(a);
   const bodyB = briefBodyText(b);
   if (bodyA && bodyB && (similarity(bodyA, bodyB) > 0.50 || phraseOverlap(bodyA, bodyB) > 0.18)) {

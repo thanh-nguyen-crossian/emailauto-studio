@@ -12,8 +12,8 @@ export const PROGRAM_INTELLIGENCE = {
       "The page funnel improved after the click; focus on earning cleaner clicks and matching the product-page promise.",
   },
   templateSignal: {
-    winShape: "One micro-story → one product relief → exact offer → short CTA.",
-    failShape: "Hook stacking, feature-bullet openers, generic gratitude, overcrowded product rows.",
+    winShape: "A compact personal-note arc: one concrete reader moment, one product reason, exact offer, short CTA.",
+    failShape: "Stacked hooks, feature-list openings, broad gratitude, or crowded product rows that blur the click reason.",
     visualRule: "One hero product in the banner, high contrast, no busy multi-model collage.",
   },
 };
@@ -87,7 +87,7 @@ export function intelligencePromptBlock(brandId: string): string {
   const intel = BRAND_INTELLIGENCE[brandId];
   if (!intel) return "";
   return `PERFORMANCE INTELLIGENCE (decision support only — never expose these metrics to customers):
-Period: ${PROGRAM_INTELLIGENCE.period}. Winning template shape: ${PROGRAM_INTELLIGENCE.templateSignal.winShape}
+Period: ${PROGRAM_INTELLIGENCE.period}. Winning arc shape (abstract, not a copy template): ${PROGRAM_INTELLIGENCE.templateSignal.winShape}
 Fail shape to avoid: ${PROGRAM_INTELLIGENCE.templateSignal.failShape}
 Brand read: ${intel.headline}
 Benchmark: ${intel.benchmark}
@@ -95,7 +95,7 @@ Objective: ${intel.target}
 Proven hero pool: ${intel.heroes.join(" | ")}
 Page winners: ${intel.pageWinners.join(" | ")}
 Subject rule: ${intel.subjectRule}
-Body rule: ${intel.bodyRule}
+Body structural arc (use as a guide for narrative progression, not a verbatim script — vary the phrasing and entry point): ${intel.bodyRule}
 Visual rule: ${intel.visualRule}
 Avoid: ${intel.avoid.join(" | ")}`;
 }

@@ -19,6 +19,38 @@ import { validateBrief, type GenBrief } from "../briefgen";
 import type { Campaign, Product } from "../config/types";
 import { analyzeDeliverability, type DeliverabilityReport } from "./deliverability";
 
+// Anti-slop: LLM-tell phrases that erode inbox trust and signal AI-generated copy.
+const SLOP_PHRASES = [
+  "seamlessly", "leverage", "leveraging", "ignite your", "igniting", "empower yourself", "empowers you",
+  "furthermore,", "in conclusion,", "in summary,", "to summarize,",
+  "dive into", "delve into", "delving into", "transformative", "game-changer", "game changer",
+  "game-changing", "revolutionize", "cutting-edge", "state-of-the-art", "unlock the power",
+  "elevate your", "elevate the", "harness the power", "take your to the next level",
+  "journey to", "experience the magic", "it's more than just", "it's not just a",
+  "i hope this email finds you well", "dear valued customer", "as an esteemed",
+];
+
+export interface SlopResult {
+  detected: string[];
+  score: number; // 0 = clean, higher = more slop
+  pass: boolean; // true when no slop detected
+}
+
+/** Scan a GenBrief's copy surfaces for AI-tell phrases. Pure function, no model calls. */
+export function checkSlop(brief: GenBrief): SlopResult {
+  const fullText = JSON.stringify({
+    sl: brief.subject_lines,
+    ba: brief.banner,
+    bo: brief.body,
+    p: brief.products,
+  }).toLowerCase();
+  const detected: string[] = [];
+  for (const phrase of SLOP_PHRASES) {
+    if (fullText.includes(phrase.toLowerCase())) detected.push(phrase);
+  }
+  return { detected, score: detected.length, pass: detected.length === 0 };
+}
+
 // ---- shared fixture campaign ----
 export function goldenCampaign(): { campaign: Campaign; products: Product[] } {
   const brand = BRANDS.bra_goddess;
@@ -249,6 +281,195 @@ export interface CorpusResult {
   falsePositives: CorpusEmailScore[];
   pass: boolean;
   reasons: string[];
+}
+
+// ---- diversity measurement ----
+export type DiversityFacet = "opener" | "angle" | "heroStory" | "subjectLines";
+
+export interface DiversitySetResult {
+  count: number;
+  pairs: number;
+  meanDistance: number;
+  facetMeans: Record<DiversityFacet, number>;
+}
+
+export interface DiversityResult {
+  intraCampaign: DiversitySetResult;
+  interCampaign: DiversitySetResult;
+  compliancePassRate: number;
+  compliancePassed: number;
+  complianceTotal: number;
+  pass: boolean;
+  notes: string[];
+}
+
+function cloneBrief(brief: GenBrief): GenBrief {
+  return JSON.parse(JSON.stringify(brief)) as GenBrief;
+}
+
+function alternateStrongBrief(): GenBrief {
+  const b = cloneBrief(strongBrief());
+  b.creative_direction.angle = "Mechanism";
+  b.creative_direction.framework = "Proof Ladder";
+  b.creative_direction.branch = "EF";
+  b.creative_direction.brief_route = "Mechanism / Product Truth";
+  b.creative_direction.flow = "Front-snap mechanism to comfort proof to exact offer";
+  b.creative_direction.differentiator = "Product-truth opener with closure proof instead of a named-neighbor story";
+  b.subject_lines.seg_21.subject = "The 3-second Daisy detail, {{first_name}} — 💲12.99";
+  b.subject_lines.seg_21.preheader = "Front-snap ease, wire-free lift, and free shipping over 💲35 for two days";
+  b.banner.main_text_1 = "The snap does the hard part";
+  b.banner.main_text_2 = "Daisy lifts without wire";
+  b.banner.main_text_3 = "💲12.99 for two days";
+  b.body.base =
+    "The small front snap is the reason I wanted you to see [Daisy Bra 3](slug:daisybra) today. It closes in seconds, so the first relief is practical before the comfort even starts.\n\n" +
+    "Then the ==wire-free lift== settles softly under a tee — no reaching back, no noon digging, no heavy padded feel. That is why this one keeps coming up in customer messages.\n\n" +
+    "It is **💲12.99** for the next two days, with free shipping once your order passes 💲35. Open the Daisy page while the offer is still active.\n\n— Sandra";
+  b.body.seg_21 = b.body.base;
+  b.quality_checks.opener_mechanic = "fact";
+  return b;
+}
+
+function visualStrongBrief(): GenBrief {
+  const b = cloneBrief(strongBrief());
+  b.creative_direction.angle = "Proof";
+  b.creative_direction.framework = "Mechanism";
+  b.creative_direction.branch = "KL";
+  b.creative_direction.brief_route = "Proof / Review Ladder";
+  b.creative_direction.flow = "Supplied review cue to Daisy comfort proof to exact offer";
+  b.creative_direction.differentiator = "Review-led proof path with banner trust booster before product detail";
+  b.subject_lines.seg_21.subject = "Helen's Daisy note for you, {{first_name}} — 💲12.99";
+  b.subject_lines.seg_21.preheader = "A softer front-snap fit, free shipping over 💲35, and two days to try it";
+  b.banner.main_text_1 = "Helen noticed the soft lift";
+  b.banner.main_text_2 = "Daisy keeps the wire away";
+  b.banner.main_text_3 = "💲12.99 while open";
+  b.banner.review_quote = `"Forgot it's there!" — Helen R.`;
+  b.body.base =
+    "Helen's short note is why I put [Daisy Bra 3](slug:daisybra) first today: she said the comfort was easy to notice because the wire pressure was simply gone.\n\n" +
+    "The front snap closes quickly, the ==wide soft support== stays smoother under a tee, and the lift comes without the hard edge that usually shows up by afternoon.\n\n" +
+    "Daisy is **💲12.99** for the next two days, with free shipping after 💲35. It is a good time to see whether this is the softer fit your drawer has been missing.\n\n— Sandra";
+  b.body.seg_21 = b.body.base;
+  b.quality_checks.opener_mechanic = "proof";
+  return b;
+}
+
+function firstBodyParagraph(brief: GenBrief): string {
+  const body = brief.body || {};
+  const first = Object.entries(body).find(([key, value]) => key !== "base" && String(value || "").trim())?.[1] || body.base || "";
+  return String(first).split(/\n{2,}/)[0] || "";
+}
+
+function subjectSurface(brief: GenBrief): string {
+  return Object.values(brief.subject_lines || {})
+    .flatMap((s) => [s.subject, s.preheader, ...(s.options || []).flatMap((o) => [o.subject, o.preheader])])
+    .filter(Boolean)
+    .join(" ");
+}
+
+function heroStorySurface(brief: GenBrief): string {
+  const cd = brief.creative_direction;
+  const b = brief.banner || {};
+  return [
+    cd?.flow,
+    cd?.differentiator,
+    cd?.hook_contract?.segment_insight,
+    cd?.hook_contract?.emotion,
+    cd?.hook_contract?.proof_or_price,
+    b.main_text,
+    b.sub_text,
+    b.main_text_1,
+    b.main_text_2,
+    b.main_text_3,
+    b.sub_text_1,
+    b.sub_text_2,
+    b.sub_text_3,
+    b.image_guidance,
+  ].filter(Boolean).join(" ");
+}
+
+function diversityFacets(brief: GenBrief): Record<DiversityFacet, string> {
+  const cd = brief.creative_direction || ({} as GenBrief["creative_direction"]);
+  return {
+    opener: firstBodyParagraph(brief),
+    angle: [cd.angle, cd.framework, cd.branch, cd.brief_route, cd.differentiator].filter(Boolean).join(" "),
+    heroStory: heroStorySurface(brief),
+    subjectLines: subjectSurface(brief),
+  };
+}
+
+function tokenNgrams(text: string, n = 2): Set<string> {
+  const words = text.toLowerCase().replace(/[^a-z0-9{}]+/g, " ").split(/\s+/).filter((w) => w.length > 2);
+  if (!words.length) return new Set();
+  if (words.length < n) return new Set(words);
+  const out = new Set<string>();
+  for (let i = 0; i <= words.length - n; i++) out.add(words.slice(i, i + n).join(" "));
+  return out;
+}
+
+function jaccardDistance(a: string, b: string): number {
+  const left = tokenNgrams(a);
+  const right = tokenNgrams(b);
+  if (!left.size && !right.size) return 0;
+  let intersection = 0;
+  left.forEach((item) => {
+    if (right.has(item)) intersection++;
+  });
+  const union = left.size + right.size - intersection;
+  return union ? 1 - intersection / union : 0;
+}
+
+function roundMetric(n: number): number {
+  return Math.round(n * 1000) / 1000;
+}
+
+export function computeDiversitySet(briefs: GenBrief[]): DiversitySetResult {
+  const facets = briefs.map(diversityFacets);
+  const totals: Record<DiversityFacet, number> = { opener: 0, angle: 0, heroStory: 0, subjectLines: 0 };
+  let pairs = 0;
+  for (let i = 0; i < facets.length; i++) {
+    for (let j = i + 1; j < facets.length; j++) {
+      pairs++;
+      (Object.keys(totals) as DiversityFacet[]).forEach((facet) => {
+        totals[facet] += jaccardDistance(facets[i][facet], facets[j][facet]);
+      });
+    }
+  }
+  const facetMeans = (Object.keys(totals) as DiversityFacet[]).reduce((acc, facet) => {
+    acc[facet] = roundMetric(pairs ? totals[facet] / pairs : 0);
+    return acc;
+  }, {} as Record<DiversityFacet, number>);
+  const meanDistance = roundMetric(
+    ((Object.values(facetMeans).reduce((a, b) => a + b, 0)) / (Object.keys(facetMeans).length || 1))
+  );
+  return { count: briefs.length, pairs, meanDistance, facetMeans };
+}
+
+function hardComplianceIssues(brief: GenBrief, campaign: Campaign, products: Product[]): string[] {
+  const validated = validateBrief(cloneBrief(brief), campaign, products);
+  return (validated._flags || [])
+    .filter((f) => f.type === "error" || /spam word|opt-out risk|possibly invented proof|review looks invented|subject over hard cap|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|body contains \{\{first_name\}\}|missing required field/i.test(f.msg))
+    .map((f) => f.msg);
+}
+
+export function runDiversityEval(
+  intraCampaignBriefs: GenBrief[] = [strongBrief(), alternateStrongBrief()],
+  interCampaignBriefs: GenBrief[] = [strongBrief(), alternateStrongBrief(), visualStrongBrief()]
+): DiversityResult {
+  const { campaign, products } = goldenCampaign();
+  const all = [...intraCampaignBriefs, ...interCampaignBriefs];
+  const compliancePassed = all.filter((brief) => hardComplianceIssues(brief, campaign, products).length === 0).length;
+  const complianceTotal = all.length;
+  const compliancePassRate = complianceTotal ? roundMetric(compliancePassed / complianceTotal) : 1;
+  const notes: string[] = [];
+  if (compliancePassRate < 1) notes.push("One or more diversity fixtures failed a hard compliance check");
+  return {
+    intraCampaign: computeDiversitySet(intraCampaignBriefs),
+    interCampaign: computeDiversitySet(interCampaignBriefs),
+    compliancePassRate,
+    compliancePassed,
+    complianceTotal,
+    pass: compliancePassRate === 1,
+    notes,
+  };
 }
 
 /** Score one raw email by wrapping its subject/body in a minimal brief and running the scorer. */
