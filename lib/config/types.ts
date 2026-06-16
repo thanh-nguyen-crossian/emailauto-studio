@@ -119,6 +119,19 @@ export interface LastSend {
   emotionalArc?: string;
 }
 
+export interface RecentSendMemory {
+  brandId: string;
+  segment: string;
+  sendDate?: string;
+  angle?: string;
+  framework?: string;
+  openerMechanic?: string;
+  emotionalArc?: string;
+  visualPattern?: string;
+  heroSlug?: string;
+  optionKey?: "a" | "b";
+}
+
 export interface CampaignStrategy {
   /** The business objective for this send, adapted from the recommender-style intake. */
   campaignGoal?: string;
@@ -226,6 +239,8 @@ export interface Campaign {
   customPerfContext?: string;
   /** Slugs of products featured in the last 3 sends for this brand; model tries to avoid repeating them. */
   recentProductSlugs?: string[];
+  /** Recent sent creative routes for fatigue avoidance across angle/opener/visual/hero. */
+  recentSendHistory?: RecentSendMemory[];
   /**
    * Optional window of past send outcomes (levers chosen + CTR/optout earned). When present, an
    * adaptive performance-feedback block is derived and injected into the generation prompt so the

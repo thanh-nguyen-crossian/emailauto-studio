@@ -75,9 +75,6 @@ export function History({
             );
           })}
         </ul>
-        <style>{`
-          .btn-ghost { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 12px; font-size:13px; cursor:pointer; }
-        `}</style>
       </aside>
     </div>
   );

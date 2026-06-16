@@ -24,6 +24,7 @@ import {
   type OfferType,
   type Product,
   type ProductCopyStyle,
+  type RecentSendMemory,
   type Urgency,
 } from "@/lib/config/types";
 import {
@@ -35,9 +36,11 @@ import {
   selectVarietyProfile,
   type GenBrief,
 } from "@/lib/briefgen";
-import { getBrandIntelligence, intelligencePromptBlock, PROGRAM_INTELLIGENCE } from "@/lib/config/intelligence";
+import { getBrandIntelligence, intelligencePromptBlock, PROGRAM_INTELLIGENCE, SEGMENT_QUALITY_RULES } from "@/lib/config/intelligence";
 import { renderEmailHTML, type ProductLayout } from "@/lib/render/email";
 import { analyzeBriefDeliverability } from "@/lib/quality/deliverability";
+import { scoreFreshnessAgainstHistory } from "@/lib/quality/freshness";
+import { listSendHistory, recordSendHistory, type SendHistoryRow } from "@/lib/sendHistory";
 import { Preview } from "./components/Preview";
 import { PreflightPanel } from "./components/PreflightPanel";
 import { ImageEditor } from "./components/ImageEditor";
@@ -237,6 +240,9 @@ export default function Studio() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [recentProductSlugs, setRecentProductSlugs] = useState<string[]>([]);
+  const [recentSendHistory, setRecentSendHistory] = useState<SendHistoryRow[]>([]);
+  const [sendHistoryState, setSendHistoryState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [sendHistoryError, setSendHistoryError] = useState<string | null>(null);
 
   async function refreshAuth() {
     if (!supabaseConfigured()) {
@@ -306,6 +312,20 @@ export default function Studio() {
     return () => { cancelled = true; };
   }, [brandId, userId]);
 
+  useEffect(() => {
+    if (!supabaseConfigured() || !userId) { setRecentSendHistory([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await listSendHistory(brandId, 18);
+        if (!cancelled) setRecentSendHistory(rows);
+      } catch {
+        if (!cancelled) setRecentSendHistory([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [brandId, userId, sendHistoryState]);
+
   async function signOut() {
     await supabase().auth.signOut();
     setAuthState("out");
@@ -344,8 +364,11 @@ export default function Studio() {
       winningContent,
       customPerfContext: customPerfContext ?? undefined,
       recentProductSlugs: recentProductSlugs.length ? recentProductSlugs : undefined,
+      recentSendHistory: recentSendHistory
+        .filter((row) => !segments.length || segments.includes(row.segment))
+        .slice(0, 8),
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, winningContent, customPerfContext, recentProductSlugs]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, winningContent, customPerfContext, recentProductSlugs, recentSendHistory]
   );
 
   const varietyProfile: BodyVarietyProfile = useMemo(
@@ -595,6 +618,7 @@ export default function Studio() {
   // Optional user edits to the prompts (null = use the generated default; what-you-see-is-what's-sent).
   const [systemOverride, setSystemOverride] = useState<string | null>(null);
   const [userOverride, setUserOverride] = useState<string | null>(null);
+  const [advancedPromptsOpen, setAdvancedPromptsOpen] = useState(false);
   const effectiveSystem = systemOverride ?? systemPromptA;
   const effectiveUser = userOverride ?? userPromptA;
   const systemPromptEdited = systemOverride !== null && systemOverride !== systemPromptA;
@@ -663,6 +687,8 @@ export default function Studio() {
       setTplResults({});
       setHtmlOverrides({});
       setEditingHtml(false);
+      setSendHistoryState("idle");
+      setSendHistoryError(null);
       setOptions({ a: data.a, b: data.b });
       setGenWarning(data.warning || null);
       const usedVariety = data.a?.body_variety || data.b?.body_variety;
@@ -791,6 +817,13 @@ export default function Studio() {
   }
 
   const activeBrief = options[activeOption];
+  const activeFreshness = useMemo(
+    () => scoreFreshnessAgainstHistory(
+      activeBrief,
+      recentSendHistory.filter((row) => !segments.length || segments.includes(row.segment))
+    ),
+    [activeBrief, recentSendHistory, segments]
+  );
 
   function updateActiveBrief(next: GenBrief) {
     setOptions((prev) => ({ ...prev, [activeOption]: next }));
@@ -946,6 +979,35 @@ export default function Studio() {
     }
   }
 
+  async function recordCurrentSendHistory() {
+    if (!activeBrief) return;
+    setSendHistoryState("saving");
+    setSendHistoryError(null);
+    try {
+      const cd = activeBrief.creative_direction || {};
+      const rows: RecentSendMemory[] = segments.map((seg) => ({
+        brandId,
+        segment: seg,
+        sendDate,
+        optionKey: activeOption,
+        angle: cd.angle,
+        framework: cd.framework,
+        openerMechanic: activeBrief.quality_checks?.opener_mechanic || activeBrief.body_variety?.openerMechanic,
+        emotionalArc: activeBrief.body_variety?.emotionalArc,
+        visualPattern: [cd.branch, cd.brief_route, activeBrief.banner?.main_image, activeBrief.banner?.sub_image]
+          .filter(Boolean)
+          .join(" · "),
+        heroSlug: selectedProducts[0]?.slug || activeBrief.products?.[0]?.name,
+      }));
+      await recordSendHistory(rows);
+      setSendHistoryState("saved");
+      if (supabaseConfigured() && userId) setRecentSendHistory(await listSendHistory(brandId, 18));
+    } catch (e) {
+      setSendHistoryState("error");
+      setSendHistoryError(e instanceof Error ? e.message : "Could not record send history");
+    }
+  }
+
   // Wipe everything back to a fresh first-load state (optionally confirming if work would be lost).
   function startNewBrief() {
     if ((options.a || options.b) && !window.confirm("Start a new brief? This clears the current campaign and generated options.")) return;
@@ -976,6 +1038,8 @@ export default function Studio() {
     setApiError(null);
     setSaveState("idle");
     setSaveError(null);
+    setSendHistoryState("idle");
+    setSendHistoryError(null);
     setSyncResults({});
     setTplResults({});
     setSystemOverride(null);
@@ -1071,6 +1135,11 @@ export default function Studio() {
       markVisited(i + 1);
       setOpenStep(i + 1);
     } else {
+      if (!canGenerate) {
+        setApiError("Pick at least one segment and 1-6 products before Review.");
+        setOpenStep(segments.length === 0 ? 3 : 2);
+        return;
+      }
       setOpenStep(-1);
       setView("review");
     }
@@ -1120,6 +1189,21 @@ export default function Studio() {
       case 4: return `${opsSummary}${lastHero || lastAngle || lastCtr ? ` · last: ${lastHero || "?"}/${lastAngle || "?"}/${lastCtr || "?"}%` : ""}`;
       case 5: return winningContent.trim() ? `${winningContent.trim().length} chars pasted` : "skipped";
       default: return "";
+    }
+  };
+  const stepStatus = (i: number): "ok" | "warn" | "bad" => {
+    switch (i) {
+      case 0: return theme.trim() ? "ok" : "warn";
+      case 1: return offerParts.length || urgency !== "none" ? "ok" : "warn";
+      case 2:
+        if (selectedProducts.length < 1 || selectedProducts.length > maxProducts) return "bad";
+        return selectedProducts.length >= 4 || brandId === "santa_fare" ? "ok" : "warn";
+      case 3: return segments.length ? "ok" : "bad";
+      case 4:
+        if (ops.consentBasis === "unknown") return "bad";
+        return ops.senderEmail && ops.audienceSource && ops.segmentRule ? "ok" : "warn";
+      case 5: return winningContent.trim() ? "ok" : "warn";
+      default: return "warn";
     }
   };
 
@@ -1195,7 +1279,7 @@ export default function Studio() {
           ["review", "2 · Review & generate"],
           ["output", "3 · A/B output"],
         ] as [View, string][]).map(([v, lbl]) => {
-          const enabled = v === "build" || (v === "review") || (v === "output" && (options.a || options.b));
+          const enabled = v === "build" || (v === "review" && canGenerate) || (v === "output" && (options.a || options.b));
           return (
             <button
               key={v}
@@ -1239,7 +1323,8 @@ export default function Studio() {
               key={i}
               n={i + 1}
               title={title}
-              done={visited.has(i) && openStep !== i}
+              done={visited.has(i) && openStep !== i && stepStatus(i) === "ok"}
+              status={stepStatus(i)}
               open={openStep === i}
               summary={stepSummary(i)}
               onOpen={() => setOpenStep(openStep === i ? -1 : i)}
@@ -1448,6 +1533,14 @@ export default function Studio() {
                       </button>
                     ))}
                   </div>
+                  <SegmentQualityWarning
+                    selectedCount={segments.length}
+                    totalCount={brand.productSegments.length}
+                    audienceSource={ops.audienceSource || ""}
+                    segmentRule={ops.segmentRule || ""}
+                    theme={theme}
+                    sendDate={sendDate}
+                  />
                 </div>
               )}
 
@@ -1499,6 +1592,7 @@ export default function Studio() {
                       <Field label="Last angle"><input value={lastAngle} aria-label="Last send angle" onChange={(e) => setLastAngle(e.target.value)} placeholder="Proof" className="input" /></Field>
                     </div>
                     <Field label="Note (e.g. 3rd reviews arc - avoid)"><input value={lastNote} aria-label="Last-send note" onChange={(e) => setLastNote(e.target.value)} className="input" /></Field>
+                    <RecentSendMemoryPanel history={recentSendHistory.filter((row) => !segments.length || segments.includes(row.segment)).slice(0, 6)} />
                   </div>
                 </div>
               )}
@@ -1596,22 +1690,38 @@ export default function Studio() {
             onReset={() => setCustomPerfContext(null)}
           />
 
-          <PromptBlock
-            title="System prompt (shared, cached)"
-            subtitle={`${brand.name} · ${brand.persona} — B also gets a parallel contrast clause`}
-            value={effectiveSystem}
-            edited={systemPromptEdited}
-            onChange={(v) => setSystemOverride(v)}
-            onReset={() => setSystemOverride(null)}
-          />
-          <PromptBlock
-            title="User prompt (shared by A & B)"
-            subtitle="lead creative direction, then all copy sections"
-            value={effectiveUser}
-            edited={userPromptEdited}
-            onChange={(v) => setUserOverride(v)}
-            onReset={() => setUserOverride(null)}
-          />
+          <div className="prompt-block">
+            <div className="prompt-header">
+              <button type="button" onClick={() => setAdvancedPromptsOpen((v) => !v)} className="prompt-toggle" aria-expanded={advancedPromptsOpen}>
+                <div className="text-sm font-semibold">
+                  Advanced prompts
+                  {promptOverridesActive && <span className="ml-2 text-xs text-[var(--accent-2)]">· edited</span>}
+                </div>
+                <div className="text-xs text-[var(--muted)]">System/user prompt editors are available when you need exact control.</div>
+              </button>
+              <span className="text-xs text-[var(--muted)]">{advancedPromptsOpen ? "Hide" : "Show"}</span>
+            </div>
+            {advancedPromptsOpen && (
+              <div className="p-3 flex flex-col gap-3">
+                <PromptBlock
+                  title="System prompt (shared, cached)"
+                  subtitle={`${brand.name} · ${brand.persona} — B receives A-aware contrast when default prompts are used`}
+                  value={effectiveSystem}
+                  edited={systemPromptEdited}
+                  onChange={(v) => setSystemOverride(v)}
+                  onReset={() => setSystemOverride(null)}
+                />
+                <PromptBlock
+                  title="User prompt (shared by A & B)"
+                  subtitle="lead creative direction, then all copy sections"
+                  value={effectiveUser}
+                  edited={userPromptEdited}
+                  onChange={(v) => setUserOverride(v)}
+                  onReset={() => setUserOverride(null)}
+                />
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <button onClick={() => setView("build")} className="btn-ghost">Back to brief</button>
@@ -1657,6 +1767,29 @@ export default function Studio() {
                 <button onClick={() => generate()} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "Regenerate A + B"}</button>
               </div>
 
+              <div className="output-action-dock">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">Current output</div>
+                  <div className="text-sm font-semibold truncate">
+                    Option {activeOption.toUpperCase()} · {activeSegment || "no segment"} · {activeBrief?._score ?? "—"}/100
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={downloadAll} className="btn-primary">Download zip</button>
+                  <button onClick={exportExcel} className="btn-ghost">Excel brief</button>
+                  {authState === "in" && (
+                    <>
+                      <button onClick={saveCurrent} disabled={saveState === "saving"} className="btn-ghost">
+                        {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
+                      </button>
+                      <button onClick={recordCurrentSendHistory} disabled={sendHistoryState === "saving" || !activeBrief} className="btn-ghost">
+                        {sendHistoryState === "saving" ? "Recording…" : sendHistoryState === "saved" ? "Recorded" : "Record memory"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
               {genWarning && <Banner level="warn">{genWarning}</Banner>}
               {incompleteOutputLabels.length > 0 && (
                 <Banner level="fail">
@@ -1667,6 +1800,7 @@ export default function Studio() {
               {generating && <GenerationProgress elapsedSec={elapsedSec} onCancel={cancelGenerate} />}
 
               {activeBrief && <FormatCoverage brief={activeBrief} />}
+              {activeBrief && <FreshnessPanel result={activeFreshness} historyCount={recentSendHistory.length} />}
               {options.a && options.b && <ABContrastPanel a={options.a} b={options.b} />}
 
               <div className="section-panel">
@@ -1801,8 +1935,9 @@ export default function Studio() {
                     <ImageEditor brand={brand} products={selectedProducts} images={images} onChange={setImages} includeLogo={includeLogo} onToggleLogo={setIncludeLogo} />
                     <PreflightPanel
                       flags={activeBrief._flags}
+                      advisory={activeBrief._advisory}
                       score={activeBrief._score}
-                      variety={varietyProfile}
+                      variety={activeBrief.body_variety || varietyProfile}
                       deliverability={analyzeBriefDeliverability(activeBrief, htmlFor(activeOption, activeSegment))}
                     />
                   </div>
@@ -1825,11 +1960,17 @@ export default function Studio() {
                   <h3 className="text-sm font-semibold">Export</h3>
                   <button onClick={downloadAll} className="btn-primary">Download all (.zip)</button>
                   {authState === "in" && (
-                    <button onClick={saveCurrent} disabled={saveState === "saving"} className="btn-ghost">
-                      {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved to history" : "Save version"}
-                    </button>
+                    <>
+                      <button onClick={saveCurrent} disabled={saveState === "saving"} className="btn-ghost">
+                        {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved to history" : "Save version"}
+                      </button>
+                      <button onClick={recordCurrentSendHistory} disabled={sendHistoryState === "saving" || !activeBrief} className="btn-ghost">
+                        {sendHistoryState === "saving" ? "Recording…" : sendHistoryState === "saved" ? "Recorded send" : "Record send memory"}
+                      </button>
+                    </>
                   )}
                   {saveState === "error" && <span className="text-xs text-[var(--bad)]">{saveError}</span>}
+                  {sendHistoryState === "error" && <span className="text-xs text-[var(--bad)]">{sendHistoryError}</span>}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {(["a", "b"] as OptKey[]).flatMap((opt) =>
@@ -2091,6 +2232,98 @@ function SnapshotChip({ label, value, tone }: { label: string; value: string; to
   );
 }
 
+function isPeakEvent(theme: string, sendDate: string): boolean {
+  const surface = `${theme} ${sendDate}`.toLowerCase();
+  return SEGMENT_QUALITY_RULES.peakEvents.some((event) => surface.includes(event));
+}
+
+function SegmentQualityWarning({
+  selectedCount,
+  totalCount,
+  audienceSource,
+  segmentRule,
+  theme,
+  sendDate,
+}: {
+  selectedCount: number;
+  totalCount: number;
+  audienceSource: string;
+  segmentRule: string;
+  theme: string;
+  sendDate: string;
+}) {
+  const surface = `${audienceSource} ${segmentRule}`.toLowerCase();
+  const broad = selectedCount >= Math.max(4, Math.ceil(totalCount * 0.7)) || /\b(all|whole|entire|broad|blast|newsletter)\b/.test(surface);
+  const yahoo = /\byahoo\b|\+\s*yahoo/i.test(surface);
+  if ((!broad && !yahoo) || isPeakEvent(theme, sendDate)) return null;
+  return (
+    <Banner level="warn">
+      Segment-quality warning: {broad ? SEGMENT_QUALITY_RULES.tightListLift : ""}{broad && yahoo ? " · " : ""}{yahoo ? SEGMENT_QUALITY_RULES.yahooDilution : ""}. Keep this send tight unless it is a true peak-sale event.
+    </Banner>
+  );
+}
+
+function RecentSendMemoryPanel({ history }: { history: SendHistoryRow[] }) {
+  if (!history.length) {
+    return (
+      <div className="soft-panel text-xs text-[var(--muted)]">
+        No recorded send memory yet. After a campaign is finalized, use <strong className="text-[var(--text)]">Record send memory</strong> in Output so future generations avoid repeated angles, openers, visuals, and heroes.
+      </div>
+    );
+  }
+  return (
+    <div className="soft-panel">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div>
+          <h3 className="text-sm font-semibold">Recent send memory</h3>
+          <p className="text-xs text-[var(--muted)] mt-0.5">Injected as compact avoid rules during generation.</p>
+        </div>
+        <span className="badge-warn">{history.length}</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {history.map((row) => (
+          <div key={row.id} className="summary-tile">
+            <div className="text-[10px] uppercase text-[var(--muted)]">{row.segment} · {row.sendDate || row.createdAt.slice(0, 10)} · {row.optionKey?.toUpperCase() || "send"}</div>
+            <div className="text-sm font-semibold mt-0.5 truncate" title={[row.angle, row.framework].filter(Boolean).join(" · ")}>
+              {[row.angle, row.framework].filter(Boolean).join(" · ") || "No route saved"}
+            </div>
+            <div className="text-xs text-[var(--muted)] mt-0.5 truncate" title={[row.openerMechanic, row.emotionalArc, row.visualPattern, row.heroSlug].filter(Boolean).join(" · ")}>
+              {[row.openerMechanic, row.emotionalArc, row.visualPattern, row.heroSlug].filter(Boolean).join(" · ") || "No fatigue fields"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FreshnessPanel({
+  result,
+  historyCount,
+}: {
+  result: ReturnType<typeof scoreFreshnessAgainstHistory>;
+  historyCount: number;
+}) {
+  const tone = result.score >= 80 ? "ok" : result.score >= 55 ? "warn" : "bad";
+  return (
+    <div className="section-panel p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold">Freshness vs recent sends</h3>
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            {historyCount ? `Compared against ${historyCount} recorded send${historyCount === 1 ? "" : "s"}.` : "Record send memory after finalizing campaigns to activate this guard."}
+          </p>
+        </div>
+        <span className={`badge-${tone}`}>{result.score}/100 · {result.label}</span>
+      </div>
+      <div className="text-xs text-[var(--muted)] mt-2">
+        Top overlap: <strong className="text-[var(--text)]">{result.overlapElement}</strong>
+        {result.notes.length > 0 && <span> · {result.notes.slice(0, 3).join(" · ")}</span>}
+      </div>
+    </div>
+  );
+}
+
 function WinTemplateRhythm() {
   const items = [
     ["Body rhythm", "3-5 short beats"],
@@ -2299,8 +2532,8 @@ function FormatCoverage({ brief }: { brief: GenBrief }) {
 function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
   const aCd = a.creative_direction || {};
   const bCd = b.creative_direction || {};
-  const aCounts = flagTierCounts(a._flags);
-  const bCounts = flagTierCounts(b._flags);
+  const aCounts = flagTierCounts([...(a._flags || []), ...(a._advisory || [])]);
+  const bCounts = flagTierCounts([...(b._flags || []), ...(b._advisory || [])]);
   const sameRoute = routeText(aCd) && routeText(aCd) === routeText(bCd);
   const sameAngle = aCd.angle && aCd.angle === bCd.angle;
   const sameFramework = aCd.framework && aCd.framework === bCd.framework;
@@ -2381,15 +2614,24 @@ function ContrastCard({
 }
 
 function StepCard({
-  n, title, done, open, summary, onOpen, children,
+  n, title, done, status, open, summary, onOpen, children,
 }: {
-  n: number; title: string; done: boolean; open: boolean; summary: string; onOpen: () => void; children: React.ReactNode;
+  n: number; title: string; done: boolean; status: "ok" | "warn" | "bad"; open: boolean; summary: string; onOpen: () => void; children: React.ReactNode;
 }) {
+  const indexClass = open
+    ? "step-index-open"
+    : done
+      ? "step-index-done"
+      : status === "bad"
+        ? "step-index-bad"
+        : status === "warn"
+          ? "step-index-warn"
+          : "step-index-idle";
   return (
     <div className={`step-card ${open ? "step-card-open" : ""}`}>
       <button onClick={onOpen} className="step-button" aria-expanded={open}>
-        <span className={`step-index ${open ? "step-index-open" : done ? "step-index-done" : "step-index-idle"}`}>
-          {done && !open ? "✓" : n}
+        <span className={`step-index ${indexClass}`}>
+          {done && !open ? "✓" : !open && status === "bad" ? "!" : n}
         </span>
         <span className="flex-1">
           <span className="text-sm font-semibold">{title}</span>
@@ -3032,4 +3274,3 @@ function ProductSlotCard({
     </div>
   );
 }
-

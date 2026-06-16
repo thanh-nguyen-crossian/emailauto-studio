@@ -170,6 +170,8 @@ textarea.input { line-height: 1.55; }
 .step-index { width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
 .step-index-open { background: var(--accent); color: #fff; }
 .step-index-done { background: var(--ok); color: #fff; }
+.step-index-warn { background: var(--warn-soft); color: var(--warn-text); border: 1px solid var(--warn); }
+.step-index-bad { background: var(--bad-soft); color: var(--bad-text); border: 1px solid var(--bad); }
 .step-index-idle { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-strong); }
 .step-action { color: var(--muted); font-size: 12px; font-weight: 700; }
 
@@ -182,6 +184,21 @@ textarea.input { line-height: 1.55; }
 /* ── Tiles / chips ──────────────────────────────────────────────────────────── */
 .snapshot-chip { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 8px; padding: 10px 12px; min-width: 0; box-shadow: var(--shadow-tiny); }
 .summary-tile { border: 1px solid var(--border); background: var(--surface-3); border-radius: 7px; padding: 9px; min-width: 0; }
+.output-action-dock {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255,255,255,.96);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow-tiny);
+  backdrop-filter: blur(10px);
+}
 
 /* ── Product slots ──────────────────────────────────────────────────────────── */
 .product-slot-card { border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-tiny); }

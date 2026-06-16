@@ -73,6 +73,7 @@ const REPAIR_SYSTEM = `You are an email copy repair specialist. Fix the listed p
 const SEGMENT_BATCH_THRESHOLD = Math.max(2, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 2));
 const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 2));
 const SEGMENT_BATCH_CONCURRENCY = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY || 2));
+const AB_FAST_PARALLEL = /^(1|true|on|yes)$/i.test(process.env.AI_AB_FAST_PARALLEL || "");
 
 const MAX_OUTPUT_TOKENS = 16000;
 
@@ -290,6 +291,7 @@ function briefRevisionSummary(brief?: GenBrief) {
   if (!brief) return undefined;
   const {
     _flags: _dropFlags,
+    _advisory: _dropAdvisory,
     _score: _dropScore,
     _provider: _dropProvider,
     _model: _dropModel,
@@ -298,6 +300,7 @@ function briefRevisionSummary(brief?: GenBrief) {
     ...copy
   } = brief as GenBrief & Record<string, unknown>;
   void _dropFlags;
+  void _dropAdvisory;
   void _dropScore;
   void _dropProvider;
   void _dropModel;
@@ -317,6 +320,27 @@ function summarizeBriefForContext(brief?: GenBrief) {
     products: brief.products,
     quality_checks: brief.quality_checks,
   };
+}
+
+function optionAContrastContext(brief: GenBrief): string {
+  const anchor = {
+    creative_direction: brief.creative_direction,
+    body_variety: brief.body_variety,
+    banner: {
+      main_text_1: brief.banner?.main_text_1,
+      main_text_2: brief.banner?.main_text_2,
+      main_text_3: brief.banner?.main_text_3,
+      image_guidance: brief.banner?.image_guidance,
+      cta: brief.banner?.cta,
+    },
+    opener_mechanic: brief.quality_checks?.opener_mechanic,
+    ps: brief.ps,
+    first_product: brief.products?.[0],
+  };
+  return `\nOPTION A CREATIVE MAP TO CONTRAST AGAINST:
+${JSON.stringify(anchor).slice(0, 6000)}
+
+Generate Option B AFTER studying this map. B must choose a different hook contract emphasis, reader entry point, proof path, banner headline family, and payoff. Do not merely rename the angle/framework.`;
 }
 
 function appendRevisionFeedback(user: string, revision?: RevisionFeedback): string {
@@ -843,42 +867,78 @@ async function generateOptionsSingle(
     const usrABase = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaignA, false), revision);
     const usrA = appendSegmentBatchContext(appendModelExecutionStyle(usrABase, "A", models.a), "A", batchContext);
 
-    // B system prompt: same structure as A (keeps Claude system-prompt cache warm for retry).
-    // Contrast instruction goes in the user message so it doesn't fragment the cached prefix.
-    const sysBInitial = overrides?.system?.trim()
-      ? overrides.system.trim()
-      : buildSystemPrompt(campaignB, products, true, undefined, nonceB);
-    const usrBBase = overrides?.user?.trim()
-      ? overrides.user.trim() + "\n\nGenerate Option B now — make it a clearly different challenger from Option A."
-      : buildUserPrompt(campaignB, true) + OPTION_B_INITIAL_CONTRAST;
-    const usrB = appendSegmentBatchContext(appendModelExecutionStyle(appendRevisionFeedback(usrBBase, revision), "B", models.b), "B", batchContext);
-
     const startedAt = Date.now();
-    // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa) — the
-    // marketer waited minutes and one usable option beats zero. Only a both-failed run is fatal.
-    const [aSettled, bSettled] = await Promise.allSettled([
-      createAndParseWithModel(sysA, usrA, models.a, AI_TEMP_A),
-      createAndParseWithModel(sysBInitial, usrB, models.b, AI_TEMP_B),
-    ]);
-    if (aSettled.status === "rejected" && bSettled.status === "rejected") {
-      // Surface the more informative of the two errors (truncation/timeout beats a generic parse note).
-      return { error: bestFailureMessage([aSettled.reason, bSettled.reason]) };
+    let a: GenBrief | undefined;
+    let b: GenBrief | undefined;
+    let aFailure: unknown;
+    let bFailure: unknown;
+    let usrB = "";
+    let sysBInitial = "";
+
+    const buildOptionBMessages = (anchor?: GenBrief, retryNonce = nonceB) => {
+      const system = overrides?.system?.trim()
+        ? `${overrides.system.trim()}${anchor ? "\n" + contrastInstruction(anchor.creative_direction) : ""}`
+        : buildSystemPrompt(campaignB, products, true, anchor?.creative_direction, retryNonce);
+      const userBase = overrides?.user?.trim()
+        ? overrides.user.trim() + "\n\nGenerate Option B now — make it a clearly different challenger from Option A."
+        : buildUserPrompt(campaignB, true);
+      const contrast = anchor ? optionAContrastContext(anchor) : OPTION_B_INITIAL_CONTRAST;
+      const user = appendSegmentBatchContext(
+        appendModelExecutionStyle(appendRevisionFeedback(userBase + contrast, revision), "B", models.b),
+        "B",
+        batchContext
+      );
+      return { system, user };
+    };
+
+    if (AB_FAST_PARALLEL) {
+      const bMessages = buildOptionBMessages();
+      sysBInitial = bMessages.system;
+      usrB = bMessages.user;
+      // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa).
+      const [aSettled, bSettled] = await Promise.allSettled([
+        createAndParseWithModel(sysA, usrA, models.a, AI_TEMP_A),
+        createAndParseWithModel(sysBInitial, usrB, models.b, AI_TEMP_B),
+      ]);
+      aFailure = aSettled.status === "rejected" ? aSettled.reason : undefined;
+      bFailure = bSettled.status === "rejected" ? bSettled.reason : undefined;
+      a = aSettled.status === "fulfilled" ? validateBrief(aSettled.value as unknown as GenBrief, campaign, products) : undefined;
+      b = bSettled.status === "fulfilled" ? validateBrief(bSettled.value as unknown as GenBrief, campaign, products) : undefined;
+      [a, b] = await Promise.all([
+        a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
+        b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
+      ]);
+    } else {
+      try {
+        a = validateBrief((await createAndParseWithModel(sysA, usrA, models.a, AI_TEMP_A)) as unknown as GenBrief, campaign, products);
+        a = await repairBriefIfNeeded("A", a, campaign, products, sysA, models.a);
+        stampBrief(a, models.a, campaignA.bodyVariety);
+      } catch (err) {
+        aFailure = err;
+      }
+
+      const bMessages = buildOptionBMessages(a);
+      sysBInitial = bMessages.system;
+      usrB = bMessages.user;
+      try {
+        b = validateBrief((await createAndParseWithModel(sysBInitial, usrB, models.b, AI_TEMP_B)) as unknown as GenBrief, campaign, products);
+        b = await repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b);
+      } catch (err) {
+        bFailure = err;
+      }
     }
 
-    let a = aSettled.status === "fulfilled" ? validateBrief(aSettled.value as unknown as GenBrief, campaign, products) : undefined;
-    let b = bSettled.status === "fulfilled" ? validateBrief(bSettled.value as unknown as GenBrief, campaign, products) : undefined;
-    [a, b] = await Promise.all([
-      a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
-      b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
-    ]);
+    if (!a && !b) {
+      return { error: bestFailureMessage([aFailure, bFailure]) };
+    }
+
     stampBrief(a, models.a, campaignA.bodyVariety);
     stampBrief(b, models.b, campaignB.bodyVariety);
 
     // One option failed — return the survivor with a non-fatal warning the UI can show.
     if (!a || !b) {
       const failedLabel = a ? "B" : "A";
-      const reason = a ? bSettled : aSettled;
-      const why = reason.status === "rejected" ? errMessage(reason.reason) : "no usable output";
+      const why = errMessage(a ? bFailure : aFailure);
       console.warn(`[generate-copy] option ${failedLabel} failed, returning the other: ${why}`);
       return { a, b, warning: `Option ${failedLabel} failed (${why}). Generated the other option only — regenerate to retry the missing one.` };
     }

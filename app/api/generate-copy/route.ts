@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateOptions, providerConfigError } from "@/lib/anthropic";
-import { selectVarietyProfile, type GenBrief } from "@/lib/briefgen";
+import type { GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
-import { RECIPIENT_NAME_TOKEN, type BodyLayout, type BodyVarietyProfile, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type LastSend, type OfferType, type Product, type ProductCopyStyle, type Urgency } from "@/lib/config/types";
+import { RECIPIENT_NAME_TOKEN, type BodyLayout, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type LastSend, type OfferType, type Product, type ProductCopyStyle, type RecentSendMemory, type Urgency } from "@/lib/config/types";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
@@ -100,6 +100,26 @@ function cleanLastSend(input: unknown): LastSend | undefined {
   return Object.values(lastSend).some(Boolean) ? lastSend : undefined;
 }
 
+function cleanRecentSendHistory(input: unknown): RecentSendMemory[] | undefined {
+  if (!Array.isArray(input)) return undefined;
+  const rows = input.slice(0, 12).map((raw) => {
+    const row = raw as Partial<RecentSendMemory>;
+    return {
+      brandId: cleanText(row.brandId, 80),
+      segment: cleanText(row.segment, 40),
+      sendDate: cleanText(row.sendDate, 40),
+      angle: cleanText(row.angle, 120),
+      framework: cleanText(row.framework, 120),
+      openerMechanic: cleanText(row.openerMechanic, 80),
+      emotionalArc: cleanText(row.emotionalArc, 80),
+      visualPattern: cleanText(row.visualPattern, 240),
+      heroSlug: cleanText(row.heroSlug, 120),
+      optionKey: row.optionKey === "a" || row.optionKey === "b" ? row.optionKey : undefined,
+    };
+  }).filter((row) => row.brandId && row.segment);
+  return rows.length ? rows : undefined;
+}
+
 function validate(body: unknown): { ok: true; campaign: Campaign; products: Product[] } | { ok: false; error: string } {
   const c = body as Partial<Campaign> & { products?: Product[] };
   if (!c || typeof c !== "object") return { ok: false, error: "Missing body" };
@@ -132,6 +152,7 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
     hookContract: cleanText(c.hookContract, 700),
     recipientName: RECIPIENT_NAME_TOKEN,
     recentProductSlugs: Array.isArray(c.recentProductSlugs) ? c.recentProductSlugs.map((s) => cleanText(s, 120)).filter(Boolean).slice(0, 12) : undefined,
+    recentSendHistory: cleanRecentSendHistory(c.recentSendHistory),
     lastSend: cleanLastSend(c.lastSend),
     strategy: cleanStrategy(c.strategy),
     ops: cleanOps(c.ops),
@@ -161,25 +182,6 @@ export async function POST(req: NextRequest) {
   const v = validate(body);
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
 
-  // Compute variety profile and attach to campaign so the prompt builder can use it.
-  const variety = selectVarietyProfile(v.campaign);
-  const campaignWithVariety = { ...v.campaign, bodyVariety: variety };
-  // Strip the ephemeral directive strings before storing/returning (keep only display fields).
-  const cleanVariety: BodyVarietyProfile = {
-    openerMechanic: variety.openerMechanic,
-    openerMechanicLabel: variety.openerMechanicLabel,
-    namedCharacter: variety.namedCharacter,
-    characterRole: variety.characterRole,
-    painPoint: variety.painPoint,
-    sensoryPhrase: variety.sensoryPhrase,
-    emotionalArc: variety.emotionalArc,
-    emotionalArcLabel: variety.emotionalArcLabel,
-    creativeLens: variety.creativeLens,
-    proofRole: variety.proofRole,
-    subjectStyle: variety.subjectStyle,
-    visualDirection: variety.visualDirection,
-  };
-
   const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;
   const overrides = po && (po.system || po.user) ? { system: po.system, user: po.user } : undefined;
   const models = normalizeModelPair((body as { models?: Parameters<typeof normalizeModelPair>[0] }).models);
@@ -190,12 +192,10 @@ export async function POST(req: NextRequest) {
   const revision = revisionBody.feedback?.trim()
     ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
     : undefined;
-  const result = await generateOptions(campaignWithVariety, v.products, overrides, models, revision);
+  const result = await generateOptions(v.campaign, v.products, overrides, models, revision);
   if (result.error) {
     const status = /API_KEY|not set/i.test(result.error) ? 500 : 502;
     return NextResponse.json({ error: result.error }, { status });
   }
-  if (result.a) result.a.body_variety = cleanVariety;
-  if (result.b) result.b.body_variety = cleanVariety;
   return NextResponse.json({ a: result.a, b: result.b, warning: result.warning });
 }

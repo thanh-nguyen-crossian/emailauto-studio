@@ -143,7 +143,10 @@ export interface GenBrief {
   ps?: string;
   products: GenProductBlock[];
   quality_checks: GenQualityChecks;
+  /** Hard compliance and send-readiness findings. These can drive repair/blocking. */
   _flags?: Flag[];
+  /** Creative/style advisories for UI coaching. These never drive repair/blocking. */
+  _advisory?: Flag[];
   _score?: number;
   _provider?: string;
   _model?: string;
@@ -1607,6 +1610,26 @@ export function buildSystemPrompt(
   ]);
 }
 
+function recentSendHistoryPrompt(campaign: Campaign): string {
+  const rows = (campaign.recentSendHistory || []).slice(0, 8);
+  if (!rows.length) return "";
+  return `\nRECENT SEND FATIGUE MEMORY — do not repeat these unless the user explicitly asks:
+${rows.map((row, index) => {
+  const parts = [
+    `segment ${row.segment}`,
+    row.sendDate && `date ${row.sendDate}`,
+    row.angle && `angle ${row.angle}`,
+    row.framework && `framework ${row.framework}`,
+    row.openerMechanic && `opener ${row.openerMechanic}`,
+    row.emotionalArc && `arc ${row.emotionalArc}`,
+    row.visualPattern && `visual ${row.visualPattern}`,
+    row.heroSlug && `hero ${row.heroSlug}`,
+  ].filter(Boolean);
+  return `${index + 1}. ${parts.join(" | ")}`;
+}).join("\n")}
+Choose a fresh angle/framework/opener/visual route for this send and call out the rotation in quality_checks.hook_coherence.`;
+}
+
 export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
   const ls = campaign.lastSend;
   const lastSend =
@@ -1617,6 +1640,7 @@ export function buildUserPrompt(campaign: Campaign, isB: boolean): string {
     campaign.recentProductSlugs?.length
       ? `\nProduct rotation — these slugs appeared in the last 3 sends; avoid featuring them as hero or lead unless no better alternative exists: ${campaign.recentProductSlugs.join(", ")}.`
       : "";
+  const fatigueAvoid = recentSendHistoryPrompt(campaign);
 
   const variety = campaign.bodyVariety as (BodyVarietyProfile & { _openerDirective?: string; _arcDirective?: string }) | undefined;
   const effectiveVariety = variety;
@@ -1663,7 +1687,7 @@ Hook input: ${campaign.hookContract?.trim() || "Construct one from segment, hero
 Promo: ${promoLine(campaign)}
 Body layout: ${bodyLayoutLabel(campaign)}
 Product template: ${productCopyStyleLabel(campaign)}
-Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}`,
+Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}${fatigueAvoid}`,
     },
     { title: "Strategy Intake", body: strategyPromptLayer(campaign) },
     { title: "Campaign Operations", body: opsPromptLayer(campaign) },
@@ -1709,6 +1733,23 @@ export function isComplianceRepairFlag(msg: string): boolean {
   return COMPLIANCE_REPAIR_FLAG.test(msg);
 }
 
+const COMPLIANCE_VALIDATION_FLAG =
+  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over 150|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
+
+export function isComplianceValidationFlag(flag: Flag): boolean {
+  return flag.type === "error" || COMPLIANCE_VALIDATION_FLAG.test(flag.msg);
+}
+
+export function splitValidationFlags(flags: Flag[] = []): { compliance: Flag[]; advisory: Flag[] } {
+  const compliance: Flag[] = [];
+  const advisory: Flag[] = [];
+  for (const flag of flags) {
+    if (isComplianceValidationFlag(flag)) compliance.push(flag);
+    else advisory.push(flag);
+  }
+  return { compliance, advisory };
+}
+
 const FLAG_TIER_WEIGHT: Record<FlagTier, number> = { serious: 10, structural: 5, cosmetic: 2 };
 const COSMETIC_WEIGHT_CAP = 16; // all cosmetic warnings together cost at most this much
 
@@ -1729,6 +1770,12 @@ export function scoreBrief(flags: Flag[] = []): number {
   }
   penalty += Math.min(cosmetic, COSMETIC_WEIGHT_CAP);
   return Math.max(0, 100 - penalty);
+}
+
+export function scoreCreative(flags: Flag[] = []): number {
+  const structural = flags.filter((f) => f.type === "warn" && flagTier(f.msg) === "structural").length;
+  const cosmetic = flags.filter((f) => f.type === "warn" && flagTier(f.msg) === "cosmetic").length;
+  return Math.max(0, 100 - structural * 6 - Math.min(24, cosmetic * 2));
 }
 
 /** Tier counts for UI ("serious vs polish") — lets REVIEW distinguish real risk from cosmetics. */
@@ -2070,6 +2117,9 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     }
   }
 
+  const split = splitValidationFlags(brief._flags || []);
+  brief._flags = split.compliance;
+  brief._advisory = split.advisory;
   brief._score = scoreBrief(brief._flags);
   return brief;
 }
@@ -2077,6 +2127,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
 function rescoreBrief(brief: GenBrief): GenBrief {
   brief._score = scoreBrief(brief._flags || []);
   return brief;
+}
+
+export function validateCompliance(brief: GenBrief, campaign: Campaign, products: Product[] = []): GenBrief {
+  return validateBrief(brief, campaign, products);
 }
 
 function briefBodyText(brief: GenBrief): string {
@@ -2187,8 +2241,8 @@ export function briefContrastIssues(a: GenBrief, b: GenBrief): string[] {
 export function validateBriefPair(a: GenBrief, b: GenBrief): [GenBrief, GenBrief] {
   const issues = briefContrastIssues(a, b);
   issues.forEach((issue) => {
-    addFlag(a, "warn", issue);
-    addFlag(b, "warn", issue);
+    (a._advisory ||= []).push({ type: "warn", msg: issue });
+    (b._advisory ||= []).push({ type: "warn", msg: issue });
   });
   return [rescoreBrief(a), rescoreBrief(b)];
 }

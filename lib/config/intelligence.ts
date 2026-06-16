@@ -18,6 +18,12 @@ export const PROGRAM_INTELLIGENCE = {
   },
 };
 
+export const SEGMENT_QUALITY_RULES = {
+  tightListLift: "tight high-value lists delivered roughly 4x CBH/Delivered vs broad/bloated lists",
+  yahooDilution: "+Yahoo reach suppressed value by roughly 40-60% outside proven peak-sale events",
+  peakEvents: ["black friday", "cyber monday", "valentine", "valentine's", "christmas", "holiday"],
+};
+
 export interface BrandIntelligence {
   headline: string;
   benchmark: string;

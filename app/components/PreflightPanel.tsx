@@ -94,8 +94,21 @@ function DeliverabilityCard({ report }: { report: DeliverabilityReport }) {
   );
 }
 
-export function PreflightPanel({ flags, score, variety, deliverability }: { flags?: Flag[]; score?: number; variety?: BodyVarietyProfile; deliverability?: DeliverabilityReport }) {
+export function PreflightPanel({
+  flags,
+  advisory,
+  score,
+  variety,
+  deliverability,
+}: {
+  flags?: Flag[];
+  advisory?: Flag[];
+  score?: number;
+  variety?: BodyVarietyProfile;
+  deliverability?: DeliverabilityReport;
+}) {
   const list = flags || [];
+  const advisoryList = advisory || [];
   const errors = list.filter((f) => f.type === "error");
   const warns = list.filter((f) => f.type === "warn");
   const s = typeof score === "number" ? score : 100;
@@ -181,8 +194,7 @@ export function PreflightPanel({ flags, score, variety, deliverability }: { flag
             All checks passed
           </p>
           <p className="text-xs text-[var(--muted)] mt-1">
-            Hook contract, subjects, body copy, product blocks, formatting, and self-QA checks all
-            clear.
+            Hard compliance, proof safety, required fields, and send-readiness checks all clear.
           </p>
         </div>
       ) : (
@@ -233,6 +245,25 @@ export function PreflightPanel({ flags, score, variety, deliverability }: { flag
                 </ul>
               </div>
             ))}
+        </div>
+      )}
+      {advisoryList.length > 0 && (
+        <div className="mt-4 border-t border-[var(--border)] pt-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">Creative advisories</h4>
+              <p className="text-[11px] text-[var(--muted)] mt-0.5">Helpful polish notes only — these do not trigger repair or block export.</p>
+            </div>
+            <span className="badge-warn">{advisoryList.length}</span>
+          </div>
+          <ul className="flex flex-col gap-1.5">
+            {advisoryList.slice(0, 12).map((f, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="status-pill shrink-0 mt-0.5 text-warn">{flagTier(f.msg)}</span>
+                <span className="text-xs leading-relaxed text-[var(--muted)]">{f.msg}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
