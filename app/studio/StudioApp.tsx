@@ -626,7 +626,7 @@ export function StudioApp() {
   const systemPromptEdited = systemOverride !== null && systemOverride !== systemPromptA;
   const userPromptEdited = userOverride !== null && userOverride !== userPromptA;
   const promptOverridesActive = systemPromptEdited || userPromptEdited;
-  const autoSegmentBatching = segments.length > 2 && !promptOverridesActive;
+  const autoSegmentBatching = !promptOverridesActive;
 
   function stopGenTimer() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -674,7 +674,7 @@ export function StudioApp() {
         data = JSON.parse(raw);
       } catch {
         if (res.status === 504 || /timeout|timed out|FUNCTION_INVOCATION/i.test(raw)) {
-          setApiError("The server timed out while generating. Use automatic batching by resetting edited system/user prompts, or try a faster model pair (Claude Haiku, Gemini Flash/Lite, GPT mini/nano) and fewer products.");
+          setApiError("The server timed out while generating. Reset edited system/user prompts to use layered generation, or try a faster model pair (Claude Haiku, Gemini Flash/Lite, GPT mini/nano) and fewer products.");
         } else {
           setApiError(`Server returned an unexpected response (HTTP ${res.status}). Please retry.`);
         }
@@ -1561,16 +1561,16 @@ export function StudioApp() {
           </div>
 
           <p className="text-sm text-[var(--muted)]">
-            One generation run produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server requests A and B in parallel, batches large segment sets when using default prompts, and retries B if route/body/banner/product-copy contrast collapses.
+            One generation run produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server now creates compact A/B foundations first, then writes each segment’s subject/body in smaller patch calls before merging.
           </p>
           {autoSegmentBatching && (
             <Banner level="warn">
-              Automatic segment batching is on for this run: shared strategy is generated first, then segment copy is split into smaller batches and merged into one A/B brief.
+              Layered generation is on: shared strategy/banner/products are generated first, then each segment is written separately and merged into one A/B brief.
             </Banner>
           )}
           {segments.length > 2 && promptOverridesActive && (
             <Banner level="warn">
-              Custom system/user prompt edits disable automatic segment batching. Reset those prompt edits before generating if this many segments keeps timing out.
+              Custom system/user prompt edits disable layered generation. Reset those prompt edits before generating if this many segments keeps timing out.
             </Banner>
           )}
           {apiError && <Banner level="fail">{apiError}</Banner>}
@@ -1580,7 +1580,7 @@ export function StudioApp() {
             <ModelSelector label="Option B model" value={modelB} onChange={setModelB} providers={AI_PROVIDERS} />
           </div>
           <Banner level="warn">
-            Timeout tip: Opus, Pro, and full frontier GPT models can be slow on multi-segment briefs. For fastest runs, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model only for final polish.
+            Timeout tip: Opus, Pro, and full frontier GPT models can still be slower on many segments. For fastest drafts, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model for final polish.
           </Banner>
           <GenerationBudgetPanel
             systemPrompt={effectiveSystem}

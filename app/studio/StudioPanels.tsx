@@ -60,10 +60,10 @@ export function GenerationProgress({ elapsedSec, onCancel }: { elapsedSec: numbe
   const label = mins > 0 ? `${mins}m ${String(elapsedSec % 60).padStart(2, "0")}s` : `${elapsedSec}s`;
   const stage =
     elapsedSec < 20
-      ? "Requesting both options in parallel…"
+      ? "Creating shared A/B foundations…"
       : elapsedSec < 60
-      ? "Writing per-segment copy + design brief, then validating…"
-      : "Large segment sets generate in batches — Opus/Pro/frontier briefs can take 1–3 minutes.";
+      ? "Writing segment subject/body patches, then merging…"
+      : "Still working through small segment batches — slower frontier models may take a few minutes.";
   return (
     <div role="status" aria-live="polite" aria-busy="true" className="section-panel flex items-center gap-3">
       <span
@@ -101,9 +101,11 @@ export function GenerationBudgetPanel({
   modelB: AIModelSelection;
 }) {
   const inputTokens = estimateTokens(systemPrompt.length + userPrompt.length);
-  const outputPerOption = 1800 + segments * 850 + products * 220;
-  const batchCount = autoBatching ? Math.max(1, Math.ceil(segments / 2)) : 1;
-  const baseCalls = batchCount * 2;
+  const foundationOutput = 1400 + products * 260;
+  const segmentOutput = segments * 720;
+  const outputPerOption = autoBatching ? foundationOutput + segmentOutput : 1800 + segments * 850 + products * 220;
+  const batchCount = autoBatching ? Math.max(1, segments) : 1;
+  const baseCalls = autoBatching ? 2 + batchCount * 2 : batchCount * 2;
   const totalOutputBudget = outputPerOption * 2;
   const highRisk =
     promptOverridesActive && segments > 2 ||
@@ -125,7 +127,7 @@ export function GenerationBudgetPanel({
         <Summary k="Input estimate" v={`${inputTokens.toLocaleString()} tokens`} />
         <Summary k="Output estimate" v={`~${Math.round(totalOutputBudget / 1000)}k tokens`} />
         <Summary k="Base calls" v={`${baseCalls} call${baseCalls === 1 ? "" : "s"}`} />
-        <Summary k="Batching" v={autoBatching ? `${batchCount} segment batches` : promptOverridesActive && segments > 2 ? "Off: prompt edited" : "Single batch"} />
+        <Summary k="Batching" v={autoBatching ? `foundation + ${batchCount} segment patch${batchCount === 1 ? "" : "es"}` : promptOverridesActive && segments > 2 ? "Off: prompt edited" : "Single batch"} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
         <ModelBudgetCard label="Option A" selection={modelA} />
@@ -133,7 +135,7 @@ export function GenerationBudgetPanel({
       </div>
       {promptOverridesActive && segments > 2 && (
         <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
-          Custom prompt edits disable automatic segment batching. Reset system/user prompt edits for more reliable large-segment runs.
+          Custom prompt edits disable layered generation. Reset system/user prompt edits for more reliable large-segment runs.
         </div>
       )}
     </div>

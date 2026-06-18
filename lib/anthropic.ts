@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { MessageCreateParamsNonStreaming, Tool } from "@anthropic-ai/sdk/resources/messages";
+import type { Message, MessageCreateParamsNonStreaming, Tool } from "@anthropic-ai/sdk/resources/messages";
 import { randomUUID } from "crypto";
 import type { AIModelPair, AIModelSelection, BodyVarietyProfile, Campaign, Product } from "./config/types";
 import { normalizeModelPair, providerLabel } from "./config/aiModels";
-import { genBriefJsonSchema, segmentPatchJsonSchema, type ProviderJsonSchema } from "./anthropic/schema";
+import { foundationBriefJsonSchema, genBriefJsonSchema, segmentPatchJsonSchema, type ProviderJsonSchema } from "./anthropic/schema";
 import {
   brandPlaybookRuleBlock,
   briefContrastIssues,
@@ -115,6 +115,7 @@ const AI_TOP_P = envNumber("AI_TOP_P", 0.95, 0.1, 1);
 const AI_REPAIR_TEMP = envNumber("AI_REPAIR_TEMP", 0.6, 0, 1);
 const AI_PROVIDER_RETRIES = envInteger("AI_PROVIDER_RETRIES", 2, 0, 4);
 const AI_PROVIDER_RETRY_BASE_MS = envInteger("AI_PROVIDER_RETRY_BASE_MS", 900, 100, 10_000);
+const AI_CLAUDE_STREAMING = !/^(0|false|off|no)$/i.test(process.env.AI_CLAUDE_STREAMING || "");
 
 const OPTION_B_INITIAL_CONTRAST = `\nOPTION B CONTRAST REQUIREMENT:
 You are writing Option B in parallel with Option A. Deliberately avoid the obvious/default route.
@@ -124,11 +125,12 @@ Do not wait to see Option A; make Option B a clearly different usable challenger
 const REPAIR_SYSTEM = `You are an email copy repair specialist. Fix the listed playbook violations in the provided brief with minimal rewriting. Preserve all creative direction, product facts, prices, URLs, and supplied reviews. Return one complete JSON object in the same schema — no prose, no fences.`;
 
 const SEGMENT_BATCH_THRESHOLD = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 1));
-const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 2));
+const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 1));
 const SEGMENT_BATCH_CONCURRENCY = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY || 2));
 const AB_FAST_PARALLEL = /^(1|true|on|yes)$/i.test(process.env.AI_AB_FAST_PARALLEL || "");
 
 const MAX_OUTPUT_TOKENS = envInteger("AI_MAX_OUTPUT_TOKENS", 32000, 4000, 64000);
+const FOUNDATION_OUTPUT_TOKENS = envInteger("AI_FOUNDATION_OUTPUT_TOKENS", 14000, 4000, 32000);
 const SEGMENT_PATCH_OUTPUT_TOKENS = Math.min(MAX_OUTPUT_TOKENS, 8000);
 
 interface ModelCallOptions {
@@ -166,7 +168,7 @@ function timeoutMessage(provider: string, model: string): string {
 }
 
 function truncatedMessage(provider: string, model: string, maxOutputTokens = MAX_OUTPUT_TOKENS): string {
-  return `${provider} ${model} hit the ${Math.round(maxOutputTokens / 1000)}k output-token limit before finishing the JSON — reduce segments/products (or lower the subject-option count), or let large segment sets auto-batch.`;
+  return `${provider} ${model} hit the ${Math.round(maxOutputTokens / 1000)}k output-token limit before finishing the JSON — reduce segments/products (or lower the subject-option count), or reset prompt edits so layered generation can split the work.`;
 }
 
 function isTruncationError(err: unknown): boolean {
@@ -290,6 +292,19 @@ async function createFullBriefWithModel(
   }
 }
 
+async function createFoundationBriefWithModel(
+  system: string,
+  user: string,
+  selection: AIModelSelection,
+  options: ModelCallOptions = {}
+): Promise<Record<string, unknown>> {
+  return createAndParseWithModel(system, user, selection, {
+    ...options,
+    maxOutputTokens: options.maxOutputTokens ?? FOUNDATION_OUTPUT_TOKENS,
+    schema: foundationBriefJsonSchema(),
+  });
+}
+
 function isSchemaParamError(message = ""): boolean {
   return /tool|schema|responseSchema|response_schema|json_schema|format/i.test(message) && /unsupported|invalid|unknown|not supported|not allowed/i.test(message);
 }
@@ -304,6 +319,13 @@ function reducedOutputBudget(current: number): number | null {
   if (current > 8192) return 8192;
   if (current > 4096) return 4096;
   return null;
+}
+
+function textFromClaudeMessage(resp: Message): string {
+  const toolUse = resp.content.find((c) => c.type === "tool_use");
+  if (toolUse && toolUse.type === "tool_use") return JSON.stringify(toolUse.input);
+  const textPart = resp.content.find((c) => c.type === "text");
+  return textPart && textPart.type === "text" ? textPart.text : "";
 }
 
 async function callClaude(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
@@ -326,7 +348,9 @@ async function callClaude(system: string, user: string, model: string, options: 
   };
   let resp;
   try {
-    resp = await getClient().messages.create(payload, { timeout: PROVIDER_TIMEOUT_MS });
+    resp = AI_CLAUDE_STREAMING
+      ? await getClient().messages.stream(payload, { timeout: PROVIDER_TIMEOUT_MS }).finalMessage()
+      : await getClient().messages.create(payload, { timeout: PROVIDER_TIMEOUT_MS });
   } catch (err) {
     if (err instanceof Error && isOutputBudgetParamError(err.message)) {
       const nextBudget = reducedOutputBudget(maxOutputTokens);
@@ -341,10 +365,7 @@ async function callClaude(system: string, user: string, model: string, options: 
     throw err;
   }
   if (resp.stop_reason === "max_tokens") throw new Error(truncatedMessage("Claude", model, maxOutputTokens));
-  const toolUse = resp.content.find((c) => c.type === "tool_use");
-  if (toolUse && toolUse.type === "tool_use") return JSON.stringify(toolUse.input);
-  const textPart = resp.content.find((c) => c.type === "text");
-  return textPart && textPart.type === "text" ? textPart.text : "";
+  return textFromClaudeMessage(resp);
 }
 
 async function callGemini(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
@@ -696,10 +717,29 @@ function compactAnchorSummary(brief: GenBrief) {
   return {
     creative_direction: brief.creative_direction,
     theme: brief.theme,
-    banner: brief.banner,
+    banner: {
+      main_text_1: brief.banner?.main_text_1,
+      main_text_2: brief.banner?.main_text_2,
+      main_text_3: brief.banner?.main_text_3,
+      sub_text_1: brief.banner?.sub_text_1,
+      sub_text_2: brief.banner?.sub_text_2,
+      sub_text_3: brief.banner?.sub_text_3,
+      cta: brief.banner?.cta,
+      trust_booster: brief.banner?.trust_booster,
+      emergency: brief.banner?.emergency,
+    },
     body_examples: brief.body,
     ps: brief.ps,
-    products: brief.products,
+    products: (brief.products || []).map((p) => ({
+      slot: p.slot,
+      name: p.name,
+      main_text: p.main_text,
+      sub_text: p.sub_text,
+      popup_badge: p.popup_badge,
+      usps: (p.usps || []).slice(0, 2),
+      review: p.review,
+      cta: p.cta,
+    })),
     body_variety: brief.body_variety,
   };
 }
@@ -707,10 +747,126 @@ function compactAnchorSummary(brief: GenBrief) {
 function productContextLines(products: Product[]): string {
   return products
     .map((p, i) => {
-      const usps = (p.usps || []).filter(Boolean).slice(0, 6).join("; ") || "none";
+      const usps = (p.usps || []).filter(Boolean).slice(0, 4).join("; ") || "none";
       return `${i + 1}${i === 0 ? " HERO" : ""}. ${p.name} | slug:${p.slug} | ${p.url || "no URL"} | 💲${p.price || "TBD"} | USP: ${usps} | review: ${p.review || "none"}`;
     })
     .join("\n");
+}
+
+function foundationOutputSchema(products: Product[]): string {
+  const productRows = products
+    .map(
+      (_, i) => `{"slot":${i + 1},"name":"","template_style":"","main_text":"","sub_text":"","popup_badge":"","usps":["",""],"review":"","cta":"","main_image":"","sub_image":"","alt_text":"","image_notes":""}`
+    )
+    .join(",\n    ");
+  return `{
+  "creative_direction":{"angle":"","framework":"","branch":"","brief_route":"","source_pattern":"","hook_contract":{"segment_insight":"","emotion":"","hero_product":"","proof_or_price":"","urgency":"","avoid_rule":""},"flow":"","differentiator":""},
+  "theme":"",
+  "banner":{"logo_stars":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet","review_quote":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","cta":""},
+  "body":{"base":"layout/placement plan only; segment copy is generated later"},
+  "ps":"",
+  "products":[
+    ${productRows}
+  ],
+  "quality_checks":{"click_reason":"specific|weak|missing","hook_alignment":"aligned|weak|missing","proof_safety":"supplied|needs_review|invented_risk","spam_risk":"low|medium|high","optout_risk":"low|medium|high","photo_watchout":"clear|needs_review|missing","first_200px":"cta_visible|cta_late|missing","inline_link_plan":"ready|weak|missing","layout_risk":"low|medium|high","playbook_dos_donts":"pass|review|fail","brand_rule_alignment":"aligned|review|off_brand","accessibility_layout":"ready|review|missing","opener_mechanic":"story|fact|question|direct_problem|occasion|re_engagement|insider_reveal","hook_coherence":"fresh|reused|unclear","cta_assessment":"clear|weak|missing"}
+}`;
+}
+
+function foundationRevisionPrompt(revision?: RevisionFeedback): string {
+  const feedback = revision?.feedback?.trim();
+  if (!feedback) return "";
+  const current = JSON.stringify({
+    a: summarizeBriefForContext(revision?.existingOptions?.a),
+    b: summarizeBriefForContext(revision?.existingOptions?.b),
+  }).slice(0, 6000);
+  return `User feedback:
+${feedback}
+
+Current options context:
+${current}
+
+Apply feedback to the shared route, banner, product-image brief, P.S., and QA only. Segment subject/body patches will receive the same feedback later.`;
+}
+
+function foundationBodyBase(campaign: Campaign): string {
+  if (campaign.bodyLayout === "interspersed") {
+    return "Interspersed: hero -> short opener -> product block(s) -> bridge -> product block(s) -> closing line. Keep story paragraphs short.";
+  }
+  if (campaign.bodyLayout === "custom") {
+    return "Custom modular body: 1-3 movable text modules around product blocks; preserve flow from hook to proof to CTA.";
+  }
+  return "Continuous body: 3-5 short paragraphs after hero before products; one natural note, product proof, offer, CTA.";
+}
+
+function normalizeFoundationBrief(raw: Record<string, unknown>, campaign: Campaign): GenBrief {
+  const brief = raw as unknown as GenBrief;
+  brief.subject_lines = {};
+  const incomingBody = brief.body && typeof brief.body === "object" ? brief.body : {};
+  brief.body = {
+    base: String((incomingBody as Record<string, unknown>).base || foundationBodyBase(campaign)),
+  };
+  if (!Array.isArray(brief.products)) brief.products = [];
+  if (!brief.ps) brief.ps = "";
+  return brief;
+}
+
+function buildFoundationPrompt(
+  campaign: Campaign,
+  products: Product[],
+  optionLabel: "A" | "B",
+  selection: AIModelSelection,
+  revision?: RevisionFeedback,
+  optionAAnchor?: GenBrief
+): { system: string; user: string } {
+  const brand = BRANDS[campaign.brandId];
+  const optionContrast = optionLabel === "B" && optionAAnchor
+    ? contrastInstruction(optionAAnchor.creative_direction)
+    : optionLabel === "B"
+      ? OPTION_B_INITIAL_CONTRAST
+      : "";
+  const system = renderPromptLayers([
+    {
+      title: "Role",
+      body: `You are creating Option ${optionLabel}'s shared ecommerce email foundation for ${brand.name}. Persona: ${brand.persona}. Voice: ${brand.voice}.`,
+    },
+    {
+      title: "What To Generate",
+      body: `Generate only the shared strategy/design foundation: creative_direction, theme, banner, body.base placement plan, P.S., product-image copy brief, and QA. Do NOT generate subject_lines or per-segment body copy; smaller segment calls handle those.`,
+    },
+    {
+      title: "Playbook Core",
+      body: `One send = one promise. Every shared surface must connect one hero product + one proof/price + one reader situation.
+Use supplied facts only for reviews, ratings, counts, guarantees, stock, shipping, prices, and urgency. If proof is absent, use qualitative benefit language.
+Banner uses 3 beats: main_text_1 tension/hook, main_text_2 mechanism/proof, main_text_3 resolution/offer/CTA. Product rows are image-overlay copy; main_text <=5 words, USPs <=5 words.
+P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
+    },
+    { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
+    { title: "Model Lens", body: modelExecutionStyle(selection) },
+    {
+      title: "Output Contract",
+      body: `Return ONLY valid JSON. No markdown fence. No subject_lines. No segment body fields.\n${foundationOutputSchema(products)}`,
+    },
+  ]);
+
+  const user = renderPromptLayers([
+    {
+      title: "Campaign",
+      body: `Brand: ${brand.name}
+Send date: ${campaign.sendDate}
+Theme: ${campaign.theme}
+Promo: ${promoLine(campaign)}
+Body layout: ${campaign.bodyLayout || "continuous"}
+Product template: ${campaign.productCopyStyle || "headline_winner"}
+Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, hero product, promo, proof, and avoid rules."}`,
+    },
+    { title: "Products", body: productContextLines(products) },
+    { title: "Segments To Serve Later", body: segmentPromptContext(campaign) },
+    { title: "Segment Motivation Map", body: segmentBodyDirectionLines(campaign) },
+    { title: "Option Contrast", body: optionContrast },
+    { title: "User Feedback", body: foundationRevisionPrompt(revision) },
+  ]);
+
+  return { system, user };
 }
 
 function subjectPatchSchema(campaign: Campaign): string {
@@ -796,7 +952,7 @@ function buildSegmentPatchPrompt(
   revision?: RevisionFeedback
 ): { system: string; user: string } {
   const brand = BRANDS[campaign.brandId];
-  const anchorJson = JSON.stringify(compactAnchorSummary(anchor)).slice(0, 12000);
+  const anchorJson = JSON.stringify(compactAnchorSummary(anchor)).slice(0, 7000);
   const system = renderPromptLayers([
     {
       title: "Role",
@@ -1187,6 +1343,23 @@ Regenerate Option B with a different production branch/brief_route, subject fami
   }
 }
 
+async function createOptionFoundation(
+  campaign: Campaign,
+  products: Product[],
+  optionLabel: "A" | "B",
+  selection: AIModelSelection,
+  variety: BodyVarietyProfile | undefined,
+  revision?: RevisionFeedback,
+  optionAAnchor?: GenBrief
+): Promise<GenBrief> {
+  const { system, user } = buildFoundationPrompt(campaign, products, optionLabel, selection, revision, optionAAnchor);
+  const parsed = await createFoundationBriefWithModel(system, user, selection, {
+    temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
+  });
+  const brief = normalizeFoundationBrief(parsed, campaign);
+  return stampBrief(brief, selection, variety) as GenBrief;
+}
+
 async function generateOptionsBatched(
   campaign: Campaign,
   products: Product[],
@@ -1197,23 +1370,38 @@ async function generateOptionsBatched(
     const chunks = segmentChunks(campaign.segments);
     const total = chunks.length;
     const models = normalizeModelPair(modelInput);
-    const allSegmentContext = segmentPromptContext(campaign);
     const startedAt = Date.now();
-    console.info(`[generate-copy] batching ${campaign.segments.length} segments into ${total} batches of up to ${SEGMENT_BATCH_SIZE}`);
+    const allSegmentContext = segmentPromptContext(campaign);
+    const nonceA = `${randomUUID()}:${models.a.provider}:${models.a.model}:A:foundation`;
+    const nonceB = `${randomUUID()}:${models.b.provider}:${models.b.model}:B:foundation`;
+    const campaignA = withOptionVariety(campaign, nonceA);
+    const campaignB = withOptionVariety(campaign, nonceB);
+    const warnings: string[] = [];
+    let optionAAnchor: GenBrief | undefined;
+    let optionBAnchor: GenBrief | undefined;
+    let aFailure: unknown;
+    let bFailure: unknown;
 
-    const first = await generateOptionsSingle(
-      withSegments(campaign, chunks[0]),
-      products,
-      undefined,
-      models,
-      revision,
-      { index: 1, total, allSegments: campaign.segments, allSegmentContext }
-    );
-    if (first.error && !first.a && !first.b) return first;
+    console.info(`[generate-copy] layered generation for ${campaign.segments.length} segments: 2 foundations + ${total} segment batch(es)`);
 
-    const remainingChunks = chunks.slice(1);
-    const remaining = await mapWithConcurrency(
-      remainingChunks,
+    try {
+      optionAAnchor = await createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, revision);
+    } catch (err) {
+      aFailure = err;
+      warnings.push(`foundation A: ${errMessage(err)}`);
+    }
+
+    try {
+      optionBAnchor = await createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, revision, optionAAnchor);
+    } catch (err) {
+      bFailure = err;
+      warnings.push(`foundation B: ${errMessage(err)}`);
+    }
+
+    if (!optionAAnchor && !optionBAnchor) return { error: bestFailureMessage([aFailure, bFailure]) };
+
+    const segmentResults = await mapWithConcurrency(
+      chunks,
       SEGMENT_BATCH_CONCURRENCY,
       (segments, index) =>
         generateSegmentCopyBatch(
@@ -1222,37 +1410,39 @@ async function generateOptionsBatched(
           models,
           revision,
           {
-            index: index + 2,
+            index: index + 1,
             total,
             allSegments: campaign.segments,
             allSegmentContext,
-            optionAAnchor: first.a,
-            optionBAnchor: first.b,
+            optionAAnchor,
+            optionBAnchor,
           }
         )
     );
 
-    const batchResults: Array<GenerationResult | SegmentCopyResult> = [first, ...remaining];
-    const warnings: string[] = [];
-    batchResults.forEach((result, index) => {
+    segmentResults.forEach((result, index) => {
       const label = `batch ${index + 1}/${total}`;
       if (result.error) warnings.push(`${label}: ${result.error}`);
       if (result.warning) warnings.push(`${label}: ${result.warning}`);
-      if (!result.a) warnings.push(`${label}: missing Option A`);
-      if (!result.b) warnings.push(`${label}: missing Option B`);
+      if (optionAAnchor && !result.a) warnings.push(`${label}: missing Option A`);
+      if (optionBAnchor && !result.b) warnings.push(`${label}: missing Option B`);
     });
 
-    const aBatches = batchResults.map((result) => result.a).filter((brief): brief is SegmentBatchPart => !!brief);
-    const bBatches = batchResults.map((result) => result.b).filter((brief): brief is SegmentBatchPart => !!brief);
+    const aBatches: SegmentBatchPart[] = optionAAnchor
+      ? [optionAAnchor, ...segmentResults.map((result) => result.a).filter((brief): brief is SegmentBatchPart => !!brief)]
+      : [];
+    const bBatches: SegmentBatchPart[] = optionBAnchor
+      ? [optionBAnchor, ...segmentResults.map((result) => result.b).filter((brief): brief is SegmentBatchPart => !!brief)]
+      : [];
     if (!aBatches.length && !bBatches.length) {
       return { error: warnings[0] || "No segment batch returned usable output" };
     }
 
     let a = aBatches.length
-      ? mergeOptionBatches(campaign, products, aBatches, first.a?._provider, first.a?._model)
+      ? mergeOptionBatches(campaign, products, aBatches, optionAAnchor?._provider, optionAAnchor?._model)
       : undefined;
     let b = bBatches.length
-      ? mergeOptionBatches(campaign, products, bBatches, first.b?._provider, first.b?._model)
+      ? mergeOptionBatches(campaign, products, bBatches, optionBAnchor?._provider, optionBAnchor?._model)
       : undefined;
     if (a && b) [a, b] = validateBriefPair(a, b);
 
@@ -1260,7 +1450,7 @@ async function generateOptionsBatched(
       ? `Some segment batches were incomplete: ${warnings.slice(0, 6).join(" · ")}${warnings.length > 6 ? ` · +${warnings.length - 6} more` : ""}. Generated all usable copy; missing segments are flagged in Output.`
       : undefined;
 
-    console.info(`[generate-copy] completed batched A/B in ${Math.round((Date.now() - startedAt) / 1000)}s across ${total} batches`);
+    console.info(`[generate-copy] completed layered A/B in ${Math.round((Date.now() - startedAt) / 1000)}s across ${total} segment batch(es)`);
     return { a, b, warning };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Batched generation failed" };
@@ -1275,7 +1465,7 @@ export async function generateOptions(
   modelInput?: Partial<AIModelPair>,
   revision?: RevisionFeedback
 ): Promise<GenerationResult> {
-  if (!hasPromptOverrides(overrides) && campaign.segments.length > SEGMENT_BATCH_THRESHOLD) {
+  if (!hasPromptOverrides(overrides) && campaign.segments.length >= SEGMENT_BATCH_THRESHOLD) {
     return generateOptionsBatched(campaign, products, modelInput, revision);
   }
   return generateOptionsSingle(campaign, products, overrides, modelInput, revision);

@@ -216,6 +216,80 @@ export function genBriefJsonSchema(segments: string[], compact = false): Provide
   };
 }
 
+export function foundationBriefJsonSchema(): ProviderJsonSchema {
+  return {
+    name: "email_brief_foundation",
+    schema: {
+      type: "object",
+      additionalProperties: true,
+      required: ["creative_direction", "theme", "banner", "body", "ps", "products", "quality_checks"],
+      properties: {
+        creative_direction: {
+          type: "object",
+          additionalProperties: true,
+          required: ["angle", "framework", "hook_contract", "flow", "differentiator"],
+          properties: {
+            angle: stringSchema,
+            framework: stringSchema,
+            branch: stringSchema,
+            brief_route: stringSchema,
+            source_pattern: stringSchema,
+            hook_contract: {
+              type: "object",
+              additionalProperties: false,
+              required: ["segment_insight", "emotion", "hero_product", "proof_or_price", "urgency", "avoid_rule"],
+              properties: {
+                segment_insight: stringSchema,
+                emotion: stringSchema,
+                hero_product: stringSchema,
+                proof_or_price: stringSchema,
+                urgency: stringSchema,
+                avoid_rule: stringSchema,
+              },
+            },
+            flow: stringSchema,
+            differentiator: stringSchema,
+          },
+        },
+        theme: stringSchema,
+        banner: {
+          type: "object",
+          additionalProperties: true,
+          required: ["logo_stars", "main_text_1", "main_text_2", "main_text_3", "sub_text_1", "sub_text_2", "sub_text_3", "image_guidance", "review_quote", "review_texts", "main_image", "sub_image", "trust_booster", "emergency", "cta"],
+          properties: {
+            logo_stars: stringSchema,
+            main_text_1: stringSchema,
+            main_text_2: stringSchema,
+            main_text_3: stringSchema,
+            sub_text_1: stringSchema,
+            sub_text_2: stringSchema,
+            sub_text_3: stringSchema,
+            image_guidance: stringSchema,
+            review_quote: stringSchema,
+            review_texts: stringArraySchema,
+            main_image: stringSchema,
+            sub_image: stringSchema,
+            trust_booster: stringSchema,
+            emergency: stringSchema,
+            cta: stringSchema,
+          },
+        },
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["base"],
+          properties: {
+            base: stringSchema,
+          },
+        },
+        ps: stringSchema,
+        products: { type: "array", items: productSchema() },
+        quality_checks: qualityChecksSchema(),
+      },
+    },
+  };
+}
+
 export function segmentPatchJsonSchema(segments: string[], compact = true): ProviderJsonSchema {
   const subjectProperties = segmentSubjectProperties(segments, compact);
   const bodyProperties = segmentBodyProperties(segments);
