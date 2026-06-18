@@ -48,6 +48,10 @@ npx tsc --noEmit     # type-check without emitting
 | `GEMINI_API_KEY` | server | Gemini generation |
 | `OPENAI_API_KEY` | server | ChatGPT/OpenAI generation |
 | `AI_PROVIDER_TIMEOUT_MS` | server | optional per-provider generation timeout override; default 145000 |
+| `AI_PROVIDER_RETRIES` | server | transient overload/rate-limit retries before partial salvage; default 2 |
+| `AI_PROVIDER_RETRY_BASE_MS` | server | first retry backoff delay in ms, doubles per retry; default 900 |
+| `AI_MAX_OUTPUT_TOKENS` | server | full-brief output cap per provider call; default 32000, bounded 4000-64000 |
+| `AI_GENERATE_RATE_LIMIT_PER_MIN` | server | per-user/IP generation limit; default 6; set 0 to disable |
 | `AI_TEMP_A` | server | optional Option A sampling temperature; default 0.85 |
 | `AI_TEMP_B` | server | optional Option B sampling temperature; default 1.0 |
 | `AI_TEMP_B_RETRY` | server | optional Option B contrast-retry temperature; default 0.9 |
@@ -56,7 +60,7 @@ npx tsc --noEmit     # type-check without emitting
 | `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
 | `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default 78 |
 | `AI_REPAIR_TEMP` | server | optional compliance repair-pass temperature; default 0.6 |
-| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default 2 |
+| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default 1 |
 | `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default 2 |
 | `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent continuation batches after anchor; default 2 |
 | `SENDGRID_API_KEY` | server | needs Marketing + Templates scopes for `/v3/designs` |
@@ -97,9 +101,11 @@ get two contrasting options (**A** and **B**) — B is forced to a different ang
    generated prompts; B's contrast clause is appended to the edited system prompt so divergence
    survives edits. Full prompt overrides intentionally disable auto-batching.
 - Models: selected per option from `lib/config/aiModels.ts`; defaults live in `DEFAULT_AI_MODELS`.
-- Output budget: 16,000 tokens per provider call; provider calls time out after `AI_PROVIDER_TIMEOUT_MS`
+- Output budget: 32,000 tokens per full-brief provider call by default (`AI_MAX_OUTPUT_TOKENS`);
+  segment patch calls use a smaller cap. Provider calls time out after `AI_PROVIDER_TIMEOUT_MS`
   (default 145s) with guidance to use faster model pairs or fewer segments/products.
-- `createAndParseWithModel` retries **once** on a JSON parse failure with a correction note.
+- `createAndParseWithModel` retries **once** on a JSON parse failure with a correction note; full
+  brief calls also retry once in compact-recovery mode after provider output truncation.
 - After validation, low-scoring or high-impact playbook failures can trigger one targeted repair call
   per option. It is controlled by `AI_QUALITY_REPAIR` and `AI_QUALITY_REPAIR_THRESHOLD`.
 - Parallel A/B is still bounded by the slowest selected model, plus a possible B retry. Route

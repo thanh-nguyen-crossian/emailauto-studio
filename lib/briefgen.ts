@@ -1232,6 +1232,23 @@ Use this as strategic context only. If storyline is supplied, make this send fee
 function opsPromptLayer(c: Campaign): string {
   const o = c.ops;
   if (!o) return "";
+  const hasUserOpsSignal = [
+    o.senderName,
+    o.senderEmail,
+    o.replyTo,
+    o.audienceSource,
+    o.segmentRule,
+    o.suppressionNotes,
+    o.scheduleWindow,
+    o.utmPlan,
+    o.complianceNotes,
+    o.doubleOptIn ? "double-opt-in" : "",
+    o.publicArchive ? "public-archive" : "",
+    o.trackOpens === false ? "opens-off" : "",
+    o.trackClicks === false ? "clicks-off" : "",
+    o.consentBasis === "unknown" ? "unknown-consent" : "",
+  ].some(Boolean);
+  if (!hasUserOpsSignal) return "";
   const tracking = [
     o.trackOpens === false ? "opens off" : "opens on",
     o.trackClicks === false ? "clicks off" : "clicks on",
@@ -1444,12 +1461,11 @@ Rotate opener mechanics: story, fact, question, occasion, re-engagement, insider
 Segment versions keep one hook but adapt motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next product; lapsed = low-risk return reason; high-return-risk = fit/material clarity.
 Multi-segment body copy must not be cloned paragraph skeletons. Change the first sentence, proof/risk reducer, product bridge, and final line for every segment.`;
 
-const COMPONENT_PROMPT_LAYER = `SUBJECT / PREHEADER — write these FIRST, before body copy:
-For EVERY segment write 3 paired options with distinct style lenses (strategic/curiosity/direct-response). Each pair MUST: (1) subject 42-60 chars, preheader 60-90 chars — count characters literally; (2) preheader introduces a NEW beat not in the subject — a different proof, deadline, product angle, or tension, NOT a paraphrase of the subject; (3) no two options share the same opening verb or emotional frame; (4) every subject must include an offer signal (price, %, o.f.f, 💲, or shipping cue); (5) {{first_name}} in subject OR preheader, not both, never in body. Write subjects before body copy — the subject hook informs the body, not the reverse.
-Gmail AI summarisation (2026): Gmail's inbox AI reads the first 150-200 characters of live body text — not just the preheader — to generate the summary card. The opening body sentence is therefore a SECOND subject line. It must name the hero product, carry the single offer/proof beat, and pull the reader in. Do not open with a greeting, brand tagline, or social opener.
-Body: 120-150 words per segment, persona-signed, selected opener in 2-3 sentences, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words. Tone is personal-note first: product fit before promo, one calm urgency beat, no hard-sell command stack.
-Banner: main_text_1 must be a tension or hook statement (NOT a discount headline). main_text_2 names the product mechanism or proof (NOT a brand tagline). main_text_3 resolves with the offer or CTA. The banner tells a 3-beat story: tension → proof → resolution. If all three lines follow the same discount-headline pattern, rewrite them. main_text_1/2/3 and sub_text_1/2/3 each use distinct angles; image_guidance is 4-6 compact bullets covering first 200px, product, offer, palette, crop, CTA path.
-Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words, sub_text carries price/proof/deadline. HTML product modules use linked images only, so product text/CTA should be written as text to bake into each image.
+const COMPONENT_PROMPT_LAYER = `SUBJECT / PREHEADER — for every segment write one primary pair plus 3 options. Subject 42-58 chars (hard cap 60), must carry one offer signal, and {{first_name}} appears in subject OR preheader, never both. Preheader 60-90 chars and must add a new proof/deadline/product/tension beat.
+Gmail summary: the first 150-200 chars of live body text act like a second subject line; sentence 1 names the hero product and one offer/proof beat.
+Body: 120-150 words per segment, personal-note first, persona-signed, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words, no hard-sell command stack.
+Banner: 3-beat story, not 3 discount headlines — main_text_1 tension/hook, main_text_2 product mechanism/proof, main_text_3 resolution/offer/CTA. image_guidance is 4-6 compact bullets.
+Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words, sub_text carries price/proof/deadline. Product text/CTA is copy to bake into images.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
 
 const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
@@ -1559,7 +1575,7 @@ export function buildSystemPrompt(
   },
   "theme": "<visual brief for the designer>",
   "banner": {
-    "logo_stars":"","main_text":"","sub_text":"","main_text_1":"","main_text_2":"","main_text_3":"",
+    "logo_stars":"","main_text_1":"","main_text_2":"","main_text_3":"",
     "sub_text_1":"","sub_text_2":"","sub_text_3":"","image_guidance":"- bullet\n- bullet\n- bullet\n- bullet",
     "review_quote":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","cta":""
   },
@@ -1572,9 +1588,9 @@ export function buildSystemPrompt(
     ${productSchema}
   ],
   "quality_checks": {
-    "click_reason":"","hook_alignment":"","proof_safety":"","spam_risk":"","optout_risk":"","photo_watchout":"",
-    "first_200px":"","inline_link_plan":"","layout_risk":"","playbook_dos_donts":"","brand_rule_alignment":"",
-    "accessibility_layout":"","opener_mechanic":"","hook_coherence":"","cta_assessment":""
+    "click_reason":"specific|weak|missing","hook_alignment":"aligned|weak|missing","proof_safety":"supplied|needs_review|invented_risk","spam_risk":"low|medium|high","optout_risk":"low|medium|high","photo_watchout":"clear|needs_review|missing",
+    "first_200px":"cta_visible|cta_late|missing","inline_link_plan":"ready|weak|missing","layout_risk":"low|medium|high","playbook_dos_donts":"pass|review|fail","brand_rule_alignment":"aligned|review|off_brand",
+    "accessibility_layout":"ready|review|missing","opener_mechanic":"story|fact|question|direct_problem|occasion|re_engagement|insider_reveal","hook_coherence":"fresh|reused|unclear","cta_assessment":"clear|weak|missing"
   }
 }`;
 
@@ -1702,6 +1718,17 @@ function addFlag(b: GenBrief, type: Flag["type"], msg: string) {
   (b._flags ||= []).push({ type, msg });
 }
 
+function normalizePrimarySubjectSelections(brief: GenBrief) {
+  Object.values(brief.subject_lines || {}).forEach((line) => {
+    const firstComplete = (line.options || []).find((option) => option.subject?.trim() && option.preheader?.trim());
+    if (!line.subject?.trim() && firstComplete?.subject) line.subject = firstComplete.subject;
+    if (!line.preheader?.trim() && firstComplete?.preheader) line.preheader = firstComplete.preheader;
+    if (!line.style && firstComplete?.style) line.style = firstComplete.style;
+    if (!line.model_hint && firstComplete?.model_hint) line.model_hint = firstComplete.model_hint;
+    if (!line.shared_thread && firstComplete?.shared_thread) line.shared_thread = firstComplete.shared_thread;
+  });
+}
+
 // Single source of truth for flag severity, co-located with the messages addFlag emits so the
 // classifier can't silently desync from the wording. Consumed by the tiered score below, by the
 // quality-repair gating in lib/anthropic.ts (which imports isHighImpactFlag), and by the UI.
@@ -1789,7 +1816,9 @@ export function flagTierCounts(flags: Flag[] = []): { serious: number; structura
 }
 
 export function validateBrief(brief: GenBrief, campaign: Campaign, products: Product[] = []): GenBrief {
+  const incomingAdvisory = Array.isArray(brief._advisory) ? brief._advisory : [];
   brief._flags = [];
+  normalizePrimarySubjectSelections(brief);
   const subjectMax = BRANDS[campaign.brandId]?.subjectMax || 58;
   const subjectMin = BRANDS[campaign.brandId]?.subjectMin || 42;
 
@@ -2119,7 +2148,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
 
   const split = splitValidationFlags(brief._flags || []);
   brief._flags = split.compliance;
-  brief._advisory = split.advisory;
+  brief._advisory = [...incomingAdvisory, ...split.advisory];
   brief._score = scoreBrief(brief._flags);
   return brief;
 }

@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { MessageCreateParamsNonStreaming, Tool } from "@anthropic-ai/sdk/resources/messages";
 import { randomUUID } from "crypto";
 import type { AIModelPair, AIModelSelection, BodyVarietyProfile, Campaign, Product } from "./config/types";
 import { normalizeModelPair, providerLabel } from "./config/aiModels";
+import { genBriefJsonSchema, segmentPatchJsonSchema, type ProviderJsonSchema } from "./anthropic/schema";
 import {
   brandPlaybookRuleBlock,
   briefContrastIssues,
@@ -43,8 +45,53 @@ function parseStrictJson(text: string): Record<string, unknown> {
   t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = t.indexOf("{");
   const end = t.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("No JSON object found in model output");
-  return JSON.parse(t.slice(start, end + 1));
+  if (start === -1) throw new Error("No JSON object found in model output");
+  if (end !== -1 && end > start) {
+    try {
+      return JSON.parse(t.slice(start, end + 1));
+    } catch (err) {
+      const salvaged = salvagePartialJson(t.slice(start));
+      if (salvaged) return salvaged;
+      throw err;
+    }
+  }
+  const salvaged = salvagePartialJson(t.slice(start));
+  if (salvaged) return salvaged;
+  throw new Error("No complete JSON object found in model output");
+}
+
+function salvagePartialJson(text: string): Record<string, unknown> | null {
+  let out = "";
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of text) {
+    out += ch;
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if ((ch === "}" || ch === "]") && stack[stack.length - 1] === ch) stack.pop();
+  }
+  if (inString) out += '"';
+  out = out.replace(/,\s*$/, "");
+  while (stack.length) out += stack.pop();
+  try {
+    const parsed = JSON.parse(out) as Record<string, unknown>;
+    const existing = Array.isArray(parsed._advisory) ? parsed._advisory : [];
+    parsed._advisory = [
+      ...existing,
+      { type: "warn", msg: "Output was truncated and salvaged from the largest valid JSON prefix; review missing fields before export." },
+    ];
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 const FIX_JSON_NOTE =
@@ -57,11 +104,17 @@ function envNumber(name: string, fallback: number, min: number, max: number): nu
   return Math.min(max, Math.max(min, raw));
 }
 
+function envInteger(name: string, fallback: number, min: number, max: number): number {
+  return Math.round(envNumber(name, fallback, min, max));
+}
+
 const AI_TEMP_A = envNumber("AI_TEMP_A", 0.85, 0, 1);
 const AI_TEMP_B = envNumber("AI_TEMP_B", 1.0, 0, 1);
 const AI_TEMP_B_RETRY = envNumber("AI_TEMP_B_RETRY", 0.9, 0, 1);
 const AI_TOP_P = envNumber("AI_TOP_P", 0.95, 0.1, 1);
 const AI_REPAIR_TEMP = envNumber("AI_REPAIR_TEMP", 0.6, 0, 1);
+const AI_PROVIDER_RETRIES = envInteger("AI_PROVIDER_RETRIES", 2, 0, 4);
+const AI_PROVIDER_RETRY_BASE_MS = envInteger("AI_PROVIDER_RETRY_BASE_MS", 900, 100, 10_000);
 
 const OPTION_B_INITIAL_CONTRAST = `\nOPTION B CONTRAST REQUIREMENT:
 You are writing Option B in parallel with Option A. Deliberately avoid the obvious/default route.
@@ -70,12 +123,20 @@ Do not wait to see Option A; make Option B a clearly different usable challenger
 
 const REPAIR_SYSTEM = `You are an email copy repair specialist. Fix the listed playbook violations in the provided brief with minimal rewriting. Preserve all creative direction, product facts, prices, URLs, and supplied reviews. Return one complete JSON object in the same schema — no prose, no fences.`;
 
-const SEGMENT_BATCH_THRESHOLD = Math.max(2, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 2));
+const SEGMENT_BATCH_THRESHOLD = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 1));
 const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 2));
 const SEGMENT_BATCH_CONCURRENCY = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY || 2));
 const AB_FAST_PARALLEL = /^(1|true|on|yes)$/i.test(process.env.AI_AB_FAST_PARALLEL || "");
 
-const MAX_OUTPUT_TOKENS = 16000;
+const MAX_OUTPUT_TOKENS = envInteger("AI_MAX_OUTPUT_TOKENS", 32000, 4000, 64000);
+const SEGMENT_PATCH_OUTPUT_TOKENS = Math.min(MAX_OUTPUT_TOKENS, 8000);
+
+interface ModelCallOptions {
+  temperature?: number;
+  topP?: number;
+  maxOutputTokens?: number;
+  schema?: ProviderJsonSchema;
+}
 
 const PROVIDER_ENV: Record<string, string> = {
   claude: "ANTHROPIC_API_KEY",
@@ -104,8 +165,12 @@ function timeoutMessage(provider: string, model: string): string {
   return `${provider} ${model} timed out after ${Math.round(PROVIDER_TIMEOUT_MS / 1000)} seconds. Try a faster model such as Claude Haiku, Gemini Flash/Lite, or a GPT mini/nano model, or reduce segments/products.`;
 }
 
-function truncatedMessage(provider: string, model: string): string {
-  return `${provider} ${model} hit the ${Math.round(MAX_OUTPUT_TOKENS / 1000)}k output-token limit before finishing the JSON — reduce segments/products (or lower the subject-option count), or let large segment sets auto-batch.`;
+function truncatedMessage(provider: string, model: string, maxOutputTokens = MAX_OUTPUT_TOKENS): string {
+  return `${provider} ${model} hit the ${Math.round(maxOutputTokens / 1000)}k output-token limit before finishing the JSON — reduce segments/products (or lower the subject-option count), or let large segment sets auto-batch.`;
+}
+
+function isTruncationError(err: unknown): boolean {
+  return /token limit|max_output|max tokens|MAX_TOKENS|before finishing|No complete JSON/i.test(errMessage(err));
 }
 
 async function fetchJsonWithTimeout<T>(
@@ -130,23 +195,52 @@ async function fetchJsonWithTimeout<T>(
   }
 }
 
-async function createText(system: string, user: string, selection: AIModelSelection, temperature?: number, topP = AI_TOP_P): Promise<string> {
-  if (selection.provider === "claude") return callClaude(system, user, selection.model, temperature, topP);
-  if (selection.provider === "gemini") return callGemini(system, user, selection.model, temperature, topP);
-  if (selection.provider === "openai") return callOpenAI(system, user, selection.model, temperature, topP);
+async function createText(system: string, user: string, selection: AIModelSelection, options: ModelCallOptions = {}): Promise<string> {
+  if (selection.provider === "claude") return callClaude(system, user, selection.model, options);
+  if (selection.provider === "gemini") return callGemini(system, user, selection.model, options);
+  if (selection.provider === "openai") return callOpenAI(system, user, selection.model, options);
   throw new Error(`Unsupported AI provider: ${selection.provider}`);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientProviderError(err: unknown): boolean {
+  const msg = errMessage(err);
+  return /\b(429|500|502|503|504|529)\b|rate limit|overload|overloaded|high demand|temporar|try again later|unavailable|server busy|resource exhausted/i.test(msg);
+}
+
+async function createTextWithProviderRetry(
+  system: string,
+  user: string,
+  selection: AIModelSelection,
+  options: ModelCallOptions = {}
+): Promise<string> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= AI_PROVIDER_RETRIES; attempt++) {
+    try {
+      return await createText(system, user, selection, options);
+    } catch (err) {
+      lastErr = err;
+      if (attempt >= AI_PROVIDER_RETRIES || !isTransientProviderError(err)) break;
+      const backoff = AI_PROVIDER_RETRY_BASE_MS * 2 ** attempt;
+      const jitter = Math.round(backoff * 0.2 * Math.random());
+      await sleep(backoff + jitter);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Provider request failed");
 }
 
 async function createAndParseWithModel(
   system: string,
   user: string,
   selection: AIModelSelection,
-  temperature?: number,
-  topP = AI_TOP_P
+  options: ModelCallOptions = {}
 ): Promise<Record<string, unknown>> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await createText(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection, temperature, topP);
+    const raw = await createTextWithProviderRetry(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection, options);
     try {
       return parseStrictJson(raw);
     } catch (err) {
@@ -156,34 +250,116 @@ async function createAndParseWithModel(
   throw lastErr instanceof Error ? lastErr : new Error("Failed to parse model output");
 }
 
-async function callClaude(system: string, user: string, model: string, temperature = AI_TEMP_A, topP = AI_TOP_P): Promise<string> {
+function compactRecoveryUserPrompt(user: string): string {
+  return `${user}
+
+COMPACT RECOVERY MODE:
+The previous full JSON ran into provider output limits. Regenerate the complete brief using the same strategy, but keep JSON lean:
+- Keep exactly one selected subject/preheader pair plus concise option objects.
+- Use enum-like quality_checks values only.
+- Keep body copy inside 120-150 words and product overlay copy clipped.
+- Do not add explanatory prose, comments, markdown fences, or extra optional arrays.`;
+}
+
+async function createFullBriefWithModel(
+  system: string,
+  user: string,
+  selection: AIModelSelection,
+  campaign: Campaign,
+  options: ModelCallOptions = {}
+): Promise<Record<string, unknown>> {
+  try {
+    return await createAndParseWithModel(system, user, selection, {
+      ...options,
+      maxOutputTokens: options.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+      schema: genBriefJsonSchema(campaign.segments),
+    });
+  } catch (err) {
+    if (!isTruncationError(err)) throw err;
+    const recovered = await createAndParseWithModel(system, compactRecoveryUserPrompt(user), selection, {
+      ...options,
+      maxOutputTokens: options.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+      schema: genBriefJsonSchema(campaign.segments, true),
+    });
+    const existing = Array.isArray(recovered._advisory) ? recovered._advisory : [];
+    recovered._advisory = [
+      ...existing,
+      { type: "warn", msg: "Regenerated in compact mode after provider output truncation; review subject alternatives and QA fields." },
+    ];
+    return recovered;
+  }
+}
+
+function isSchemaParamError(message = ""): boolean {
+  return /tool|schema|responseSchema|response_schema|json_schema|format/i.test(message) && /unsupported|invalid|unknown|not supported|not allowed/i.test(message);
+}
+
+function isOutputBudgetParamError(message = ""): boolean {
+  return /max_?tokens|max_output_tokens|maxOutputTokens|output token/i.test(message) &&
+    /invalid|unsupported|not supported|greater|too high|exceed|limit|must be/i.test(message);
+}
+
+function reducedOutputBudget(current: number): number | null {
+  if (current > 16000) return 16000;
+  if (current > 8192) return 8192;
+  if (current > 4096) return 4096;
+  return null;
+}
+
+async function callClaude(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
+  const temperature = options.temperature ?? AI_TEMP_A;
+  const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
+  const tool: Tool | undefined = options.schema
+    ? {
+        name: "emit_brief",
+        description: "Emit the complete EmailAuto Studio JSON payload. Do not include prose outside the tool input.",
+        input_schema: options.schema.schema as Tool["input_schema"],
+      }
+    : undefined;
+  const payload: MessageCreateParamsNonStreaming = {
+    model,
+    max_tokens: maxOutputTokens,
+    temperature,
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: user }],
+    ...(tool ? { tools: [tool], tool_choice: { type: "tool", name: tool.name } } : {}),
+  };
   let resp;
   try {
-    resp = await getClient().messages.create(
-      {
-        model,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        temperature,
-        top_p: topP,
-        system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: user }],
-      },
-      { timeout: PROVIDER_TIMEOUT_MS }
-    );
+    resp = await getClient().messages.create(payload, { timeout: PROVIDER_TIMEOUT_MS });
   } catch (err) {
+    if (err instanceof Error && isOutputBudgetParamError(err.message)) {
+      const nextBudget = reducedOutputBudget(maxOutputTokens);
+      if (nextBudget) return callClaude(system, user, model, { ...options, maxOutputTokens: nextBudget });
+    }
+    if (tool && err instanceof Error && isSchemaParamError(err.message)) {
+      return callClaude(system, user, model, { ...options, schema: undefined });
+    }
     if (err instanceof Error && /timeout|timed out|abort/i.test(err.message)) {
       throw new Error(timeoutMessage("Claude", model));
     }
     throw err;
   }
-  if (resp.stop_reason === "max_tokens") throw new Error(truncatedMessage("Claude", model));
+  if (resp.stop_reason === "max_tokens") throw new Error(truncatedMessage("Claude", model, maxOutputTokens));
+  const toolUse = resp.content.find((c) => c.type === "tool_use");
+  if (toolUse && toolUse.type === "tool_use") return JSON.stringify(toolUse.input);
   const textPart = resp.content.find((c) => c.type === "text");
   return textPart && textPart.type === "text" ? textPart.text : "";
 }
 
-async function callGemini(system: string, user: string, model: string, temperature = AI_TEMP_A, topP = AI_TOP_P): Promise<string> {
+async function callGemini(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+  const temperature = options.temperature ?? AI_TEMP_A;
+  const topP = options.topP ?? AI_TOP_P;
+  const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
+  const generationConfig: Record<string, unknown> = {
+    temperature,
+    topP,
+    maxOutputTokens,
+    responseMimeType: "application/json",
+  };
+  if (options.schema) generationConfig.responseSchema = options.schema.schema;
   const { res, data } = await fetchJsonWithTimeout<{
     candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
     error?: { message?: string };
@@ -196,59 +372,94 @@ async function callGemini(system: string, user: string, model: string, temperatu
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
-      generationConfig: {
-        temperature,
-        topP,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-        responseMimeType: "application/json",
-      },
+      generationConfig,
     }),
   });
+  if (!res.ok && isOutputBudgetParamError(data.error?.message)) {
+    const nextBudget = reducedOutputBudget(maxOutputTokens);
+    if (nextBudget) return callGemini(system, user, model, { ...options, maxOutputTokens: nextBudget });
+  }
+  if (!res.ok && options.schema && isSchemaParamError(data.error?.message)) {
+    return callGemini(system, user, model, { ...options, schema: undefined });
+  }
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${data.error?.message || "request failed"}`);
-  if (data.candidates?.[0]?.finishReason === "MAX_TOKENS") throw new Error(truncatedMessage("Gemini", model));
+  if (data.candidates?.[0]?.finishReason === "MAX_TOKENS") throw new Error(truncatedMessage("Gemini", model, maxOutputTokens));
   return data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
 }
 
-async function callOpenAI(system: string, user: string, model: string, temperature = AI_TEMP_A, topP = AI_TOP_P): Promise<string> {
+function openAITextFromResponse(data: {
+  output_text?: string;
+  output?: { content?: { text?: string; type?: string; output_text?: string }[] }[];
+  choices?: { message?: { content?: string }; finish_reason?: string }[];
+}): string {
+  if (data.output_text) return data.output_text;
+  const outputText = data.output?.flatMap((item) => item.content || [])
+    .map((part) => part.text || part.output_text || "")
+    .join("");
+  return outputText || data.choices?.[0]?.message?.content || "";
+}
+
+function isSamplingParamError(message = ""): boolean {
+  return /temperature|top_p|topP|sampling/i.test(message) && /unsupported|cannot both|invalid|not supported/i.test(message);
+}
+
+async function callOpenAI(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
-  const payload: Record<string, unknown> = {
+  const topP = options.topP ?? AI_TOP_P;
+  const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
+  const basePayload: Record<string, unknown> = {
     model,
     store: true,
     input: [
       { role: "system", content: [{ type: "input_text", text: system }] },
       { role: "user", content: [{ type: "input_text", text: user }] },
     ],
-    max_output_tokens: MAX_OUTPUT_TOKENS,
-    temperature,
-    top_p: topP,
-    text: { format: { type: "json_object" } },
+    max_output_tokens: maxOutputTokens,
+    text: {
+      format: options.schema
+        ? { type: "json_schema", name: options.schema.name, schema: options.schema.schema, strict: true }
+        : { type: "json_object" },
+    },
   };
 
-  const { res, data } = await fetchJsonWithTimeout<{
+  type OpenAIResponse = {
     output_text?: string;
     output?: { content?: { text?: string; type?: string; output_text?: string }[] }[];
     choices?: { message?: { content?: string }; finish_reason?: string }[];
     status?: string;
     incomplete_details?: { reason?: string };
     error?: { message?: string };
-  }>("OpenAI", model, "https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  };
+  const post = (payload: Record<string, unknown>) =>
+    fetchJsonWithTimeout<OpenAIResponse>("OpenAI", model, "https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+  // Newer OpenAI reasoning/frontier models reject `temperature`; some also reject
+  // specifying both temperature and top_p. Use top_p as the single creative-control
+  // knob, then retry once with provider defaults if the selected model rejects it.
+  let { res, data } = await post({ ...basePayload, top_p: topP });
+  if (!res.ok && isOutputBudgetParamError(data.error?.message)) {
+    const nextBudget = reducedOutputBudget(maxOutputTokens);
+    if (nextBudget) return callOpenAI(system, user, model, { ...options, maxOutputTokens: nextBudget });
+  }
+  if (!res.ok && options.schema && isSchemaParamError(data.error?.message)) {
+    return callOpenAI(system, user, model, { ...options, schema: undefined });
+  }
+  if (!res.ok && isSamplingParamError(data.error?.message)) {
+    ({ res, data } = await post(basePayload));
+  }
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${data.error?.message || "request failed"}`);
   if (data.status === "incomplete" && data.incomplete_details?.reason === "max_output_tokens") {
-    throw new Error(truncatedMessage("OpenAI", model));
+    throw new Error(truncatedMessage("OpenAI", model, maxOutputTokens));
   }
-  if (data.output_text) return data.output_text;
-  const outputText = data.output?.flatMap((item) => item.content || [])
-    .map((part) => part.text || part.output_text || "")
-    .join("");
-  return outputText || data.choices?.[0]?.message?.content || "";
+  return openAITextFromResponse(data);
 }
 
 export interface GenerationResult {
@@ -655,7 +866,11 @@ async function createSegmentPatch(
   revision?: RevisionFeedback
 ): Promise<SegmentCopyPatch> {
   const { system, user } = buildSegmentPatchPrompt(campaign, products, optionLabel, anchor, ctx, selection, revision);
-  const parsed = await createAndParseWithModel(system, user, selection, optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A);
+  const parsed = await createAndParseWithModel(system, user, selection, {
+    temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
+    maxOutputTokens: SEGMENT_PATCH_OUTPUT_TOKENS,
+    schema: segmentPatchJsonSchema(campaign.segments),
+  });
   return normalizeSegmentPatch(parsed, campaign);
 }
 
@@ -832,7 +1047,10 @@ async function repairBriefIfNeeded(
 
   try {
     const repaired = validateBrief(
-      (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, AI_REPAIR_TEMP)) as unknown as GenBrief,
+      (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, {
+        temperature: AI_REPAIR_TEMP,
+        schema: genBriefJsonSchema(campaign.segments, true),
+      })) as unknown as GenBrief,
       campaign,
       products
     );
@@ -897,8 +1115,8 @@ async function generateOptionsSingle(
       usrB = bMessages.user;
       // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa).
       const [aSettled, bSettled] = await Promise.allSettled([
-        createAndParseWithModel(sysA, usrA, models.a, AI_TEMP_A),
-        createAndParseWithModel(sysBInitial, usrB, models.b, AI_TEMP_B),
+        createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A }),
+        createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B }),
       ]);
       aFailure = aSettled.status === "rejected" ? aSettled.reason : undefined;
       bFailure = bSettled.status === "rejected" ? bSettled.reason : undefined;
@@ -910,7 +1128,7 @@ async function generateOptionsSingle(
       ]);
     } else {
       try {
-        a = validateBrief((await createAndParseWithModel(sysA, usrA, models.a, AI_TEMP_A)) as unknown as GenBrief, campaign, products);
+        a = validateBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A })) as unknown as GenBrief, campaign, products);
         a = await repairBriefIfNeeded("A", a, campaign, products, sysA, models.a);
         stampBrief(a, models.a, campaignA.bodyVariety);
       } catch (err) {
@@ -921,7 +1139,7 @@ async function generateOptionsSingle(
       sysBInitial = bMessages.system;
       usrB = bMessages.user;
       try {
-        b = validateBrief((await createAndParseWithModel(sysBInitial, usrB, models.b, AI_TEMP_B)) as unknown as GenBrief, campaign, products);
+        b = validateBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B })) as unknown as GenBrief, campaign, products);
         b = await repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b);
       } catch (err) {
         bFailure = err;
@@ -955,7 +1173,7 @@ WARNING: A/B contrast failed:
 ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
-      b = validateBrief((await createAndParseWithModel(sysB, retry, models.b, AI_TEMP_B_RETRY)) as unknown as GenBrief, campaign, products);
+      b = validateBrief((await createFullBriefWithModel(sysB, retry, models.b, campaign, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, campaign, products);
       b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
       stampBrief(b, models.b, campaignB.bodyVariety);
     }

@@ -34,9 +34,13 @@ SendGrid is only needed for the sync-to-SendGrid step.
 | `OPENAI_API_KEY` | server | ChatGPT/OpenAI generation |
 | `GEMINI_API_KEY` | server | Gemini generation |
 | `AI_PROVIDER_TIMEOUT_MS` | server | optional provider timeout override; default `145000` |
+| `AI_PROVIDER_RETRIES` | server | transient overload/rate-limit retries before partial salvage; default `2` |
+| `AI_PROVIDER_RETRY_BASE_MS` | server | first retry backoff delay in ms, doubles per retry; default `900` |
+| `AI_MAX_OUTPUT_TOKENS` | server | full-brief output cap per provider call; default `32000`, bounded `4000-64000` |
+| `AI_GENERATE_RATE_LIMIT_PER_MIN` | server | per-user/IP generation limit; default `6`, set `0` to disable |
 | `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
 | `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default `78` |
-| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default `2` |
+| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default `1` |
 | `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default `2` |
 | `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent segment batches after the anchor batch; default `2` |
 | `SENDGRID_API_KEY` | server | needs Marketing read/write for `/v3/designs` |

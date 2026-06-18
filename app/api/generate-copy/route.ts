@@ -22,6 +22,36 @@ export const runtime = "nodejs";
 // Keep a generous route ceiling for high-segment briefs and slower frontier models.
 export const maxDuration = 300;
 
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const GENERATE_RATE_LIMIT_PER_MIN = Math.max(0, Number(process.env.AI_GENERATE_RATE_LIMIT_PER_MIN || 6));
+const generateRateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimitKey(req: NextRequest, userId?: string): string {
+  if (userId) return `user:${userId}`;
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  return `ip:${forwarded || realIp || "local"}`;
+}
+
+function checkGenerateRateLimit(req: NextRequest, userId?: string): { retryAfter: number } | null {
+  if (!GENERATE_RATE_LIMIT_PER_MIN) return null;
+  const now = Date.now();
+  const key = rateLimitKey(req, userId);
+  for (const [bucketKey, bucket] of generateRateBuckets) {
+    if (bucket.resetAt <= now) generateRateBuckets.delete(bucketKey);
+  }
+  const current = generateRateBuckets.get(key);
+  if (!current || current.resetAt <= now) {
+    generateRateBuckets.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return null;
+  }
+  if (current.count >= GENERATE_RATE_LIMIT_PER_MIN) {
+    return { retryAfter: Math.max(1, Math.ceil((current.resetAt - now) / 1000)) };
+  }
+  current.count += 1;
+  return null;
+}
+
 function cleanText(value: unknown, max = MAX_TEXT): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -165,11 +195,20 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
 }
 
 export async function POST(req: NextRequest) {
+  let activeUser: { userId: string } | null = null;
   try {
-    await requireActiveUser(req);
+    activeUser = await requireActiveUser(req);
   } catch (err) {
     const e = err as HttpError;
     return NextResponse.json({ error: e.message }, { status: e.status || 401 });
+  }
+
+  const rateLimit = checkGenerateRateLimit(req, activeUser?.userId);
+  if (rateLimit) {
+    return NextResponse.json(
+      { error: `Generation rate limit reached. Try again in ${rateLimit.retryAfter}s.` },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } }
+    );
   }
 
   let body: unknown;

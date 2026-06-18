@@ -228,7 +228,7 @@ export function StudioApp() {
   const hydratedRef = useRef(false);
 
   // sync state keyed by `${opt}:${segment}`
-  const [syncResults, setSyncResults] = useState<Record<string, { id?: string; editorUrl?: string; error?: string }>>({});
+  const [syncResults, setSyncResults] = useState<Record<string, { id?: string; editorUrl?: string; error?: string; warnings?: string[]; blocking?: string[]; cleanedBytes?: number }>>({});
   const [syncingKey, setSyncingKey] = useState<string | null>(null);
   const [tplResults, setTplResults] = useState<
     Record<string, { templateId?: string; editorUrl?: string; error?: string; warnings?: string[]; blocking?: string[]; cleanedBytes?: number }>
@@ -886,19 +886,36 @@ export function StudioApp() {
     await exportBriefsToExcel(options, brand.name, dateToken(sendDate), ops);
   }
 
+  async function postSyncWithQualityGate(url: string, payload: { name: string; subject: string; html: string }) {
+    const headers = { "Content-Type": "application/json", ...(await authHeader()) };
+    let res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
+    let data = await res.json();
+    const blockers = Array.isArray(data.blocking) ? data.blocking as string[] : [];
+    if (res.status === 422 && blockers.length) {
+      const confirmed = window.confirm(
+        `Pre-send quality gate found blocking issues:\n\n${blockers.map((b, i) => `${i + 1}. ${b}`).join("\n")}\n\nOverride and sync anyway?`
+      );
+      if (confirmed) {
+        res = await fetch(url, { method: "POST", headers, body: JSON.stringify({ ...payload, overrideQualityGate: true }) });
+        data = await res.json();
+      }
+    }
+    return { res, data };
+  }
+
   async function syncDesign(opt: OptKey, seg: string) {
     const key = `${opt}:${seg}`;
     const html = htmlFor(opt, seg);
     if (!html) return;
     setSyncingKey(key);
     try {
-      const res = await fetch("/api/sync-sendgrid", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
-        body: JSON.stringify({ name: templateName(opt, seg), subject: subjectFor(opt, seg), html }),
-      });
-      const data = await res.json();
-      setSyncResults((r) => ({ ...r, [key]: res.ok ? { id: data.id, editorUrl: data.editorUrl } : { error: data.error } }));
+      const { res, data } = await postSyncWithQualityGate("/api/sync-sendgrid", { name: templateName(opt, seg), subject: subjectFor(opt, seg), html });
+      setSyncResults((r) => ({
+        ...r,
+        [key]: res.ok
+          ? { id: data.id, editorUrl: data.editorUrl, warnings: data.warnings, blocking: data.blocking, cleanedBytes: data.cleanedBytes }
+          : { error: data.error, warnings: data.warnings, blocking: data.blocking },
+      }));
     } catch (e) {
       setSyncResults((r) => ({ ...r, [key]: { error: e instanceof Error ? e.message : "Network error" } }));
     } finally {
@@ -912,12 +929,7 @@ export function StudioApp() {
     if (!html) return;
     setTplKey(key);
     try {
-      const res = await fetch("/api/sync-template", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
-        body: JSON.stringify({ name: templateName(opt, seg), subject: subjectFor(opt, seg), html }),
-      });
-      const data = await res.json();
+      const { res, data } = await postSyncWithQualityGate("/api/sync-template", { name: templateName(opt, seg), subject: subjectFor(opt, seg), html });
       setTplResults((r) => ({
         ...r,
         [key]: res.ok
@@ -1894,6 +1906,8 @@ export function StudioApp() {
                           {incomplete && <div className="text-xs text-[var(--bad)]">Blocked for SendGrid: missing generated subject/body for this segment.</div>}
                           {sync?.id && <div className="text-xs text-[var(--ok)]">Design {sync.id} — <a href={sync.editorUrl} target="_blank" rel="noreferrer" className="underline">open</a></div>}
                           {sync?.error && <div className="text-xs text-[var(--bad)]">Error: {sync.error}</div>}
+                          {sync?.blocking?.map((b, i) => <div key={`sb${i}`} className="text-xs text-[var(--bad)]">Design blocking: {b}</div>)}
+                          {sync?.warnings?.map((w, i) => <div key={`sw${i}`} className="text-xs text-[var(--warn)]">Design warning: {w}</div>)}
                           {tpl?.templateId && (
                             <div className="text-xs text-[var(--ok)] flex flex-wrap items-center gap-2">
                               <span>Template</span>

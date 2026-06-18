@@ -5,8 +5,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { AIProviderOption } from "@/lib/config/aiModels";
 import type { AIModelSelection, BodyLayout, CampaignOps, EmailModuleKey, Product, ProductCopyStyle } from "@/lib/config/types";
 import { flagTierCounts, segJsonKey, type GenBrief } from "@/lib/briefgen";
-import { getBrandIntelligence, PROGRAM_INTELLIGENCE, SEGMENT_QUALITY_RULES } from "@/lib/config/intelligence";
+import { getBrandIntelligence, PROGRAM_INTELLIGENCE } from "@/lib/config/intelligence";
 import { scoreFreshnessAgainstHistory } from "@/lib/quality/freshness";
+import { analyzeListQuality, isPeakSend } from "@/lib/quality/listQuality";
 import type { SendHistoryRow } from "@/lib/sendHistory";
 import type { ProductLayout } from "@/lib/render/email";
 import { CONSENT_OPTIONS, CUSTOM_PRODUCT_VALUE, OPS_PROVIDER_OPTIONS, type Slot } from "./studioShared";
@@ -224,8 +225,7 @@ export function SnapshotChip({ label, value, tone }: { label: string; value: str
 }
 
 export function isPeakEvent(theme: string, sendDate: string): boolean {
-  const surface = `${theme} ${sendDate}`.toLowerCase();
-  return SEGMENT_QUALITY_RULES.peakEvents.some((event) => surface.includes(event));
+  return isPeakSend(theme, sendDate);
 }
 
 export function SegmentQualityWarning({
@@ -243,13 +243,11 @@ export function SegmentQualityWarning({
   theme: string;
   sendDate: string;
 }) {
-  const surface = `${audienceSource} ${segmentRule}`.toLowerCase();
-  const broad = selectedCount >= Math.max(4, Math.ceil(totalCount * 0.7)) || /\b(all|whole|entire|broad|blast|newsletter)\b/.test(surface);
-  const yahoo = /\byahoo\b|\+\s*yahoo/i.test(surface);
-  if ((!broad && !yahoo) || isPeakEvent(theme, sendDate)) return null;
+  const result = analyzeListQuality({ selectedCount, totalCount, audienceSource, segmentRule, theme, sendDate });
+  if (result.level === "ok") return null;
   return (
-    <Banner level="warn">
-      Segment-quality warning: {broad ? SEGMENT_QUALITY_RULES.tightListLift : ""}{broad && yahoo ? " · " : ""}{yahoo ? SEGMENT_QUALITY_RULES.yahooDilution : ""}. Keep this send tight unless it is a true peak-sale event.
+    <Banner level={result.level === "bad" ? "fail" : "warn"}>
+      Segment-quality warning: {result.message}
     </Banner>
   );
 }
