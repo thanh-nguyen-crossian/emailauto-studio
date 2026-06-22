@@ -4,7 +4,9 @@
 import { BRANDS } from "./config/brands";
 import { intelligencePromptBlock, getBrandIntelligence } from "./config/intelligence";
 import { performanceFeedbackPromptBlock } from "./performance/feedback";
-import type { Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
+import type { Brand, Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
+import { analyzeProductPriceOutliers } from "./quality/productData";
+import type { EmailConcept } from "./concept";
 
 export const PROMPT_REGISTRY_VERSION = "emailstudio-email-brief-v2026-06-16.1";
 
@@ -20,6 +22,7 @@ export interface GenHookContract {
 export interface GenCreativeDirection {
   angle: string;
   framework: string;
+  concept?: EmailConcept;
   branch?: string;
   brief_route?: string;
   source_pattern?: string;
@@ -148,6 +151,7 @@ export interface GenBrief {
   /** Creative/style advisories for UI coaching. These never drive repair/blocking. */
   _advisory?: Flag[];
   _score?: number;
+  _creative_score?: number;
   _provider?: string;
   _model?: string;
   _prompt_version?: string;
@@ -191,6 +195,31 @@ DO: Mary voice; suspended loop + gifting; Pouchic + TimelessMark first, BygoneMa
 DON'T: bright cheerfulness, pink #d43268, orange-red #d02c16, broad off-season sends, generic accessory grid, countdown-clock energy.
 SUBJECT: 42-56 chars; name often in preheader; use SAVING/O.F.F; reluctant deadline or revelation.`,
 };
+
+const SUBJECT_DEVICE_DESCRIPTIONS: Record<string, string> = {
+  "open-loop": "open a curiosity gap the email resolves — pose a question, name a tension, leave the outcome unstated",
+  "pattern-interrupt": "break the scan pattern with an unexpected first word, number, or structure that stops the thumb",
+  "playful-conceit": "commit to one unexpected metaphor, analogy, or character POV for the entire subject/preheader pair",
+  "social-proof-tease": "drop a specific social signal (review count, best-seller rank) without fully explaining it",
+  "deadline-whisper": "imply scarcity or time constraint quietly — no hype words, no exclamation marks",
+  "check-in": "speak directly to the reader's current state or unfinished action (\"Still thinking?\", \"You added X…\")",
+};
+
+function subjectDeviceLayer(brand: Brand): string {
+  const emojiRule =
+    brand.emojiPolicy === "yes"
+      ? "Emoji budget: 0 or 1 leading emoji where it enhances tone; no double-stacked emojis or emojis in preheaders."
+      : brand.emojiPolicy === "sparing"
+      ? "Emoji budget: one emoji only for gifting/occasion-specific sends; leave subjects plain by default."
+      : "Emoji budget: no emojis — plain text only.";
+  const deviceList = brand.subjectDevices
+    .map((d) => `  • ${d}: ${SUBJECT_DEVICE_DESCRIPTIONS[d] ?? d}`)
+    .join("\n");
+  return `Subject device library for ${brand.name}:
+${deviceList}
+${emojiRule}
+REQUIREMENT: the 3 subject options for each segment MUST each use a different device from the list above. Do not write three variations of the same opening mechanic.`;
+}
 
 // ---- validation pattern banks ----
 const SPAM_WORDS = ["free!", "winner", "congratulations", "click here", "limited time offer", "act now", "urgent"];
@@ -1464,6 +1493,7 @@ Multi-segment body copy must not be cloned paragraph skeletons. Change the first
 const COMPONENT_PROMPT_LAYER = `SUBJECT / PREHEADER — for every segment write one primary pair plus 3 options. Subject 42-58 chars (hard cap 60), must carry one offer signal, and {{first_name}} appears in subject OR preheader, never both. Preheader 60-90 chars and must add a new proof/deadline/product/tension beat.
 Gmail summary: the first 150-200 chars of live body text act like a second subject line; sentence 1 names the hero product and one offer/proof beat.
 Body: 120-150 words per segment, personal-note first, persona-signed, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words, no hard-sell command stack.
+Offer mention cap: state the hero price/discount ONCE in the body (hero reveal) and ONCE in the P.S. max. Support products earn one differentiating line each — no per-product price or "Free Shipping" repeat. Price belongs in product image overlays, not body prose.
 Banner: 3-beat story, not 3 discount headlines — main_text_1 tension/hook, main_text_2 product mechanism/proof, main_text_3 resolution/offer/CTA. image_guidance is 4-6 compact bullets.
 Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words, sub_text carries price/proof/deadline. Product text/CTA is copy to bake into images.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
@@ -1535,8 +1565,9 @@ export function buildSystemPrompt(
     .join("\n");
   const segContext = segmentPromptContext(campaign);
 
+  const [dev0 = "open-loop", dev1 = "pattern-interrupt", dev2 = "playful-conceit"] = brand.subjectDevices;
   const subjectSchema = campaign.segments
-    .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"strategic","model_hint":"Claude strategic","subject":"","preheader":"","shared_thread":""},{"style":"curiosity","model_hint":"Gemini curiosity","subject":"","preheader":"","shared_thread":""},{"style":"direct-response","model_hint":"ChatGPT direct-response","subject":"","preheader":"","shared_thread":""}]}`)
+    .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"${dev0}","model_hint":"${dev0}","subject":"","preheader":"","shared_thread":""},{"style":"${dev1}","model_hint":"${dev1}","subject":"","preheader":"","shared_thread":""},{"style":"${dev2}","model_hint":"${dev2}","subject":"","preheader":"","shared_thread":""}]}`)
     .join(",\n    ");
   const bodySchema = campaign.segments
     .map((id) => `"${segJsonKey(id)}":""`)
@@ -1611,10 +1642,24 @@ export function buildSystemPrompt(
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
     { title: "Production Brief Pattern", body: creativeRoutePrompt(campaign, isOptionB, nonce) },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
+    ...(campaign.bodyFocus !== "grid" ? [{
+      title: "Body Focus",
+      body: `HERO MODE: body prose centres on ONE product story.
+The hero product (slot 1, named first) earns the full narrative — micro-story, proof beat, emotional arc.
+Each support product earns AT MOST one cumulative sentence in the body — not a per-product paragraph.
+Recommended collector line: "Plus: [Product A](slug:a), [Product B](slug:b), and more — starting at 💲X."
+Do NOT write individual offer lines or USP lists for support products in the body prose.
+The product image grid still renders all slots (that is a layout concern, not a copy concern).
+This rule applies to every segment in body[segKey].`,
+    }] : [{
+      title: "Body Focus",
+      body: `GRID MODE: body prose may address each featured product individually with one differentiating line each. Still observe the offer-mention cap from Component Rules.`,
+    }]),
     { title: "SendGrid HTML Fit", body: SENDGRID_HTML_PROMPT_LAYER },
     { title: "Email Content XLSX Reference", body: EXCEL_BRIEF_REFERENCE_LAYER },
     { title: "Brand Brief Pattern Memory", body: brandBriefPatternLayer(campaign.brandId) },
     { title: "Brand Rules", body: BRAND_PLAYBOOK_RULES[campaign.brandId] || "" },
+    { title: "Subject Devices", body: subjectDeviceLayer(brand) },
     { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
     { title: "Adaptive Performance Feedback", body: performanceFeedbackPromptBlock(campaign.performanceHistory, campaign.brandId) },
     { title: "Option Contrast", body: contrast },
@@ -1735,7 +1780,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty/i;
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -1754,7 +1799,7 @@ export function isHighImpactFlag(msg: string): boolean {
 // model rewrite helps; stylistic nudges (paragraph rhythm, P.S. length, banner beats, enums) stay
 // advisory so the repair pass does not average every creative route back to one template.
 const COMPLIANCE_REPAIR_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
 
 export function isComplianceRepairFlag(msg: string): boolean {
   return COMPLIANCE_REPAIR_FLAG.test(msg);
@@ -1805,6 +1850,45 @@ export function scoreCreative(flags: Flag[] = []): number {
   return Math.max(0, 100 - structural * 6 - Math.min(24, cosmetic * 2));
 }
 
+function repeatedNgrams(text: string, size = 4): number {
+  const grams = new Map<string, number>();
+  const words = norm(stripCopyMarkup(text)).split(" ").filter((w) => w.length > 2 && !THEME_STOPWORDS.has(w));
+  for (let i = 0; i <= words.length - size; i++) {
+    const gram = words.slice(i, i + size).join(" ");
+    grams.set(gram, (grams.get(gram) || 0) + 1);
+  }
+  return [...grams.values()].filter((count) => count > 1).length;
+}
+
+export function computeCreativityScore(brief: GenBrief): number {
+  const bodyText = briefBodyText(brief);
+  if (!bodyText.trim()) return 0;
+  let score = 100;
+  const openers = Object.entries(brief.body || {})
+    .filter(([key]) => key !== "base")
+    .map(([, value]) => firstParagraph(String(value || "")));
+  const openerSurface = openers.join("\n").toLowerCase();
+  const bodyNorm = norm(bodyText);
+  const bodyWords = wordCount(bodyText);
+  const salesCommands = hardSellHits(bodyText);
+
+  if (/^(you have|you've|if you|when you|this is|meet |introducing )/i.test(openers[0] || "")) score -= 12;
+  if (/^i hope this email finds you well/i.test(openers[0] || "")) score -= 16;
+  if (bodyWords < 90) score -= 16;
+  if (bodyWords < 60) score -= 8;
+  if (salesCommands.length >= 2) score -= 12;
+  if (/\b(?:congratulations|winner|once in a lifetime|claim yours|hurry|buy now)\b/i.test(bodyText)) score -= 10;
+  if (!/\b(neighbor|friend|customer|wife|husband|dad|mom|mary|sandra|jordan|adele|told me|mentioned|noticed|called|wrote|said)\b/i.test(bodyText)) score -= 14;
+  if (!/\b(kitchen|drive|desk|walk|morning|afternoon|closet|drawer|weekend|birthday|gift|summer|trip|work|dinner)\b/i.test(bodyText)) score -= 10;
+  if (repeatedNgrams(bodyText, 4) > 6) score -= 12;
+  const mechanismRepeats = [...bodyNorm.matchAll(/\b(?:quick dry|ice silk|front snap|wire free|stretch|cooling|free shipping|o f f|saving)\b/g)].length;
+  if (mechanismRepeats > 8) score -= 12;
+  const productLineCount = bodyText.split(/\n+/).filter((line) => /\s[—-]\s.*(?:💲|\$\d|free shipping|o\.f\.f|saving)/i.test(line)).length;
+  if (productLineCount >= 3) score -= 14;
+  if (new Set(openers.map(openingStart).filter(Boolean)).size < Math.min(2, openers.length)) score -= 10;
+  return Math.max(0, Math.min(100, score));
+}
+
 /** Tier counts for UI ("serious vs polish") — lets REVIEW distinguish real risk from cosmetics. */
 export function flagTierCounts(flags: Flag[] = []): { serious: number; structural: number; cosmetic: number; errors: number } {
   const counts = { serious: 0, structural: 0, cosmetic: 0, errors: 0 };
@@ -1814,6 +1898,15 @@ export function flagTierCounts(flags: Flag[] = []): { serious: number; structura
   }
   return counts;
 }
+
+function validateProductData(brief: GenBrief, products: Product[]): void {
+  analyzeProductPriceOutliers(products).forEach((warning) => {
+    addFlag(brief, "warn", `Product ${warning.index + 1} ${warning.message}`);
+  });
+}
+
+const MAX_BODY_OFFER_MENTIONS = 2;
+const MAX_BODY_DISCOUNT_MENTIONS = 3;
 
 export function validateBrief(brief: GenBrief, campaign: Campaign, products: Product[] = []): GenBrief {
   const incomingAdvisory = Array.isArray(brief._advisory) ? brief._advisory : [];
@@ -2037,6 +2130,18 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     } else if (hardSell.length > 1) {
       addFlag(brief, "warn", `${seg} body sounds too salesy (${[...new Set(hardSell)].slice(0, 3).join(", ")}); make the offer a helpful detail, not a command stack`);
     }
+    // Offer-repetition check: count distinct price / shipping mentions in segment body.
+    const PRICE_LIKE = /💲\d|\$\d|\b\d+\s*%\s*(?:off|o\.f\.f|saving)/gi;
+    const FREE_SHIP = /free\s+(?:shipping|ship)/gi;
+    const bodySegText = String(body[seg] || "");
+    const priceMentions = (bodySegText.match(PRICE_LIKE) || []).length;
+    const shipMentions = (bodySegText.match(FREE_SHIP) || []).length;
+    if (priceMentions > MAX_BODY_OFFER_MENTIONS) {
+      addFlag(brief, "error", `${seg} body repeats price/discount ${priceMentions}× (max ${MAX_BODY_OFFER_MENTIONS}); state offer once at hero reveal, once in P.S.`);
+    }
+    if (shipMentions > 1) {
+      addFlag(brief, "warn", `${seg} body repeats "free shipping" ${shipMentions}× — mention once max`);
+    }
     if (text && heroProductName && !containsSignificantReference(firstTwoParas, heroProductName)) {
       addFlag(brief, "warn", `${seg} body opener should name or clearly reference the hero product`);
     }
@@ -2061,6 +2166,14 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       }
     });
   });
+  const bodyOnly = Object.entries(body)
+    .filter(([key]) => key !== "base")
+    .map(([, value]) => String(value || ""))
+    .join("\n\n");
+  const discountMentions = (bodyOnly.match(/\b\d+\s*%\s*(?:off|o\.f\.f|saving)\b/gi) || []).length;
+  if (discountMentions > MAX_BODY_DISCOUNT_MENTIONS) {
+    addFlag(brief, "warn", `Body repeats discount percentage ${discountMentions}× (target ${MAX_BODY_DISCOUNT_MENTIONS} or fewer); make the offer a detail, not the structure`);
+  }
   const segmentBodies = Object.entries(body).filter(([key, text]) => key !== "base" && wordCount(String(text || "")) >= 80);
   for (let i = 0; i < segmentBodies.length; i++) {
     for (let j = i + 1; j < segmentBodies.length; j++) {
@@ -2091,6 +2204,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   else if (psWords < 10 || psWords > 15) addFlag(brief, "warn", `P.S. should be 10-15 words (${psWords})`);
 
   const prods = brief.products || [];
+  validateProductData(brief, products);
   if (campaign.brandId !== "santa_fare" && prods.length > 6) addFlag(brief, "warn", "7+ product blocks (overcrowding risk)");
   if (campaign.brandId === "santa_fare" && prods.length > 4) addFlag(brief, "warn", "SantaFare should default to 4 products unless the brief gives a clear exception");
   if (campaign.brandId !== "santa_fare" && products.length >= 4 && prods.length > 0 && prods.length < 4) {
@@ -2144,6 +2258,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (requestedMechanic && requestedMechanic.length > 3 && !usedMechanic.includes(requestedMechanic)) {
       addFlag(brief, "warn", "Opener mechanic in quality_checks doesn't match body_variety — model may have ignored the variety profile");
     }
+  }
+  brief._creative_score = computeCreativityScore(brief);
+  if (brief._creative_score < 70) {
+    addFlag(brief, "warn", `Creative score ${brief._creative_score}/100 — add a concrete scene/story and reduce repeated mechanism or offer phrasing`);
   }
 
   const split = splitValidationFlags(brief._flags || []);
@@ -2215,6 +2333,19 @@ export function briefContrastIssues(a: GenBrief, b: GenBrief): string[] {
   if (aCd.framework && bCd.framework && aCd.framework === bCd.framework) {
     issues.push("A/B frameworks are the same");
   }
+  if (aCd.concept && bCd.concept) {
+    const conceptMatches = [
+      aCd.concept.angle === bCd.concept.angle,
+      aCd.concept.framework === bCd.concept.framework,
+      aCd.concept.creativeDevice === bCd.concept.creativeDevice,
+      aCd.concept.format === bCd.concept.format,
+      aCd.concept.proofPath === bCd.concept.proofPath,
+      aCd.concept.openerMechanic === bCd.concept.openerMechanic,
+    ].filter(Boolean).length;
+    if (conceptMatches > 3) {
+      issues.push("A/B concept tuples overlap on too many axes; force a different device, format, proof path, and opener mechanic");
+    }
+  }
   const directionTextA = [aCd.flow, aCd.differentiator, aCd.source_pattern].filter(Boolean).join(" ");
   const directionTextB = [bCd.flow, bCd.differentiator, bCd.source_pattern].filter(Boolean).join(" ");
   if (directionTextA && directionTextB && similarity(directionTextA, directionTextB) > 0.7) {
@@ -2264,6 +2395,46 @@ export function briefContrastIssues(a: GenBrief, b: GenBrief): string[] {
   if (productA && productB && similarity(productA, productB) > 0.72) {
     issues.push("A/B product block copy is too similar; change overlay headline pattern, badges, and CTA language");
   }
+
+  // Hero product identity: same hero product AND same opener mechanic = twin ideas.
+  const aHero = norm((a.products?.[0]?.name || aCd.hook_contract?.hero_product || ""));
+  const bHero = norm((b.products?.[0]?.name || bCd.hook_contract?.hero_product || ""));
+  const aOpener = norm(a.quality_checks?.opener_mechanic || "").split(/\s+/)[0];
+  const bOpener = norm(b.quality_checks?.opener_mechanic || "").split(/\s+/)[0];
+  if (
+    aHero && bHero && aHero === bHero &&
+    aOpener && bOpener && aOpener.length > 3 && aOpener === bOpener
+  ) {
+    issues.push("A/B share the same hero product AND opener mechanic; force B to lead with a different hero or use a different entry point (story/fact/question/occasion/re_engagement/insider_reveal/direct_problem)");
+  }
+
+  // Opener trigram Jaccard: if the first paragraphs share most 3-word sequences they are structurally the same.
+  const aOpenerText = firstParagraph(briefBodyText(a));
+  const bOpenerText = firstParagraph(briefBodyText(b));
+  if (aOpenerText && bOpenerText) {
+    const aTrigs = ngramSet(aOpenerText, 3);
+    const bTrigs = ngramSet(bOpenerText, 3);
+    const denom = Math.max(aTrigs.size, bTrigs.size);
+    if (denom > 0) {
+      let shared = 0;
+      aTrigs.forEach((g) => { if (bTrigs.has(g)) shared++; });
+      const jac = shared / denom;
+      if (jac > 0.6) {
+        issues.push(`A/B openers share too many trigrams (Jaccard ${jac.toFixed(2)} > 0.60); B must use a different opening sentence, voice, and entry mechanic`);
+      }
+    }
+  }
+
+  // Product-set identity: identical name order is not a valid A/B test.
+  const aProdNames = (a.products || []).map((p) => norm(p.name || "")).filter(Boolean);
+  const bProdNames = (b.products || []).map((p) => norm(p.name || "")).filter(Boolean);
+  if (
+    aProdNames.length >= 3 && bProdNames.length >= 3 &&
+    aProdNames.join(",") === bProdNames.join(",")
+  ) {
+    issues.push("A/B product grid has identical product order; reorder or swap at least one support product in Option B to create a different editorial emphasis");
+  }
+
   return issues;
 }
 

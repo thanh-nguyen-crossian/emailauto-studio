@@ -37,6 +37,8 @@ export interface VersionPayload {
   productLayout?: ProductLayout;
   /** Body placement chosen in output. */
   bodyLayout?: BodyLayout;
+  /** Body copy editorial mode. */
+  bodyFocus?: "hero" | "grid";
   /** Custom drag/drop module flow. */
   moduleLayout?: EmailModuleKey[];
   /** Product block copy template chosen in build. */

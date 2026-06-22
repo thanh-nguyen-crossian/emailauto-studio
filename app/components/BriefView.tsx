@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { GenBannerOption, GenBrief, GenProductBlock } from "@/lib/briefgen";
 import type { BodyVarietyProfile } from "@/lib/config/types";
+import { toDeliverableBrief } from "@/lib/present/cleanBrief";
 
 const defaultBannerOption = (index: number): GenBannerOption => ({
   label: index === 0 ? "A" : "B",
@@ -27,15 +28,20 @@ export function BriefView({
   brief,
   onDownload,
   onChange,
+  isAdmin,
 }: {
   brief: GenBrief;
   onDownload: () => void;
   onChange?: (brief: GenBrief) => void;
+  isAdmin?: boolean;
 }) {
-  const cd = brief.creative_direction || ({} as GenBrief["creative_direction"]);
+  // Clean version used for display/export only — the raw `brief` prop (and its
+  // parent state) is never mutated here.
+  const displayBrief = toDeliverableBrief(brief);
+  const cd = displayBrief.creative_direction || ({} as GenBrief["creative_direction"]);
   const hc = cd.hook_contract || ({} as GenBrief["creative_direction"]["hook_contract"]);
-  const banner = brief.banner || ({} as GenBrief["banner"]);
-  const qc = brief.quality_checks || ({} as GenBrief["quality_checks"]);
+  const banner = displayBrief.banner || ({} as GenBrief["banner"]);
+  const qc = displayBrief.quality_checks || ({} as GenBrief["quality_checks"]);
   const editable = !!onChange;
   const undoStack = useRef<GenBrief[]>([]);
   const redoStack = useRef<GenBrief[]>([]);
@@ -168,6 +174,17 @@ export function BriefView({
               <Tag label={`Angle: ${cd.angle || "—"}`} />
               <Tag label={`Framework: ${cd.framework || "—"}`} />
             </div>
+            {cd.concept && (
+              <div className="mb-3 rounded border p-2.5" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Concept</span>
+                <p className="text-xs text-[var(--text)] mt-1">
+                  {cd.concept.angle} · {cd.concept.framework} · {cd.concept.creativeDevice} · {cd.concept.format} · {cd.concept.proofPath} · {cd.concept.openerMechanic}
+                </p>
+              </div>
+            )}
+            {typeof displayBrief._creative_score === "number" && (
+              <Tag label={`Creativity: ${displayBrief._creative_score}/100`} />
+            )}
             <Row k="Source pattern" v={cd.source_pattern} />
             <Row k="Flow" v={cd.flow} />
             <Row k="Differentiator" v={cd.differentiator} />
@@ -222,7 +239,7 @@ export function BriefView({
 
       <Card title="Subject + preheader options" defaultOpen={false}>
         <div className="grid grid-cols-1 gap-3">
-          {Object.entries(brief.subject_lines || {}).map(([key, line]) => (
+          {Object.entries(displayBrief.subject_lines || {}).map(([key, line]) => (
             <div key={key} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
               <div className="text-xs font-semibold text-[var(--accent)] mb-2">{key.replace("seg_", "SEG ").replace("_", "-")}</div>
               {editable ? (
@@ -271,15 +288,15 @@ export function BriefView({
         {editable ? (
           <EditArea label="Theme" value={brief.theme} onChange={(v) => patch({ theme: v })} />
         ) : (
-          <p className="text-sm leading-relaxed">{brief.theme || "—"}</p>
+          <p className="text-sm leading-relaxed">{displayBrief.theme || "—"}</p>
         )}
       </Card>
 
       <Card title="Body + P.S.">
         <div className="flex flex-col gap-3">
-          {Object.entries(brief.body || {}).map(([key, value]) => (
+          {Object.entries(displayBrief.body || {}).map(([key, value]) => (
             editable ? (
-              <EditArea key={key} label={key === "base" ? "Base body" : key.replace("seg_", "SEG ").replace("_", "-")} value={value} rows={5} onChange={(v) => patchBody(key, v)} />
+              <EditArea key={key} label={key === "base" ? "Base body" : key.replace("seg_", "SEG ").replace("_", "-")} value={brief.body?.[key] ?? value} rows={5} onChange={(v) => patchBody(key, v)} />
             ) : (
               <div key={key}>
                 <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-1">{key === "base" ? "Base body" : key.replace("seg_", "SEG ").replace("_", "-")}</div>
@@ -290,10 +307,10 @@ export function BriefView({
           {editable ? (
             <EditField label="P.S. (10-15 words)" value={brief.ps} onChange={(v) => patch({ ps: v })} />
           ) : (
-            <div className="text-sm"><span className="text-[var(--muted)]">P.S. </span>{brief.ps || "—"}</div>
+            <div className="text-sm"><span className="text-[var(--muted)]">P.S. </span>{displayBrief.ps || "—"}</div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {Object.entries(brief.body_options || {}).flatMap(([key, options]) =>
+            {Object.entries(displayBrief.body_options || {}).flatMap(([key, options]) =>
               (options || []).map((o, i) => (
                 <div key={`${key}-${i}`} className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
                   <div className="text-[10px] uppercase tracking-wide text-[var(--muted)] mb-1">{key} · Option {o.label || i + 1}</div>
@@ -406,9 +423,9 @@ export function BriefView({
         {editable && banner.image_guidance && <BannerBullets value={banner.image_guidance} />}
       </Card>
 
-      <Card title={`Product blocks (${(brief.products || []).length})`}>
+      <Card title={`Product blocks (${(displayBrief.products || []).length})`}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(brief.products || []).map((p, i) => (
+          {(displayBrief.products || []).map((p, i) => (
             <div key={i} className="rounded-lg border border-[var(--border)] p-3">
               {editable ? (
                 <div className="flex flex-col gap-2">
@@ -507,6 +524,19 @@ export function BriefView({
           </div>
         )}
       </Card>
+
+      {(process.env.NODE_ENV === "development" || isAdmin) && (
+        <details className="section-panel p-0 overflow-hidden">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
+            Raw (debug)
+          </summary>
+          <div className="p-4">
+            <pre className="text-[10px] whitespace-pre-wrap break-all text-[var(--muted)] leading-relaxed">
+              {JSON.stringify(brief, null, 2)}
+            </pre>
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -649,8 +679,9 @@ function QC({ k, v, color }: { k: string; v?: string; color?: string }) {
   );
 }
 
-/** Plain-markdown export of a brief. */
-export function briefToMarkdown(brief: GenBrief, title: string): string {
+/** Plain-markdown export of a brief. Applies deliverable cleaning before rendering. */
+export function briefToMarkdown(rawBrief: GenBrief, title: string): string {
+  const brief = toDeliverableBrief(rawBrief);
   const cd = brief.creative_direction || ({} as GenBrief["creative_direction"]);
   const hc = cd.hook_contract || ({} as GenBrief["creative_direction"]["hook_contract"]);
   const b = brief.banner || ({} as GenBrief["banner"]);
@@ -664,6 +695,10 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
     `- Source pattern: ${cd.source_pattern || ""}`,
     `- Angle: ${cd.angle || ""}`,
     `- Framework: ${cd.framework || ""}`,
+    ...(cd.concept ? [
+      `- Concept: ${cd.concept.angle} · ${cd.concept.framework} · ${cd.concept.creativeDevice} · ${cd.concept.format} · ${cd.concept.proofPath} · ${cd.concept.openerMechanic}`,
+    ] : []),
+    ...(typeof brief._creative_score === "number" ? [`- Creativity score: ${brief._creative_score}/100`] : []),
     `- Flow: ${cd.flow || ""}`,
     `- Differentiator: ${cd.differentiator || ""}`,
     ``,
@@ -682,7 +717,7 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
       `- Selected preheader: ${line.preheader || ""}`,
       `- Shared thread: ${line.shared_thread || ""}`,
       ...(line.options || []).flatMap((o, i) => [
-        `- Option ${i + 1} (${o.model_hint || ""} · ${o.style || ""}): ${o.subject || ""}`,
+        `- Option ${i + 1}: ${o.subject || ""}`,
         `  Preheader: ${o.preheader || ""}`,
         `  Thread: ${o.shared_thread || ""}`,
       ]),
@@ -703,7 +738,7 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
           ...Object.entries(brief.body_options || {}).flatMap(([key, options]) => [
             `#### ${key === "base" ? "Base" : key.replace("seg_", "SEG ").replace("_", "-")}`,
             ...(options || []).flatMap((o, i) => [
-              `- Option ${o.label || i + 1} (${o.model_hint || ""})`,
+              `- Option ${o.label || i + 1}`,
               `  Body: ${o.body || ""}`,
               `  P.S.: ${o.ps || ""}`,
               `  Placement: ${o.placement_note || ""}`,
@@ -734,7 +769,7 @@ export function briefToMarkdown(brief: GenBrief, title: string): string {
           ``,
           `### Banner A/B Options`,
           ...(b.options || []).flatMap((o, i) => [
-            `- Option ${o.label || i + 1} (${o.model_hint || ""})`,
+            `- Option ${o.label || i + 1}`,
             `  Main text 1: ${o.main_text_1 || ""}`,
             `  Main text 2: ${o.main_text_2 || ""}`,
             `  Main text 3: ${o.main_text_3 || ""}`,

@@ -7,6 +7,7 @@
 
 import type { GenBrief } from "./briefgen";
 import type { CampaignOps } from "./config/types";
+import { toDeliverableBrief } from "./present/cleanBrief";
 
 type Row = (string | null)[];
 
@@ -30,7 +31,8 @@ function opsToText(ops?: CampaignOps): string {
   ].filter(Boolean).join("\n");
 }
 
-function briefToRows(brief: GenBrief, ops?: CampaignOps): Row[] {
+function briefToRows(rawBrief: GenBrief, ops?: CampaignOps): Row[] {
+  const brief = toDeliverableBrief(rawBrief);
   const rows: Row[] = [];
   const addRow = (col2?: string | null, col3?: string | null, col4?: string | null, col5?: string | null) =>
     rows.push([null, col2 || null, col3 || null, col4 || null, col5 || null]);
@@ -50,7 +52,7 @@ function briefToRows(brief: GenBrief, ops?: CampaignOps): Row[] {
   const subjectValue = (v: (typeof segs)[number][1] | undefined) =>
     [
       v?.subject || "",
-      ...(v?.options || []).map((o, i) => `Option ${i + 1} (${o.model_hint || o.style || "style"}): ${o.subject}`),
+      ...(v?.options || []).map((o, i) => `Option ${i + 1}: ${o.subject}`),
     ]
       .filter(Boolean)
       .join("\n");
@@ -68,7 +70,7 @@ function briefToRows(brief: GenBrief, ops?: CampaignOps): Row[] {
           (key === "base" ? "Base" : "SEG " + segCode(key).toUpperCase()) + " options",
           ...(options || []).map((o, i) =>
             [
-              `Option ${o.label || i + 1} (${o.model_hint || "AI"})`,
+              `Option ${o.label || i + 1}`,
               o.body ? `Body: ${o.body}` : "",
               o.ps ? `P.S.: ${o.ps}` : "",
               o.placement_note ? `Placement: ${o.placement_note}` : "",
@@ -86,7 +88,7 @@ function briefToRows(brief: GenBrief, ops?: CampaignOps): Row[] {
     (b.options || [])
       .map((o, i) =>
         [
-          `Option ${o.label || i + 1} (${o.model_hint || "AI"})`,
+          `Option ${o.label || i + 1}`,
           "Main text 1: " + (o.main_text_1 || ""),
           "Main text 2: " + (o.main_text_2 || ""),
           "Main text 3: " + (o.main_text_3 || ""),

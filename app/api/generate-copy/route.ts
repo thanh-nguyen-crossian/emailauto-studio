@@ -15,6 +15,7 @@ const VALID_CONSENT_BASIS = new Set<CampaignConsentBasis>(["prior_purchase_or_op
 const VALID_OFFER_TYPES = new Set<OfferType>(["sitewide_pct", "fixed_price", "free_ship", "none"]);
 const VALID_URGENCY = new Set<Urgency>(["h24", "h48", "weekend", "none"]);
 const VALID_BODY_LAYOUTS = new Set<BodyLayout>(["continuous", "interspersed", "custom"]);
+const VALID_BODY_FOCUS = new Set<"hero" | "grid">(["hero", "grid"]);
 const VALID_PRODUCT_COPY_STYLES = new Set<ProductCopyStyle>(["headline_winner", "benefit_pair", "proof_badge", "urgency_badge", "price_prominent"]);
 
 export const runtime = "nodejs";
@@ -179,6 +180,7 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
       ? (c.moduleLayout as string[]).filter((k) => VALID_MODULE_KEYS.has(k)) as EmailModuleKey[]
       : undefined,
     productCopyStyle: VALID_PRODUCT_COPY_STYLES.has(c.productCopyStyle as ProductCopyStyle) ? c.productCopyStyle as ProductCopyStyle : "headline_winner",
+    bodyFocus: VALID_BODY_FOCUS.has(c.bodyFocus as "hero" | "grid") ? c.bodyFocus as "hero" | "grid" : "hero",
     hookContract: cleanText(c.hookContract, 700),
     recipientName: RECIPIENT_NAME_TOKEN,
     recentProductSlugs: Array.isArray(c.recentProductSlugs) ? c.recentProductSlugs.map((s) => cleanText(s, 120)).filter(Boolean).slice(0, 12) : undefined,

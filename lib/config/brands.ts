@@ -28,6 +28,15 @@ export const BRANDS: Record<string, Brand> = {
     offSymbol: "o.f.f",
     freeShipThreshold: "35",
     defaultProductCount: 6,
+    emojiPolicy: "yes",
+    subjectDevices: [
+      "open-loop",
+      "pattern-interrupt",
+      "playful-conceit",
+      "social-proof-tease",
+      "deadline-whisper",
+      "check-in",
+    ],
     productSegments: [
       {
         code: "21",
@@ -122,6 +131,15 @@ export const BRANDS: Record<string, Brand> = {
     offSymbol: "o.f.f",
     freeShipThreshold: "50",
     defaultProductCount: 6,
+    emojiPolicy: "yes",
+    subjectDevices: [
+      "open-loop",
+      "pattern-interrupt",
+      "playful-conceit",
+      "social-proof-tease",
+      "deadline-whisper",
+      "check-in",
+    ],
     productSegments: [
       {
         code: "71",
@@ -191,6 +209,15 @@ export const BRANDS: Record<string, Brand> = {
     offSymbol: "O.F.F",
     freeShipThreshold: "35",
     defaultProductCount: 6,
+    emojiPolicy: "yes",
+    subjectDevices: [
+      "open-loop",
+      "pattern-interrupt",
+      "playful-conceit",
+      "social-proof-tease",
+      "deadline-whisper",
+      "check-in",
+    ],
     productSegments: [
       {
         code: "61",
@@ -266,6 +293,15 @@ export const BRANDS: Record<string, Brand> = {
     offSymbol: "SAVING",
     freeShipThreshold: "45",
     defaultProductCount: 4,
+    emojiPolicy: "sparing",
+    subjectDevices: [
+      "open-loop",
+      "pattern-interrupt",
+      "playful-conceit",
+      "social-proof-tease",
+      "deadline-whisper",
+      "check-in",
+    ],
     // SantaFare's variant axis is its gifting lifecycle (recency tiers), not categories.
     productSegments: [
       { code: "1-A", label: "Active", meta: "<90 days since last order", guidance: "Active gifters — acknowledge their recent gift; the next occasion is coming sooner than they think; gentle recency urgency." },

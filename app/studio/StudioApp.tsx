@@ -38,6 +38,7 @@ import { intelligencePromptBlock } from "@/lib/config/intelligence";
 import { renderEmailHTML, type ProductLayout } from "@/lib/render/email";
 import { analyzeBriefDeliverability } from "@/lib/quality/deliverability";
 import { scoreFreshnessAgainstHistory } from "@/lib/quality/freshness";
+import { analyzeProductPriceOutliers } from "@/lib/quality/productData";
 import { listSendHistory, recordSendHistory, type SendHistoryRow } from "@/lib/sendHistory";
 import { Preview } from "../components/Preview";
 import { PreflightPanel } from "../components/PreflightPanel";
@@ -130,6 +131,7 @@ export function StudioApp() {
     includeLogo,
     productLayout,
     bodyLayout,
+    bodyFocus,
     moduleLayout,
     productCopyStyle,
   } = campaignState;
@@ -204,6 +206,7 @@ export function StudioApp() {
   const setBodyLayout = (value: SetStateAction<BodyLayout>) => setCampaignField("bodyLayout", value);
   const setModuleLayout = (value: SetStateAction<EmailModuleKey[]>) => setCampaignField("moduleLayout", value);
   const setProductCopyStyle = (value: SetStateAction<ProductCopyStyle>) => setCampaignField("productCopyStyle", value);
+  const setBodyFocus = (value: SetStateAction<"hero" | "grid">) => setCampaignField("bodyFocus", value);
   const setOptions = (value: SetStateAction<{ a?: GenBrief; b?: GenBrief }>) => setGenerationField("options", value);
   const setActiveOption = (value: SetStateAction<OptKey>) => setUiField("activeOption", value);
   const setCompareMode = (value: SetStateAction<boolean>) => setUiField("compareMode", value);
@@ -356,7 +359,7 @@ export function StudioApp() {
   const campaign: Campaign = useMemo(
     () => ({
       brandId, sendDate, segments, layout, theme,
-      offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, recipientName: RECIPIENT_NAME_TOKEN,
+      offerType, offerValue, offerShipping, urgency, offer, bodyLayout, bodyFocus, moduleLayout, productCopyStyle, hookContract, recipientName: RECIPIENT_NAME_TOKEN,
       lastSend: {
         ctr: lastCtr,
         hero: lastHero,
@@ -374,7 +377,7 @@ export function StudioApp() {
         .filter((row) => !segments.length || segments.includes(row.segment))
         .slice(0, 8),
     }),
-    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, winningContent, customPerfContext, recentProductSlugs, recentSendHistory]
+    [brandId, sendDate, segments, layout, theme, offerType, offerValue, offerShipping, urgency, offer, bodyLayout, bodyFocus, moduleLayout, productCopyStyle, hookContract, lastCtr, lastHero, lastAngle, lastNote, lastOpenerMechanic, lastEmotionalArc, strategyActive, strategy, ops, winningContent, customPerfContext, recentProductSlugs, recentSendHistory]
   );
 
   const varietyProfile: BodyVarietyProfile = useMemo(
@@ -419,6 +422,7 @@ export function StudioApp() {
       })
       .filter((p): p is Product => p !== null);
   }, [brand, slots]);
+  const productPriceWarnings = useMemo(() => analyzeProductPriceOutliers(selectedProducts), [selectedProducts]);
 
   function switchBrand(id: string) {
     setBrandId(id);
@@ -949,7 +953,7 @@ export function StudioApp() {
     try {
       const payload: VersionPayload = {
         brandId, sendDate, theme, offerType, offerValue, offerShipping, urgency, offer, hookContract, recipientName,
-        segments, slots, includeLogo, productLayout, bodyLayout, moduleLayout, productCopyStyle, images, options, htmlOverrides,
+        segments, slots, includeLogo, productLayout, bodyLayout, bodyFocus, moduleLayout, productCopyStyle, images, options, htmlOverrides,
         models: normalizeModelPair({ a: modelA, b: modelB }),
         lastSend: { ctr: lastCtr, hero: lastHero, angle: lastAngle, note: lastNote, openerMechanic: lastOpenerMechanic || undefined, emotionalArc: lastEmotionalArc || undefined },
         strategy: strategyActive ? strategy : undefined,
@@ -1400,6 +1404,24 @@ export function StudioApp() {
                   <Field label="Product block template">
                     <ProductStylePicker value={productCopyStyle} onChange={setProductCopyStyle} />
                   </Field>
+                  <Field label="Body copy focus">
+                    <div className="flex gap-2">
+                      {(["hero", "grid"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setBodyFocus(mode)}
+                          className={`choice-pill ${bodyFocus === mode ? "choice-pill-active" : ""}`}
+                        >
+                          {mode === "hero" ? "Hero story" : "Full grid"}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-[var(--muted)] mt-1">
+                      {bodyFocus === "hero"
+                        ? "Body prose tells the hero product story; support products share one collective line."
+                        : "Body prose covers each featured product individually."}
+                    </p>
+                  </Field>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {slots.map((slot, si) => (
                       <ProductSlotCard
@@ -1428,6 +1450,11 @@ export function StudioApp() {
                       {selectedProducts.length > maxProducts && <span className="text-[var(--bad)]"> — 7+ hurts conversion</span>}
                     </span>
                   </div>
+                  {productPriceWarnings.length > 0 && (
+                    <Banner level="warn">
+                      {productPriceWarnings.map((warning) => warning.message).join(" · ")}
+                    </Banner>
+                  )}
                 </div>
               )}
 
@@ -1554,10 +1581,18 @@ export function StudioApp() {
               <Summary k="Segments" v={segments.map((s) => s).join(", ") || "—"} />
               <Summary k="Products" v={`${selectedProducts.length} (${selectedProducts.map((p) => p.name).join(", ")})`} />
               <Summary k="Body layout" v={bodyLayout} />
+              <Summary k="Body focus" v={bodyFocus} />
               <Summary k="Product copy" v={productCopyStyle.replace(/_/g, " ")} />
               <Summary k="Strategy" v={strategyActive ? [strategy.campaignGoal, strategy.keyMessage, strategy.toneKeywords].filter(Boolean).join(" · ") || "enriched" : "none"} />
               <Summary k="Ops" v={opsSummary} />
             </div>
+            {productPriceWarnings.length > 0 && (
+              <div className="mt-3">
+                <Banner level="warn">
+                  Product price check: {productPriceWarnings.map((warning) => warning.message).join(" · ")}
+                </Banner>
+              </div>
+            )}
           </div>
 
           <p className="text-sm text-[var(--muted)]">

@@ -75,6 +75,10 @@ export interface Brand {
   defaultProductCount: number;
   /** Product catalog for this brand. */
   catalog: Product[];
+  /** Emoji policy for subject lines: "yes" = 0–1 leading emoji on-brand; "sparing" = gifting/occasion only; "no" = never. */
+  emojiPolicy: "yes" | "sparing" | "no";
+  /** Ordered preferred subject-line creative devices. The 3 sub-options must each use a different device from this list. */
+  subjectDevices: string[];
 }
 
 export type OfferType = "sitewide_pct" | "fixed_price" | "free_ship" | "none";
@@ -215,6 +219,8 @@ export interface Campaign {
   offer: string;
   /** Body placement in the rendered email: one continuous body or one opener before product blocks. */
   bodyLayout?: BodyLayout;
+  /** Body copy editorial mode: "hero" = hero narrative + one support line; "grid" = per-product prose. Defaults to "hero". */
+  bodyFocus?: "hero" | "grid";
   /** Product block copy pattern, based on winning template behavior. */
   productCopyStyle?: ProductCopyStyle;
   /** Optional custom module flow for drag/drop email layout. */

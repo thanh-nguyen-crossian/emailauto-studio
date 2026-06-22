@@ -128,6 +128,7 @@ export interface StudioCampaignState {
   includeLogo: boolean;
   productLayout: ProductLayout;
   bodyLayout: BodyLayout;
+  bodyFocus: "hero" | "grid";
   moduleLayout: EmailModuleKey[];
   productCopyStyle: ProductCopyStyle;
 }
@@ -200,6 +201,7 @@ export function createInitialStudioState(): StudioState {
       includeLogo: false,
       productLayout: "stack",
       bodyLayout: "continuous",
+      bodyFocus: "hero",
       moduleLayout: DEFAULT_MODULE_LAYOUT,
       productCopyStyle: "headline_winner",
     },

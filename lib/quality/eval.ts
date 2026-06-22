@@ -15,8 +15,12 @@
 // .eml corpus from disk and calls these).
 
 import { BRANDS } from "../config/brands";
-import { validateBrief, type GenBrief } from "../briefgen";
+import { briefContrastIssues, validateBrief, type GenBrief } from "../briefgen";
 import type { Campaign, Product } from "../config/types";
+import { conceptDifferenceCount, selectEmailConceptPair } from "../concept";
+import { toDeliverableBrief } from "../present/cleanBrief";
+import { applySanitizeCopy, sanitizeCopy } from "../present/sanitizeCopy";
+import { analyzeProductPriceOutliers } from "./productData";
 import { analyzeDeliverability, type DeliverabilityReport } from "./deliverability";
 
 // Anti-slop: LLM-tell phrases that erode inbox trust and signal AI-generated copy.
@@ -470,6 +474,133 @@ export function runDiversityEval(
     pass: compliancePassRate === 1,
     notes,
   };
+}
+
+// ---- quality-overhaul acceptance checks ----
+export interface QualityOverhaulCheck {
+  name: string;
+  pass: boolean;
+  detail: string;
+}
+
+export interface QualityOverhaulResult {
+  pass: boolean;
+  checks: QualityOverhaulCheck[];
+}
+
+function stringValues(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(stringValues);
+  if (value && typeof value === "object") return Object.values(value).flatMap(stringValues);
+  return [];
+}
+
+function copySurface(value: unknown): string {
+  return stringValues(value).join("\n");
+}
+
+function redactTagsAndUrls(text: string): string {
+  return text
+    .replace(/\{\{.*?\}\}/g, "")
+    .replace(/https?:\/\/[^\s)\]}>"']+/gi, "");
+}
+
+function check(name: string, pass: boolean, detail: string): QualityOverhaulCheck {
+  return { name, pass, detail };
+}
+
+export function runQualityOverhaulEval(): QualityOverhaulResult {
+  const { campaign, products } = goldenCampaign();
+  const checks: QualityOverhaulCheck[] = [];
+
+  const promoInput = "Deal: $12.99 + 80% off for {{first_name}}. See https://example.com/a?$keep=1. free! act now";
+  const promoOnce = sanitizeCopy(promoInput, "bra_goddess");
+  const promoTwice = sanitizeCopy(promoOnce, "bra_goddess");
+  checks.push(check(
+    "promo sanitizer is idempotent and URL-safe",
+    promoOnce === promoTwice &&
+      promoOnce.includes("💲12.99") &&
+      promoOnce.includes("80% o.f.f") &&
+      promoOnce.includes("https://example.com/a?$keep=1") &&
+      !/\$\d/.test(redactTagsAndUrls(promoOnce)),
+    promoOnce
+  ));
+
+  const sanitizedBrief = cloneBrief(strongBrief());
+  sanitizedBrief.subject_lines.seg_21.subject = "Your Daisy is $12.99, {{first_name}}";
+  sanitizedBrief.banner.main_text_3 = "80% OFF ends tonight";
+  sanitizedBrief.body.seg_21 += "\n\nFree! Act now for $12.99.";
+  applySanitizeCopy(sanitizedBrief, campaign.brandId);
+  checks.push(check(
+    "brief sanitizer covers generated copy surfaces",
+    !/\$\d/.test(redactTagsAndUrls(copySurface({
+      subject_lines: sanitizedBrief.subject_lines,
+      banner: sanitizedBrief.banner,
+      body: sanitizedBrief.body,
+      ps: sanitizedBrief.ps,
+      products: sanitizedBrief.products,
+    }))) && /💲12\.99/.test(copySurface(sanitizedBrief)),
+    "subject, banner, body, P.S., and products scanned"
+  ));
+
+  const leaky = cloneBrief(strongBrief());
+  leaky.body.base = "ZONE 1\nseg_71\nSERIOUS QA flag\nheadline_winner\nGenerated later by segment patch.";
+  leaky.subject_lines.seg_21.model_hint = "Claude strategic";
+  leaky.subject_lines.seg_21.options = [
+    { style: "Gemini curiosity", model_hint: "Gemini curiosity", subject: "Three seconds, {{first_name}}", preheader: "Daisy is 💲12.99", shared_thread: "Daisy" },
+  ];
+  const deliverableSurface = copySurface(toDeliverableBrief(leaky));
+  checks.push(check(
+    "deliverable brief hides scaffolding and provider labels",
+    !/(ZONE|seg_\d|SERIOUS|QA flag|headline_winner|Claude|Gemini|ChatGPT|generated later|segment patch)/i.test(deliverableSurface),
+    "string values scanned after toDeliverableBrief"
+  ));
+
+  const repeatedOffer = cloneBrief(strongBrief());
+  repeatedOffer.body.seg_21 = "Daisy is 💲12.99. The Daisy price is 💲12.99. Tonight only, 💲12.99 plus free shipping. Free shipping makes it easier.";
+  const repeatedValidated = validateBrief(repeatedOffer, campaign, products);
+  checks.push(check(
+    "offer repetition is a hard body-quality gate",
+    (repeatedValidated._flags || []).some((f) => f.type === "error" && /repeats price\/discount/i.test(f.msg)),
+    (repeatedValidated._flags || []).map((f) => f.msg).join(" | ")
+  ));
+
+  const priceWarnings = analyzeProductPriceOutliers([
+    { slug: "a", name: "Normal A", price: "29.99" },
+    { slug: "b", name: "Normal B", price: "32.99" },
+    { slug: "c", name: "ArcticMove", price: "4.00" },
+  ]);
+  checks.push(check(
+    "price outliers surface before sending",
+    priceWarnings.some((warning) => warning.product.name === "ArcticMove"),
+    priceWarnings.map((warning) => warning.message).join(" | ")
+  ));
+
+  const concepts = selectEmailConceptPair(campaign, products);
+  const diff = conceptDifferenceCount(concepts.a, concepts.b);
+  checks.push(check(
+    "concept selector forces A/B idea divergence",
+    diff >= 3,
+    `difference axes: ${diff}; A=${JSON.stringify(concepts.a)}; B=${JSON.stringify(concepts.b)}`
+  ));
+
+  const strongValidated = validateBrief(cloneBrief(strongBrief()), campaign, products);
+  const weakValidated = validateBrief(cloneBrief(weakBrief()), campaign, products);
+  checks.push(check(
+    "creative score distinguishes useful story from formulaic sales copy",
+    (strongValidated._creative_score || 0) > (weakValidated._creative_score || 0) &&
+      (weakValidated._creative_score || 0) < 70,
+    `strong=${strongValidated._creative_score}; weak=${weakValidated._creative_score}`
+  ));
+
+  const twinIssues = briefContrastIssues(strongBrief(), cloneBrief(strongBrief()));
+  checks.push(check(
+    "A/B twin detector catches same-idea variants",
+    twinIssues.some((issue) => /same hero product|openers share|body copy shares|opener mechanics/i.test(issue)),
+    twinIssues.join(" | ")
+  ));
+
+  return { pass: checks.every((item) => item.pass), checks };
 }
 
 /** Score one raw email by wrapping its subject/body in a minimal brief and running the scorer. */

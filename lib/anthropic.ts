@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import type { AIModelPair, AIModelSelection, BodyVarietyProfile, Campaign, Product } from "./config/types";
 import { normalizeModelPair, providerLabel } from "./config/aiModels";
 import { foundationBriefJsonSchema, genBriefJsonSchema, segmentPatchJsonSchema, type ProviderJsonSchema } from "./anthropic/schema";
+import { conceptPrompt, selectEmailConceptPair, type EmailConcept } from "./concept";
 import {
   brandPlaybookRuleBlock,
   briefContrastIssues,
@@ -24,6 +25,7 @@ import {
   type GenBrief,
 } from "./briefgen";
 import { BRANDS } from "./config/brands";
+import { applySanitizeCopy } from "./present/sanitizeCopy";
 
 // Generation engine wiring. Produces two contrasting options (A/B) — each a combined
 // content + design brief — using the ported brief-generator prompt, with parse-retry and
@@ -555,24 +557,30 @@ function summarizeBriefForContext(brief?: GenBrief) {
 }
 
 function optionAContrastContext(brief: GenBrief): string {
+  const cd = brief.creative_direction || {};
   const anchor = {
-    creative_direction: brief.creative_direction,
-    body_variety: brief.body_variety,
-    banner: {
-      main_text_1: brief.banner?.main_text_1,
-      main_text_2: brief.banner?.main_text_2,
-      main_text_3: brief.banner?.main_text_3,
-      image_guidance: brief.banner?.image_guidance,
-      cta: brief.banner?.cta,
-    },
+    concept: cd.concept,
+    angle: cd.angle,
+    framework: cd.framework,
+    route: cd.brief_route || cd.branch || cd.source_pattern,
+    flow: cd.flow,
+    differentiator: cd.differentiator,
+    hook_contract: cd.hook_contract,
+    body_variety: brief.body_variety ? {
+      openerMechanic: brief.body_variety.openerMechanic,
+      emotionalArc: brief.body_variety.emotionalArc,
+      proofRole: brief.body_variety.proofRole,
+      visualDirection: brief.body_variety.visualDirection,
+    } : undefined,
     opener_mechanic: brief.quality_checks?.opener_mechanic,
-    ps: brief.ps,
-    first_product: brief.products?.[0],
+    first_product: brief.products?.[0] ? {
+      name: brief.products[0].name,
+    } : undefined,
   };
   return `\nOPTION A CREATIVE MAP TO CONTRAST AGAINST:
-${JSON.stringify(anchor).slice(0, 6000)}
+${JSON.stringify(anchor).slice(0, 2600)}
 
-Generate Option B AFTER studying this map. B must choose a different hook contract emphasis, reader entry point, proof path, banner headline family, and payoff. Do not merely rename the angle/framework.`;
+Use this only as an anti-collision fingerprint, not source copy. Generate Option B from its own concept and choose a different hook contract emphasis, reader entry point, proof path, banner headline family, and payoff. Do not mirror Option A phrasing or sentence architecture.`;
 }
 
 function appendRevisionFeedback(user: string, revision?: RevisionFeedback): string {
@@ -763,7 +771,7 @@ function foundationOutputSchema(products: Product[]): string {
   "creative_direction":{"angle":"","framework":"","branch":"","brief_route":"","source_pattern":"","hook_contract":{"segment_insight":"","emotion":"","hero_product":"","proof_or_price":"","urgency":"","avoid_rule":""},"flow":"","differentiator":""},
   "theme":"",
   "banner":{"logo_stars":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet","review_quote":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","cta":""},
-  "body":{"base":"layout/placement plan only; segment copy is generated later"},
+  "body":{"base":"plain-English layout summary for designer/marketer; no internal generation terms"},
   "ps":"",
   "products":[
     ${productRows}
@@ -790,12 +798,12 @@ Apply feedback to the shared route, banner, product-image brief, P.S., and QA on
 
 function foundationBodyBase(campaign: Campaign): string {
   if (campaign.bodyLayout === "interspersed") {
-    return "Interspersed: hero -> short opener -> product block(s) -> bridge -> product block(s) -> closing line. Keep story paragraphs short.";
+    return "Layout summary: Open with the hero banner, place a short story paragraph before the first product images, add one bridge between product rows, then close with the P.S.";
   }
   if (campaign.bodyLayout === "custom") {
-    return "Custom modular body: 1-3 movable text modules around product blocks; preserve flow from hook to proof to CTA.";
+    return "Layout summary: Use one to three movable text modules around product image rows, keeping the order hook, proof, offer, CTA.";
   }
-  return "Continuous body: 3-5 short paragraphs after hero before products; one natural note, product proof, offer, CTA.";
+  return "Layout summary: Open with the hero banner, follow with three to five short body paragraphs, then use product image rows and a short P.S. to close.";
 }
 
 function normalizeFoundationBrief(raw: Record<string, unknown>, campaign: Campaign): GenBrief {
@@ -815,6 +823,7 @@ function buildFoundationPrompt(
   products: Product[],
   optionLabel: "A" | "B",
   selection: AIModelSelection,
+  concept: EmailConcept,
   revision?: RevisionFeedback,
   optionAAnchor?: GenBrief
 ): { system: string; user: string } {
@@ -831,7 +840,7 @@ function buildFoundationPrompt(
     },
     {
       title: "What To Generate",
-      body: `Generate only the shared strategy/design foundation: creative_direction, theme, banner, body.base placement plan, P.S., product-image copy brief, and QA. Do NOT generate subject_lines or per-segment body copy; smaller segment calls handle those.`,
+      body: `Generate only the shared strategy/design foundation: creative_direction, theme, banner, a plain-English body.base layout summary, P.S., product-image copy brief, and QA. Do NOT generate subject_lines or per-segment body copy; smaller segment calls handle those.`,
     },
     {
       title: "Playbook Core",
@@ -841,10 +850,11 @@ Banner uses 3 beats: main_text_1 tension/hook, main_text_2 mechanism/proof, main
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
+    { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
     { title: "Model Lens", body: modelExecutionStyle(selection) },
     {
       title: "Output Contract",
-      body: `Return ONLY valid JSON. No markdown fence. No subject_lines. No segment body fields.\n${foundationOutputSchema(products)}`,
+      body: `Return ONLY valid JSON. No markdown fence. No subject_lines. No segment body fields. Do not use internal terms such as ZONE, seg_*, QA flag, renderer, generated later, injected here, foundation, or patch call.\n${foundationOutputSchema(products)}`,
     },
   ]);
 
@@ -862,6 +872,7 @@ Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, he
     { title: "Products", body: productContextLines(products) },
     { title: "Segments To Serve Later", body: segmentPromptContext(campaign) },
     { title: "Segment Motivation Map", body: segmentBodyDirectionLines(campaign) },
+    { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
     { title: "Option Contrast", body: optionContrast },
     { title: "User Feedback", body: foundationRevisionPrompt(revision) },
   ]);
@@ -870,8 +881,10 @@ Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, he
 }
 
 function subjectPatchSchema(campaign: Campaign): string {
+  const [dev0 = "open-loop", dev1 = "pattern-interrupt", dev2 = "playful-conceit"] =
+    BRANDS[campaign.brandId]?.subjectDevices ?? [];
   return campaign.segments
-    .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"strategic","model_hint":"Claude strategic","subject":"","preheader":"","shared_thread":""},{"style":"curiosity","model_hint":"Gemini curiosity","subject":"","preheader":"","shared_thread":""},{"style":"direct-response","model_hint":"ChatGPT direct-response","subject":"","preheader":"","shared_thread":""}]}`)
+    .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"${dev0}","model_hint":"${dev0}","subject":"","preheader":"","shared_thread":""},{"style":"${dev1}","model_hint":"${dev1}","subject":"","preheader":"","shared_thread":""},{"style":"${dev2}","model_hint":"${dev2}","subject":"","preheader":"","shared_thread":""}]}`)
     .join(",\n    ");
 }
 
@@ -1135,18 +1148,28 @@ function mergeOptionBatches(
   base.body = mergedBody;
   if (Object.keys(mergedBodyOptions).length) base.body_options = mergedBodyOptions;
   if (anchor.body_variety) base.body_variety = anchor.body_variety;
-  const validated = validateBrief(base, campaign, products);
+  const validated = sanitizeAndValidateBrief(base, campaign, products);
   validated._provider = provider;
   validated._model = model;
   validated._prompt_version = PROMPT_REGISTRY_VERSION;
   return validated;
 }
 
+function sanitizeAndValidateBrief(brief: GenBrief, campaign: Campaign, products: Product[]): GenBrief {
+  applySanitizeCopy(brief, campaign.brandId);
+  return validateBrief(brief, campaign, products);
+}
+
 const QUALITY_REPAIR_THRESHOLD = Number(process.env.AI_QUALITY_REPAIR_THRESHOLD || 78);
 const QUALITY_REPAIR_MAX_FLAGS = Number(process.env.AI_QUALITY_REPAIR_MAX_FLAGS || 10);
+const CREATIVE_REPAIR_THRESHOLD = Number(process.env.AI_CREATIVE_REPAIR_THRESHOLD || 62);
 
 function qualityRepairEnabled(): boolean {
   return !/^(0|false|off|no)$/i.test(process.env.AI_QUALITY_REPAIR || "");
+}
+
+function creativeRepairEnabled(): boolean {
+  return !/^(0|false|off|no)$/i.test(process.env.AI_CREATIVE_REPAIR || "");
 }
 
 function repairFlagsFor(brief: GenBrief): string[] {
@@ -1163,6 +1186,10 @@ function countComplianceImpact(brief: GenBrief): number {
   return (brief._flags || []).filter((f) => isComplianceRepairFlag(f.msg)).length;
 }
 
+function isHardContrastIssue(issue: string): boolean {
+  return !/product grid has identical product order/i.test(issue);
+}
+
 // Lexicographic: prefer fewer errors, then fewer serious/structural warnings, then higher score.
 // Stops a repair that removes a compliance flag from being discarded for adding cosmetic ones.
 function shouldKeepRepair(original: GenBrief, repaired: GenBrief): boolean {
@@ -1172,6 +1199,16 @@ function shouldKeepRepair(original: GenBrief, repaired: GenBrief): boolean {
   const compliance = countComplianceImpact(repaired) - countComplianceImpact(original);
   if (compliance !== 0) return compliance < 0;
   return (repaired._score ?? 0) >= (original._score ?? 0);
+}
+
+function shouldKeepCreativeRepair(original: GenBrief, repaired: GenBrief): boolean {
+  const oErr = (original._flags || []).filter((f) => f.type === "error").length;
+  const rErr = (repaired._flags || []).filter((f) => f.type === "error").length;
+  if (rErr > oErr) return false;
+  if (countComplianceImpact(repaired) > countComplianceImpact(original)) return false;
+  const before = original._creative_score ?? 0;
+  const after = repaired._creative_score ?? 0;
+  return after >= CREATIVE_REPAIR_THRESHOLD || after >= before + 8;
 }
 
 function buildQualityRepairPrompt(optionLabel: "A" | "B", brief: GenBrief, flags: string[]): string {
@@ -1189,6 +1226,57 @@ ${current}
 Return the complete corrected brief JSON using the exact same schema. Do not add prose or markdown fences.`;
 }
 
+function buildCreativeRepairPrompt(optionLabel: "A" | "B", brief: GenBrief): string {
+  const current = JSON.stringify(briefRevisionSummary(brief)).slice(0, 18000);
+  return `CREATIVE REPAIR PASS FOR OPTION ${optionLabel}
+
+The brief is compliant, but the copy is too formulaic or sales-led. Rewrite only customer-facing creative copy enough to raise the creative score while preserving all facts, products, prices, reviews, links, offer limits, and the current concept tuple.
+
+Required changes:
+1. Open body copy with one concrete scene, named-person note, or specific reader moment.
+2. Keep each segment body 120-150 words, first-person from the brand persona, and less salesy.
+3. Mention price/discount once in body max and free shipping once max.
+4. Make subject/preheader/banner/body share the same thread, but avoid cloning sentence structure.
+5. Keep product block text concise for image overlays.
+
+Current brief JSON:
+${current}
+
+Return the complete corrected brief JSON using the exact same schema. Do not add prose or markdown fences.`;
+}
+
+async function repairCreativityIfNeeded(
+  optionLabel: "A" | "B",
+  brief: GenBrief,
+  campaign: Campaign,
+  products: Product[],
+  selection: AIModelSelection
+): Promise<GenBrief> {
+  if (!creativeRepairEnabled()) return brief;
+  if ((brief._creative_score ?? 100) >= CREATIVE_REPAIR_THRESHOLD) return brief;
+  if ((brief._flags || []).some((f) => f.type === "error")) return brief;
+
+  try {
+    const repaired = sanitizeAndValidateBrief(
+      (await createAndParseWithModel(REPAIR_SYSTEM, buildCreativeRepairPrompt(optionLabel, brief), selection, {
+        temperature: Math.max(AI_REPAIR_TEMP, 0.7),
+        schema: genBriefJsonSchema(campaign.segments, true),
+      })) as unknown as GenBrief,
+      campaign,
+      products
+    );
+    if (shouldKeepCreativeRepair(brief, repaired)) {
+      console.info(`[generate-copy] creative repair kept for option ${optionLabel}: ${brief._creative_score ?? "?"} -> ${repaired._creative_score ?? "?"}`);
+      return repaired;
+    }
+    console.info(`[generate-copy] creative repair discarded for option ${optionLabel}: ${brief._creative_score ?? "?"} -> ${repaired._creative_score ?? "?"}`);
+    return brief;
+  } catch (err) {
+    console.warn(`[generate-copy] creative repair failed for option ${optionLabel}: ${err instanceof Error ? err.message : "unknown error"}`);
+    return brief;
+  }
+}
+
 async function repairBriefIfNeeded(
   optionLabel: "A" | "B",
   brief: GenBrief,
@@ -1199,10 +1287,10 @@ async function repairBriefIfNeeded(
 ): Promise<GenBrief> {
   if (!qualityRepairEnabled()) return brief;
   const flags = repairFlagsFor(brief);
-  if (!flags.length) return brief;
+  if (!flags.length) return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection);
 
   try {
-    const repaired = validateBrief(
+    const repaired = sanitizeAndValidateBrief(
       (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, {
         temperature: AI_REPAIR_TEMP,
         schema: genBriefJsonSchema(campaign.segments, true),
@@ -1212,13 +1300,13 @@ async function repairBriefIfNeeded(
     );
     if (shouldKeepRepair(brief, repaired)) {
       console.info(`[generate-copy] quality repair kept for option ${optionLabel}: ${brief._score ?? "?"} -> ${repaired._score ?? "?"}`);
-      return repaired;
+      return repairCreativityIfNeeded(optionLabel, repaired, campaign, products, selection);
     }
     console.info(`[generate-copy] quality repair discarded for option ${optionLabel}: ${brief._score ?? "?"} -> ${repaired._score ?? "?"}`);
-    return brief;
+    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection);
   } catch (err) {
     console.warn(`[generate-copy] quality repair failed for option ${optionLabel}: ${err instanceof Error ? err.message : "unknown error"}`);
-    return brief;
+    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection);
   }
 }
 
@@ -1276,15 +1364,15 @@ async function generateOptionsSingle(
       ]);
       aFailure = aSettled.status === "rejected" ? aSettled.reason : undefined;
       bFailure = bSettled.status === "rejected" ? bSettled.reason : undefined;
-      a = aSettled.status === "fulfilled" ? validateBrief(aSettled.value as unknown as GenBrief, campaign, products) : undefined;
-      b = bSettled.status === "fulfilled" ? validateBrief(bSettled.value as unknown as GenBrief, campaign, products) : undefined;
+      a = aSettled.status === "fulfilled" ? sanitizeAndValidateBrief(aSettled.value as unknown as GenBrief, campaign, products) : undefined;
+      b = bSettled.status === "fulfilled" ? sanitizeAndValidateBrief(bSettled.value as unknown as GenBrief, campaign, products) : undefined;
       [a, b] = await Promise.all([
         a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
         b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
       ]);
     } else {
       try {
-        a = validateBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A })) as unknown as GenBrief, campaign, products);
+        a = sanitizeAndValidateBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A })) as unknown as GenBrief, campaign, products);
         a = await repairBriefIfNeeded("A", a, campaign, products, sysA, models.a);
         stampBrief(a, models.a, campaignA.bodyVariety);
       } catch (err) {
@@ -1295,7 +1383,7 @@ async function generateOptionsSingle(
       sysBInitial = bMessages.system;
       usrB = bMessages.user;
       try {
-        b = validateBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B })) as unknown as GenBrief, campaign, products);
+        b = sanitizeAndValidateBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B })) as unknown as GenBrief, campaign, products);
         b = await repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b);
       } catch (err) {
         bFailure = err;
@@ -1311,6 +1399,8 @@ async function generateOptionsSingle(
 
     // One option failed — return the survivor with a non-fatal warning the UI can show.
     if (!a || !b) {
+      if (a) applySanitizeCopy(a, campaign.brandId);
+      if (b) applySanitizeCopy(b, campaign.brandId);
       const failedLabel = a ? "B" : "A";
       const why = errMessage(a ? bFailure : aFailure);
       console.warn(`[generate-copy] option ${failedLabel} failed, returning the other: ${why}`);
@@ -1318,7 +1408,7 @@ async function generateOptionsSingle(
     }
 
     // Auto-retry once if B collapses into A's strategy, route, body, banner, or product-copy shape.
-    const contrastProblems = briefContrastIssues(a, b);
+    const contrastProblems = briefContrastIssues(a, b).filter(isHardContrastIssue);
     if (contrastProblems.length > 0) {
       const sysB = overrides?.system?.trim()
         ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
@@ -1329,11 +1419,13 @@ WARNING: A/B contrast failed:
 ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
-      b = validateBrief((await createFullBriefWithModel(sysB, retry, models.b, campaign, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, campaign, products);
+      b = sanitizeAndValidateBrief((await createFullBriefWithModel(sysB, retry, models.b, campaign, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, campaign, products);
       b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
       stampBrief(b, models.b, campaignB.bodyVariety);
     }
 
+    applySanitizeCopy(a, campaign.brandId);
+    applySanitizeCopy(b, campaign.brandId);
     [a, b] = validateBriefPair(a, b);
 
     console.info(`[generate-copy] completed A/B${batchContext ? ` batch ${batchContext.index}/${batchContext.total}` : ""} in ${Math.round((Date.now() - startedAt) / 1000)}s using ${models.a.provider}:${models.a.model} + ${models.b.provider}:${models.b.model}`);
@@ -1349,14 +1441,27 @@ async function createOptionFoundation(
   optionLabel: "A" | "B",
   selection: AIModelSelection,
   variety: BodyVarietyProfile | undefined,
+  concept: EmailConcept,
   revision?: RevisionFeedback,
   optionAAnchor?: GenBrief
 ): Promise<GenBrief> {
-  const { system, user } = buildFoundationPrompt(campaign, products, optionLabel, selection, revision, optionAAnchor);
+  const { system, user } = buildFoundationPrompt(campaign, products, optionLabel, selection, concept, revision, optionAAnchor);
   const parsed = await createFoundationBriefWithModel(system, user, selection, {
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
   });
   const brief = normalizeFoundationBrief(parsed, campaign);
+  brief.creative_direction = {
+    ...(brief.creative_direction || {}),
+    angle: concept.angle,
+    framework: concept.framework,
+    concept,
+    branch: brief.creative_direction?.branch || concept.format,
+    source_pattern: brief.creative_direction?.source_pattern || concept.creativeDevice,
+  };
+  brief.quality_checks = {
+    ...(brief.quality_checks || {}),
+    opener_mechanic: brief.quality_checks?.opener_mechanic || concept.openerMechanic,
+  };
   return stampBrief(brief, selection, variety) as GenBrief;
 }
 
@@ -1376,6 +1481,7 @@ async function generateOptionsBatched(
     const nonceB = `${randomUUID()}:${models.b.provider}:${models.b.model}:B:foundation`;
     const campaignA = withOptionVariety(campaign, nonceA);
     const campaignB = withOptionVariety(campaign, nonceB);
+    const concepts = selectEmailConceptPair(campaign, products);
     const warnings: string[] = [];
     let optionAAnchor: GenBrief | undefined;
     let optionBAnchor: GenBrief | undefined;
@@ -1385,14 +1491,14 @@ async function generateOptionsBatched(
     console.info(`[generate-copy] layered generation for ${campaign.segments.length} segments: 2 foundations + ${total} segment batch(es)`);
 
     try {
-      optionAAnchor = await createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, revision);
+      optionAAnchor = await createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, concepts.a, revision);
     } catch (err) {
       aFailure = err;
       warnings.push(`foundation A: ${errMessage(err)}`);
     }
 
     try {
-      optionBAnchor = await createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, revision, optionAAnchor);
+      optionBAnchor = await createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, concepts.b, revision, optionAAnchor);
     } catch (err) {
       bFailure = err;
       warnings.push(`foundation B: ${errMessage(err)}`);
@@ -1444,6 +1550,51 @@ async function generateOptionsBatched(
     let b = bBatches.length
       ? mergeOptionBatches(campaign, products, bBatches, optionBAnchor?._provider, optionBAnchor?._model)
       : undefined;
+
+    if (a && b) {
+      const hardContrast = briefContrastIssues(a, b).filter(isHardContrastIssue);
+      if (hardContrast.length && optionAAnchor) {
+        try {
+          warnings.push(`contrast retry: ${hardContrast.slice(0, 3).join("; ")}`);
+          const retrySeedCampaign = { ...campaign, theme: `${campaign.theme} contrast retry ${hardContrast.join(" ")}` };
+          const retryConcept = selectEmailConceptPair(retrySeedCampaign, products).b;
+          const retryCampaignB = withOptionVariety(campaign, `${nonceB}:retry:${hardContrast.length}`);
+          const retryAnchor = await createOptionFoundation(retryCampaignB, products, "B", models.b, retryCampaignB.bodyVariety, retryConcept, revision, optionAAnchor);
+          const retrySegments = await mapWithConcurrency(
+            chunks,
+            SEGMENT_BATCH_CONCURRENCY,
+            (segments, index) =>
+              generateSegmentCopyBatch(
+                withSegments(campaign, segments),
+                products,
+                models,
+                revision,
+                {
+                  index: index + 1,
+                  total,
+                  allSegments: campaign.segments,
+                  allSegmentContext,
+                  optionBAnchor: retryAnchor,
+                }
+              )
+          );
+          retrySegments.forEach((result, index) => {
+            const label = `contrast retry batch ${index + 1}/${total}`;
+            if (result.error) warnings.push(`${label}: ${result.error}`);
+            if (result.warning) warnings.push(`${label}: ${result.warning}`);
+            if (!result.b) warnings.push(`${label}: missing Option B`);
+          });
+          const retryBatches: SegmentBatchPart[] = [
+            retryAnchor,
+            ...retrySegments.map((result) => result.b).filter((brief): brief is SegmentBatchPart => !!brief),
+          ];
+          b = mergeOptionBatches(campaign, products, retryBatches, retryAnchor._provider, retryAnchor._model);
+        } catch (err) {
+          warnings.push(`contrast retry failed: ${errMessage(err)}`);
+        }
+      }
+    }
+
     if (a && b) [a, b] = validateBriefPair(a, b);
 
     const warning = warnings.length

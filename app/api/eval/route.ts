@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-import { runGoldenSet, calibrateCorpus, runDiversityEval, checkSlop, strongBrief, type RawEmail } from "@/lib/quality/eval";
+import { runGoldenSet, calibrateCorpus, runDiversityEval, runQualityOverhaulEval, checkSlop, strongBrief, type RawEmail } from "@/lib/quality/eval";
 
 // Output-quality eval harness — a deterministic, no-cost, no-network QA endpoint.
 //   GET /api/eval
@@ -54,6 +54,7 @@ async function readCorpus(dir: string): Promise<RawEmail[]> {
 export async function GET() {
   const golden = runGoldenSet();
   const diversity = runDiversityEval();
+  const qualityOverhaul = runQualityOverhaulEval();
   const slopCheck = checkSlop(strongBrief());
 
   let corpus: ReturnType<typeof calibrateCorpus> | null = null;
@@ -73,11 +74,12 @@ export async function GET() {
     corpusNote = "Corpus not available in this environment — golden set only.";
   }
 
-  const pass = golden.pass && diversity.pass && (corpus ? corpus.pass : true);
+  const pass = golden.pass && diversity.pass && qualityOverhaul.pass && (corpus ? corpus.pass : true);
   return NextResponse.json({
     pass,
     golden,
     diversity,
+    qualityOverhaul,
     slop: slopCheck,
     corpus,
     corpusNote,
