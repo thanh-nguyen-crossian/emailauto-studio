@@ -31,3 +31,7 @@ docs/EmailAuto-Studio-Presentation.pdf
 docs/EmailAuto-Studio-User-Flow.html
 docs/EmailAuto-Studio-User-Flow.pdf
 docs/*.pdf
+
+# Large source Excel files — local reference only, not for tracking
+Source/
+Source/*.xlsx
