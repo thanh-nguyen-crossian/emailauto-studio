@@ -8,6 +8,8 @@ import { promptRuleBlock } from "./config/playbook";
 import type { Brand, Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 import { analyzeProductPriceOutliers } from "./quality/productData";
 import type { EmailConcept } from "./concept";
+import { TECHNIQUES, techniquesForBrand, getTechnique } from "./config/techniques";
+import { occasionsInWindow, evergreenOccasions, punsForBrand, getOccasion } from "./config/occasions";
 
 export const PROMPT_REGISTRY_VERSION = "emailstudio-email-brief-v2026-06-16.1";
 
@@ -157,6 +159,15 @@ export interface GenBrief {
   _model?: string;
   _prompt_version?: string;
   body_variety?: BodyVarietyProfile;
+}
+
+export interface TechniquePlan {
+  lead: string;            // lead technique id (from TECHNIQUES)
+  seasoning: string[];     // 0–2 technique ids
+  alwaysOn: string[];      // always-on technique ids resolved for this brand
+  occasion?: string;       // occasion id (from OCCASIONS) when lead === "occasion"
+  occasionName?: string;   // occasion display name
+  punSeeds?: string[];     // pun seeds when occasion has them
 }
 
 // ---- playbook constants (cleaned from the source file) ----
@@ -1224,6 +1235,101 @@ Treat the body architecture "${route.bodyArchitecture}" as a suggested arc, not 
 Write creative_direction.branch="${route.branch}", creative_direction.brief_route="${route.route}", and creative_direction.source_pattern="${route.sourcePattern}". Do not repeat a prior skeleton when another natural arc fits the hook better.`;
 }
 
+const ROUTE_TO_LEAD: Record<string, string> = {
+  AB: "honor_vip",
+  CD: "curiosity_gap",
+  EF: "pain_relief",
+  GH: "occasion",
+  IJ: "ugc_story",
+  KL: "fact_data",
+};
+
+function selectTechniquePlan(campaign: Campaign, isOptionB: boolean, nonce = ""): TechniquePlan {
+  const route = selectCreativeRoute(campaign, isOptionB, nonce);
+  const lead = ROUTE_TO_LEAD[route.branch] ?? "honor_vip";
+  const brandId = campaign.brandId as any; // Campaign.brandId is string; cast to BrandId for config lookups
+
+  // Resolve occasion when lead === "occasion"
+  let occasion: string | undefined;
+  let occasionName: string | undefined;
+  let punSeeds: string[] | undefined;
+  if (lead === "occasion" && campaign.sendDate) {
+    const d = new Date(campaign.sendDate);
+    const month = d.getUTCMonth() + 1;
+    const day = d.getUTCDate();
+    const inWindow = occasionsInWindow(month, day, brandId);
+    const occ = inWindow[0] ?? evergreenOccasions(brandId)[0];
+    if (occ) {
+      occasion = occ.id;
+      occasionName = occ.name;
+      if (occ.pun_seeds.length) punSeeds = occ.pun_seeds;
+    }
+  }
+
+  // Seasoning: pick 0–2 compatible with brand and lead
+  // pun_wordplay only for lux_fitting/santa_fare; fomo_scarcity compatible with most leads
+  const brandSeasoning = techniquesForBrand(brandId, "seasoning");
+  const seasoning: string[] = [];
+  // Add fomo_scarcity when lead is NOT already fomo/direct_offer and brand has scarcity signal
+  const hasFomo = brandSeasoning.find((t) => t.id === "fomo_scarcity");
+  if (hasFomo && !["fomo_scarcity", "direct_offer"].includes(lead)) {
+    seasoning.push("fomo_scarcity");
+  }
+  // Add pun_wordplay only when there's an occasion with pun_seeds
+  const hasPun = brandSeasoning.find((t) => t.id === "pun_wordplay");
+  if (hasPun && punSeeds?.length && seasoning.length < 2) {
+    seasoning.push("pun_wordplay");
+  }
+
+  // Always-on: all always_on techniques available to this brand
+  const alwaysOn = techniquesForBrand(brandId, "always_on").map((t) => t.id);
+
+  return { lead, seasoning, alwaysOn, occasion, occasionName, punSeeds };
+}
+
+function techniquePlanPrompt(plan: TechniquePlan): string {
+  const leadTech = getTechnique(plan.lead);
+  const seasoningTechs = plan.seasoning.map((id) => getTechnique(id)).filter(Boolean);
+  const alwaysOnTechs = plan.alwaysOn.map((id) => getTechnique(id)).filter(Boolean);
+
+  const lines: string[] = [];
+
+  // Lead technique
+  if (leadTech) {
+    lines.push(`Lead technique (ONE hook only): ${leadTech.rule}`);
+    const exemplars = leadTech.exemplars.slice(0, 2);
+    if (exemplars.length) {
+      lines.push(`  Exemplars: ${exemplars.map((e) => `"${e}"`).join(" | ")}`);
+    }
+  }
+
+  // Occasion
+  if (plan.occasionName) {
+    lines.push(`Occasion: ${plan.occasionName}`);
+    if (plan.punSeeds?.length) {
+      lines.push(`  Pun patterns (use if natural): ${plan.punSeeds.slice(0, 3).join("; ")}`);
+    }
+  }
+
+  // Seasoning
+  if (seasoningTechs.length) {
+    lines.push(`Seasoning (0–2, only if they serve the lead):`);
+    for (const t of seasoningTechs) {
+      if (t) lines.push(`  • ${t.rule}`);
+    }
+  }
+
+  // Always-on
+  if (alwaysOnTechs.length) {
+    lines.push(`Always-on (texture, apply to every send):`);
+    for (const t of alwaysOnTechs) {
+      if (t) lines.push(`  • ${t.rule}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 // ---- helpers ----
 export function segJsonKey(id: string): string {
   return "seg_" + id.replace(/-/g, "_");
@@ -1641,6 +1747,7 @@ export function buildSystemPrompt(
     { title: "Core Rules", body: CORE_PROMPT_LAYER },
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
     { title: "Production Brief Pattern", body: creativeRoutePrompt(campaign, isOptionB, nonce) },
+    { title: "Technique Plan", body: techniquePlanPrompt(selectTechniquePlan(campaign, isOptionB, nonce)) },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
     ...(campaign.bodyFocus !== "grid" ? [{
       title: "Body Focus",
