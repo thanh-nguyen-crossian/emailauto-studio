@@ -42,10 +42,10 @@ OCCASION_KEYWORDS = [
 
 # Pun patterns (common wordplay)
 PUN_PATTERNS = [
-    (r"tea", r"tea-riffic|tea-riffic"),
-    (r"brew", r"brew-tiful"),
-    (r"spook", r"spook-tacular"),
-    (r"grand", r"grand-eur|grand-stand"),
+    r"tea-riffic",
+    r"brew-tiful",
+    r"spook-tacular",
+    r"grand-eur|grand-stand",
 ]
 
 def is_design_note(text):
@@ -65,11 +65,8 @@ def classify_occasion(text):
 
 def classify_pun(text):
     """Check if text contains wordplay/puns."""
-    # Look for exclamation marks paired with portmanteaus, or common pun pairs
-    if "!" in text:
-        # Simple heuristic: exclamation often ends a pun
-        return True
-    for keyword, pattern in PUN_PATTERNS:
+    # Check for specific wordplay patterns
+    for pattern in PUN_PATTERNS:
         if re.search(pattern, text, re.IGNORECASE):
             return True
     return False
