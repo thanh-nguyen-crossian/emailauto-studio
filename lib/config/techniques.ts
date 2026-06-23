@@ -12,6 +12,10 @@
  *   - validateBrief    — check coverage
  */
 
+import type { Campaign } from "./types";
+import { evergreenOccasions, occasionsInWindow } from "./occasions";
+import { pickTip } from "./valueTips";
+
 export type TechLayer = "always_on" | "lead" | "seasoning";
 
 export type BrandId =
@@ -30,6 +34,31 @@ export interface Technique {
   exemplars: string[];
   /** If omitted, applies to all brands */
   brands?: BrandId[];
+}
+
+export interface TechniquePlan {
+  /** Lead technique id (from TECHNIQUES). Exactly one per option. */
+  lead: string;
+  /** 0-2 seasoning technique ids that support the lead. */
+  seasoning: string[];
+  /** Always-on technique ids resolved for this brand. */
+  alwaysOn: string[];
+  /** Occasion id when the lead is occasion-led. */
+  occasion?: string;
+  occasionName?: string;
+  punSeeds?: string[];
+  /** Optional value-payoff line selected for this send. */
+  valueTipId?: string;
+  valueTip?: string;
+}
+
+export interface TechniqueSelectionOptions {
+  isOptionB?: boolean;
+  nonce?: string;
+  /** Optional production-route branch. When supplied, the selector prefers its natural lead. */
+  branch?: string;
+  /** Leads already used by a paired option. B should avoid these where possible. */
+  avoidLeadIds?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -254,6 +283,200 @@ export const TECHNIQUES: Technique[] = [
   ...lead,
   ...seasoning,
 ];
+
+const ROUTE_TO_LEAD: Record<string, string> = {
+  AB: "honor_vip",
+  CD: "curiosity_gap",
+  EF: "pain_relief",
+  GH: "occasion",
+  IJ: "ugc_story",
+  KL: "fact_data",
+};
+
+const OPENER_TO_LEAD: Record<string, string> = {
+  story: "ugc_story",
+  fact: "fact_data",
+  question: "curiosity_gap",
+  occasion: "occasion",
+  re_engagement: "honor_vip",
+  insider_reveal: "honor_vip",
+  direct_problem: "pain_relief",
+};
+
+const ANGLE_TO_LEAD: Record<string, string> = {
+  proof: "fact_data",
+  mechanism: "fact_data",
+  offer: "direct_offer",
+  reactivation: "honor_vip",
+  "occasion/gift": "occasion",
+  "pain relief": "pain_relief",
+};
+
+function hashSeed(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function brandIdFor(campaign: Campaign): BrandId {
+  return campaign.brandId as BrandId;
+}
+
+function recentLeadPenalty(campaign: Campaign, leadId: string): number {
+  return (campaign.recentSendHistory || []).reduce((score, row) => {
+    const openerLead = OPENER_TO_LEAD[String(row.openerMechanic || "").toLowerCase()];
+    const angleLead = ANGLE_TO_LEAD[String(row.angle || "").toLowerCase()];
+    const frameworkLead = ANGLE_TO_LEAD[String(row.framework || "").toLowerCase()];
+    return score
+      + (openerLead === leadId ? 3 : 0)
+      + (angleLead === leadId ? 2 : 0)
+      + (frameworkLead === leadId ? 1 : 0);
+  }, 0);
+}
+
+function seededSortScore(seed: number, id: string, offset = 0): number {
+  return hashSeed(`${seed}:${id}:${offset}`) % 997;
+}
+
+function selectLeadTechnique(campaign: Campaign, options: TechniqueSelectionOptions): string {
+  const brandId = brandIdFor(campaign);
+  const leads = techniquesForBrand(brandId, "lead").map((t) => t.id);
+  const preferred = options.branch ? ROUTE_TO_LEAD[options.branch] : undefined;
+  const avoid = new Set(options.avoidLeadIds || []);
+  const pool = leads.filter((id) => !avoid.has(id));
+  const candidates = pool.length ? pool : leads;
+  const seed = hashSeed([
+    campaign.brandId,
+    campaign.sendDate,
+    campaign.theme,
+    campaign.offerValue,
+    campaign.offerShipping,
+    campaign.segments.join("|"),
+    options.nonce || "",
+    options.isOptionB ? "B" : "A",
+  ].join("::"));
+
+  return [...candidates]
+    .sort((a, b) => {
+      const scoreA =
+        (preferred && a !== preferred ? 9 : 0) +
+        recentLeadPenalty(campaign, a) +
+        seededSortScore(seed, a, options.isOptionB ? 31 : 0) / 1000;
+      const scoreB =
+        (preferred && b !== preferred ? 9 : 0) +
+        recentLeadPenalty(campaign, b) +
+        seededSortScore(seed, b, options.isOptionB ? 31 : 0) / 1000;
+      return scoreA - scoreB;
+    })[0] || preferred || "honor_vip";
+}
+
+function selectOccasion(campaign: Campaign, brandId: BrandId, seed: number) {
+  if (!campaign.sendDate) return undefined;
+  const d = new Date(campaign.sendDate);
+  const month = d.getUTCMonth() + 1;
+  const day = d.getUTCDate();
+  const pool = [...occasionsInWindow(month, day, brandId), ...evergreenOccasions(brandId)];
+  if (!pool.length) return undefined;
+  return pool[seed % pool.length];
+}
+
+/**
+ * Select the creative technique mix for one generated option. This is deliberately compact:
+ * one lead, up to two seasoning moves, and always-on texture. The prompt can still be creative
+ * inside those rails.
+ */
+export function selectTechniquePlan(
+  campaign: Campaign,
+  options: TechniqueSelectionOptions = {}
+): TechniquePlan {
+  const brandId = brandIdFor(campaign);
+  const seed = hashSeed([
+    campaign.brandId,
+    campaign.sendDate,
+    campaign.theme,
+    campaign.offerValue,
+    campaign.offerShipping,
+    campaign.segments.join("|"),
+    options.nonce || "",
+    options.branch || "",
+    options.isOptionB ? "B" : "A",
+  ].join("::"));
+  const lead = selectLeadTechnique(campaign, options);
+
+  let occasion: string | undefined;
+  let occasionName: string | undefined;
+  let punSeeds: string[] | undefined;
+  if (lead === "occasion") {
+    const occ = selectOccasion(campaign, brandId, seed);
+    if (occ) {
+      occasion = occ.id;
+      occasionName = occ.name;
+      if (occ.pun_seeds.length) punSeeds = occ.pun_seeds;
+    }
+  }
+
+  const brandSeasoning = techniquesForBrand(brandId, "seasoning");
+  const seasoning: string[] = [];
+  const addSeasoning = (id: string) => {
+    if (seasoning.length < 2 && brandSeasoning.some((t) => t.id === id) && id !== lead && !seasoning.includes(id)) {
+      seasoning.push(id);
+    }
+  };
+
+  if (!["fomo_scarcity", "direct_offer"].includes(lead)) addSeasoning("fomo_scarcity");
+  if (lead !== "curiosity_gap") addSeasoning("question_hook");
+  if (punSeeds?.length) addSeasoning("pun_wordplay");
+  if (seasoning.length < 2 && seed % 3 === 0) addSeasoning("numbered_list");
+  if (seasoning.length < 2 && seed % 5 === 0) addSeasoning("trend_tiein");
+
+  const alwaysOn = techniquesForBrand(brandId, "always_on").map((t) => t.id);
+  const recentTipIds = (campaign.recentSendHistory || [])
+    .flatMap((row) => [row.visualPattern, row.emotionalArc, row.openerMechanic])
+    .filter((v): v is string => !!v && /^[-_a-z0-9]+$/i.test(v));
+  const valueTip = pickTip(brandId, `${seed}:${options.nonce || ""}`, recentTipIds);
+
+  return {
+    lead,
+    seasoning,
+    alwaysOn,
+    occasion,
+    occasionName,
+    punSeeds,
+    valueTipId: valueTip?.id,
+    valueTip: valueTip?.text,
+  };
+}
+
+/** Compact prompt fragment for the selected technique plan. */
+export function techniquePlanPrompt(plan: TechniquePlan): string {
+  const leadTech = getTechnique(plan.lead);
+  const seasoningTechs = plan.seasoning.map((id) => getTechnique(id)).filter(Boolean);
+  const alwaysOnTechs = plan.alwaysOn.map((id) => getTechnique(id)).filter(Boolean);
+  const lines: string[] = [];
+
+  if (leadTech) {
+    lines.push(`Lead technique (ONE hook only): ${leadTech.rule}`);
+    const exemplars = leadTech.exemplars.slice(0, 2);
+    if (exemplars.length) lines.push(`Exemplars: ${exemplars.map((e) => `"${e}"`).join(" | ")}`);
+  }
+  if (plan.occasionName) {
+    lines.push(`Occasion: ${plan.occasionName}`);
+    if (plan.punSeeds?.length) lines.push(`Pun seeds: ${plan.punSeeds.slice(0, 3).join("; ")}`);
+  }
+  if (seasoningTechs.length) {
+    lines.push(`Seasoning (0-2; only if useful): ${seasoningTechs.map((t) => t?.rule).filter(Boolean).join(" | ")}`);
+  }
+  if (alwaysOnTechs.length) {
+    lines.push(`Always-on texture: ${alwaysOnTechs.map((t) => t?.rule).filter(Boolean).join(" | ")}`);
+  }
+  if (plan.valueTip) {
+    lines.push(`Value payoff seed: ${plan.valueTip}`);
+  }
+  return lines.join("\n");
+}
 
 // ---------------------------------------------------------------------------
 // Helper functions

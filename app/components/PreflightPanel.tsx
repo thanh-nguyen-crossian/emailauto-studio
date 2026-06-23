@@ -1,6 +1,6 @@
 "use client";
 
-import type { Flag } from "@/lib/briefgen";
+import type { Flag, TechniqueCoverage } from "@/lib/briefgen";
 import { flagTier, flagTierCounts } from "@/lib/briefgen";
 import type { BodyVarietyProfile } from "@/lib/config/types";
 import type { DeliverabilityReport } from "@/lib/quality/deliverability";
@@ -26,7 +26,7 @@ const CATEGORIES = [
   },
   {
     label: "Playbook compliance",
-    pattern: /playbook|curiosity beat|educational sign.?off|value payoff/i,
+    pattern: /playbook|curiosity beat|educational sign.?off|value payoff|technique/i,
   },
   {
     label: "Technical / Brand",
@@ -102,12 +102,16 @@ export function PreflightPanel({
   flags,
   advisory,
   score,
+  techniqueScore,
+  techniqueCoverage,
   variety,
   deliverability,
 }: {
   flags?: Flag[];
   advisory?: Flag[];
   score?: number;
+  techniqueScore?: number;
+  techniqueCoverage?: TechniqueCoverage;
   variety?: BodyVarietyProfile;
   deliverability?: DeliverabilityReport;
 }) {
@@ -135,6 +139,22 @@ export function PreflightPanel({
   return (
     <div className="section-panel">
       {deliverability && <DeliverabilityCard report={deliverability} />}
+      {typeof techniqueScore === "number" && (
+        <div className="mb-4 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+              Technique coverage
+            </span>
+            <span className="text-sm font-extrabold leading-none" style={{ color: techniqueScore >= 82 ? "var(--ok)" : techniqueScore >= 70 ? "var(--warn)" : "var(--bad)" }}>
+              {techniqueScore}/100
+            </span>
+          </div>
+          <p className="text-xs text-[var(--muted)]">
+            Lead: <span className="font-semibold text-[var(--text)]">{techniqueCoverage?.lead || "missing"}</span>
+            {techniqueCoverage?.notes?.length ? ` · ${techniqueCoverage.notes.slice(0, 2).join(" · ")}` : " · Technique, copy flow, offer cap, and value payoff look aligned."}
+          </p>
+        </div>
+      )}
       {variety && (
         <div className="mb-4 rounded-lg border p-3 flex flex-col gap-1.5" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
           <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-0.5">Body Variety — auto-selected</span>

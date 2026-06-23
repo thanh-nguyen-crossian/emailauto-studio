@@ -1884,6 +1884,8 @@ export function StudioApp() {
                       flags={activeBrief._flags}
                       advisory={activeBrief._advisory}
                       score={activeBrief._score}
+                      techniqueScore={activeBrief._technique_score}
+                      techniqueCoverage={activeBrief._technique_coverage}
                       variety={activeBrief.body_variety || varietyProfile}
                       deliverability={analyzeBriefDeliverability(activeBrief, htmlFor(activeOption, activeSegment))}
                     />

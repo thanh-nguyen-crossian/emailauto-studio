@@ -40,6 +40,8 @@ export function BriefView({
   const displayBrief = toDeliverableBrief(brief);
   const cd = displayBrief.creative_direction || ({} as GenBrief["creative_direction"]);
   const hc = cd.hook_contract || ({} as GenBrief["creative_direction"]["hook_contract"]);
+  const techniquePlan = cd.concept?.techniquePlan;
+  const techniqueCoverage = displayBrief._technique_coverage;
   const banner = displayBrief.banner || ({} as GenBrief["banner"]);
   const qc = displayBrief.quality_checks || ({} as GenBrief["quality_checks"]);
   const editable = !!onChange;
@@ -165,6 +167,14 @@ export function BriefView({
                 </p>
               </div>
             )}
+            {techniquePlan && (
+              <div className="col-span-2 rounded border p-2.5 flex flex-col gap-1" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Technique plan</span>
+                <p className="text-xs text-[var(--text)] mt-1">
+                  Lead: {techniquePlan.lead} · Seasoning: {techniquePlan.seasoning.join(", ") || "none"} · Value tip: {techniquePlan.valueTip || "none"}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -184,6 +194,9 @@ export function BriefView({
             )}
             {typeof displayBrief._creative_score === "number" && (
               <Tag label={`Creativity: ${displayBrief._creative_score}/100`} />
+            )}
+            {typeof displayBrief._technique_score === "number" && (
+              <Tag label={`Technique: ${displayBrief._technique_score}/100`} />
             )}
             <Row k="Source pattern" v={cd.source_pattern} />
             <Row k="Flow" v={cd.flow} />
@@ -209,6 +222,20 @@ export function BriefView({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+            {techniquePlan && (
+              <div className="mt-3 rounded border p-2.5 flex flex-col gap-1" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Technique plan</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 mt-1">
+                  <div className="text-xs"><span className="font-semibold text-[var(--muted)]">Lead </span>{techniquePlan.lead}</div>
+                  <div className="text-xs"><span className="font-semibold text-[var(--muted)]">Seasoning </span>{techniquePlan.seasoning.join(", ") || "none"}</div>
+                  {techniquePlan.occasionName && <div className="text-xs"><span className="font-semibold text-[var(--muted)]">Occasion </span>{techniquePlan.occasionName}</div>}
+                  {techniquePlan.valueTip && <div className="text-xs sm:col-span-2"><span className="font-semibold text-[var(--muted)]">Value tip </span>{techniquePlan.valueTip}</div>}
+                </div>
+                {techniqueCoverage?.notes?.length ? (
+                  <div className="text-[11px] text-[var(--muted)] mt-1">{techniqueCoverage.notes.join(" · ")}</div>
+                ) : null}
               </div>
             )}
           </>
@@ -699,6 +726,15 @@ export function briefToMarkdown(rawBrief: GenBrief, title: string): string {
       `- Concept: ${cd.concept.angle} · ${cd.concept.framework} · ${cd.concept.creativeDevice} · ${cd.concept.format} · ${cd.concept.proofPath} · ${cd.concept.openerMechanic}`,
     ] : []),
     ...(typeof brief._creative_score === "number" ? [`- Creativity score: ${brief._creative_score}/100`] : []),
+    ...(typeof brief._technique_score === "number" ? [`- Technique score: ${brief._technique_score}/100`] : []),
+    ...(cd.concept?.techniquePlan ? [
+      `- Technique lead: ${cd.concept.techniquePlan.lead}`,
+      `- Technique seasoning: ${cd.concept.techniquePlan.seasoning.join(", ") || "none"}`,
+      `- Value payoff seed: ${cd.concept.techniquePlan.valueTip || ""}`,
+    ] : []),
+    ...(brief._technique_coverage?.notes?.length ? [
+      `- Technique notes: ${brief._technique_coverage.notes.join(" | ")}`,
+    ] : []),
     `- Flow: ${cd.flow || ""}`,
     `- Differentiator: ${cd.differentiator || ""}`,
     ``,

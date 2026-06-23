@@ -7,14 +7,13 @@ import { performanceFeedbackPromptBlock } from "./performance/feedback";
 import { promptRuleBlock } from "./config/playbook";
 import type { Brand, Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 import { analyzeProductPriceOutliers } from "./quality/productData";
-import type { EmailConcept } from "./concept";
-import { TECHNIQUES, techniquesForBrand, getTechnique } from "./config/techniques";
-import { occasionsInWindow, evergreenOccasions, punsForBrand, getOccasion } from "./config/occasions";
+import { conceptPrompt, type EmailConcept } from "./concept";
+import { getTechnique, selectTechniquePlan, techniquePlanPrompt, type TechniquePlan } from "./config/techniques";
 
 // Token budget logger (AI_PROMPT_DEBUG=on)
 const PROMPT_DEBUG = /^(1|true|on|yes)$/i.test(process.env.AI_PROMPT_DEBUG || "");
 /** Approximate token count: 1 token ≈ 4 chars (GPT/Claude heuristic). */
-function estimateTokens(text: string): number {
+export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 /**
@@ -180,19 +179,34 @@ export interface GenBrief {
   _advisory?: Flag[];
   _score?: number;
   _creative_score?: number;
+  _technique_score?: number;
+  _technique_coverage?: TechniqueCoverage;
   _provider?: string;
   _model?: string;
   _prompt_version?: string;
   body_variety?: BodyVarietyProfile;
 }
 
-export interface TechniquePlan {
-  lead: string;            // lead technique id (from TECHNIQUES)
-  seasoning: string[];     // 0–2 technique ids
-  alwaysOn: string[];      // always-on technique ids resolved for this brand
-  occasion?: string;       // occasion id (from OCCASIONS) when lead === "occasion"
-  occasionName?: string;   // occasion display name
-  punSeeds?: string[];     // pun seeds when occasion has them
+export interface TechniqueCoverage {
+  score: number;
+  lead: string;
+  checks: Record<
+    | "plan_present"
+    | "lead_surfaced"
+    | "single_lead"
+    | "personalization"
+    | "persona_signoff"
+    | "question_or_curiosity"
+    | "brand_concision"
+    | "value_payoff"
+    | "power_cta"
+    | "offer_cap"
+    | "formatting"
+    | "low_sales_pressure"
+    | "emoji_budget",
+    boolean
+  >;
+  notes: string[];
 }
 
 // ---- playbook constants (cleaned from the source file) ----
@@ -1260,101 +1274,6 @@ Treat the body architecture "${route.bodyArchitecture}" as a suggested arc, not 
 Write creative_direction.branch="${route.branch}", creative_direction.brief_route="${route.route}", and creative_direction.source_pattern="${route.sourcePattern}". Do not repeat a prior skeleton when another natural arc fits the hook better.`;
 }
 
-const ROUTE_TO_LEAD: Record<string, string> = {
-  AB: "honor_vip",
-  CD: "curiosity_gap",
-  EF: "pain_relief",
-  GH: "occasion",
-  IJ: "ugc_story",
-  KL: "fact_data",
-};
-
-function selectTechniquePlan(campaign: Campaign, isOptionB: boolean, nonce = ""): TechniquePlan {
-  const route = selectCreativeRoute(campaign, isOptionB, nonce);
-  const lead = ROUTE_TO_LEAD[route.branch] ?? "honor_vip";
-  const brandId = campaign.brandId as "bra_goddess" | "gents_lux" | "lux_fitting" | "santa_fare";
-
-  // Resolve occasion when lead === "occasion"
-  let occasion: string | undefined;
-  let occasionName: string | undefined;
-  let punSeeds: string[] | undefined;
-  if (lead === "occasion" && campaign.sendDate) {
-    const d = new Date(campaign.sendDate);
-    const month = d.getUTCMonth() + 1;
-    const day = d.getUTCDate();
-    const inWindow = occasionsInWindow(month, day, brandId);
-    const occ = inWindow[0] ?? evergreenOccasions(brandId)[0];
-    if (occ) {
-      occasion = occ.id;
-      occasionName = occ.name;
-      if (occ.pun_seeds.length) punSeeds = occ.pun_seeds;
-    }
-  }
-
-  // Seasoning: pick 0–2 compatible with brand and lead
-  // pun_wordplay only for lux_fitting/santa_fare; fomo_scarcity compatible with most leads
-  const brandSeasoning = techniquesForBrand(brandId, "seasoning");
-  const seasoning: string[] = [];
-  // Add fomo_scarcity when lead is NOT already fomo/direct_offer and brand has scarcity signal
-  const hasFomo = brandSeasoning.find((t) => t.id === "fomo_scarcity");
-  if (hasFomo && !["fomo_scarcity", "direct_offer"].includes(lead)) {
-    seasoning.push("fomo_scarcity");
-  }
-  // Add pun_wordplay only when there's an occasion with pun_seeds
-  const hasPun = brandSeasoning.find((t) => t.id === "pun_wordplay");
-  if (hasPun && punSeeds?.length && seasoning.length < 2) {
-    seasoning.push("pun_wordplay");
-  }
-
-  // Always-on: all always_on techniques available to this brand
-  const alwaysOn = techniquesForBrand(brandId, "always_on").map((t) => t.id);
-
-  return { lead, seasoning, alwaysOn, occasion, occasionName, punSeeds };
-}
-
-function techniquePlanPrompt(plan: TechniquePlan): string {
-  const leadTech = getTechnique(plan.lead);
-  const seasoningTechs = plan.seasoning.map((id) => getTechnique(id)).filter(Boolean);
-  const alwaysOnTechs = plan.alwaysOn.map((id) => getTechnique(id)).filter(Boolean);
-
-  const lines: string[] = [];
-
-  // Lead technique
-  if (leadTech) {
-    lines.push(`Lead technique (ONE hook only): ${leadTech.rule}`);
-    const exemplars = leadTech.exemplars.slice(0, 2);
-    if (exemplars.length) {
-      lines.push(`  Exemplars: ${exemplars.map((e) => `"${e}"`).join(" | ")}`);
-    }
-  }
-
-  // Occasion
-  if (plan.occasionName) {
-    lines.push(`Occasion: ${plan.occasionName}`);
-    if (plan.punSeeds?.length) {
-      lines.push(`  Pun patterns (use if natural): ${plan.punSeeds.slice(0, 3).join("; ")}`);
-    }
-  }
-
-  // Seasoning
-  if (seasoningTechs.length) {
-    lines.push(`Seasoning (0–2, only if they serve the lead):`);
-    for (const t of seasoningTechs) {
-      if (t) lines.push(`  • ${t.rule}`);
-    }
-  }
-
-  // Always-on
-  if (alwaysOnTechs.length) {
-    lines.push(`Always-on (texture, apply to every send):`);
-    for (const t of alwaysOnTechs) {
-      if (t) lines.push(`  • ${t.rule}`);
-    }
-  }
-
-  return lines.join("\n");
-}
-
 // ---- helpers ----
 export function segJsonKey(id: string): string {
   return "seg_" + id.replace(/-/g, "_");
@@ -1685,7 +1604,8 @@ export function buildSystemPrompt(
   products: Product[],
   isOptionB: boolean,
   optionADirection?: GenCreativeDirection,
-  nonce = ""
+  nonce = "",
+  concept?: EmailConcept
 ): string {
   const brand = BRANDS[campaign.brandId];
   const productContext = products
@@ -1715,6 +1635,11 @@ export function buildSystemPrompt(
     .join(",\n    ");
 
   const contrast = isOptionB && optionADirection ? contrastInstruction(optionADirection) : "";
+  const selectedTechniquePlan = concept?.techniquePlan || selectTechniquePlan(campaign, {
+    isOptionB,
+    nonce,
+    branch: selectCreativeRoute(campaign, isOptionB, nonce).branch,
+  });
   const winning = campaign.winningContent?.trim()
     ? `Mirror structure/pacing only; write new copy:\n${truncateForPrompt(campaign.winningContent, 900)}`
     : "";
@@ -1772,7 +1697,8 @@ export function buildSystemPrompt(
     { title: "Core Rules", body: CORE_PROMPT_LAYER },
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
     { title: "Production Brief Pattern", body: creativeRoutePrompt(campaign, isOptionB, nonce) },
-    { title: "Technique Plan", body: techniquePlanPrompt(selectTechniquePlan(campaign, isOptionB, nonce)) },
+    { title: "Chosen Concept", body: concept ? conceptPrompt(concept, isOptionB ? "B" : "A") : "" },
+    { title: "Technique Plan", body: techniquePlanPrompt(selectedTechniquePlan) },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
     ...(campaign.bodyFocus !== "grid" ? [{
       title: "Body Focus",
@@ -1915,7 +1841,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over 150|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -1941,7 +1867,7 @@ export function isComplianceRepairFlag(msg: string): boolean {
 }
 
 const COMPLIANCE_VALIDATION_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over 150|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
 
 export function isComplianceValidationFlag(flag: Flag): boolean {
   return flag.type === "error" || COMPLIANCE_VALIDATION_FLAG.test(flag.msg);
@@ -2024,6 +1950,155 @@ export function computeCreativityScore(brief: GenBrief): number {
   return Math.max(0, Math.min(100, score));
 }
 
+function bodyWordBand(brandId: string): { min: number; max: number } {
+  if (brandId === "gents_lux") return { min: 80, max: 130 };
+  if (brandId === "santa_fare") return { min: 100, max: 130 };
+  return { min: 120, max: 150 };
+}
+
+function copyForTechniqueScan(brief: GenBrief): string {
+  return stripCopyMarkup(JSON.stringify({
+    cd: brief.creative_direction,
+    subject_lines: brief.subject_lines,
+    banner: brief.banner,
+    body: brief.body,
+    ps: brief.ps,
+    products: brief.products,
+  }));
+}
+
+function bodySegmentTexts(brief: GenBrief): string[] {
+  return Object.entries(brief.body || {})
+    .filter(([key]) => key !== "base")
+    .map(([, value]) => String(value || ""))
+    .filter((value) => value.trim());
+}
+
+function countEmoji(text: string): number {
+  return (text.replace(/💲/g, "").match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []).length;
+}
+
+function countLeadSignals(text: string, campaign: Campaign, plan?: TechniquePlan): Record<string, boolean> {
+  const surface = norm(text);
+  const bodyStart = norm(firstParagraph(text));
+  return {
+    occasion: /\b(christmas|valentine|halloween|labor day|black friday|new year|mother'?s day|earth day|graduation|birthday|friday|sunday|holiday|season)\b/i.test(text) ||
+      (!!plan?.occasionName && surface.includes(norm(plan.occasionName))),
+    ugc_story: /\b([A-Z][a-z]+)\s+(?:told|mentioned|wrote|called|asked|said|noticed|emailed|replied)\b/.test(text) ||
+      /\bmy (?:dad|neighbor|friend|sister|coworker|customer|wife|husband)\b/i.test(text),
+    curiosity_gap: /\?/.test(text) || /\b(did you know|ever notice|wonder why|what if|sound familiar|the reason|one detail|secret|mystery)\b/i.test(text),
+    fact_data: /\b\d+(?:\.\d+)?\s*(?:%|hours?|days?|seconds?|minutes?|years?|stars?|reviews?|wears?|orders?)\b/i.test(text) ||
+      /\b(did you know|study|average|most men|most women|rule of thumb)\b/i.test(text),
+    pain_relief: /\b(digging|pinch|slip|gap|ride up|stiff|restrict|heavy|cling|sweat|chafe|friction|pain|pressure|adjust|uncomfortable|problem)\b/i.test(text),
+    honor_vip: /\b(private|reserved|set aside|early access|just for you|solid customer|vip|thank you|reward|exclusive|chosen)\b/i.test(text),
+    fomo_scarcity: /\b(ends|midnight|last|almost gone|only|24 hours|48 hours|two days|weekend|while open|before it closes|limited)\b/i.test(text),
+    direct_offer: hasOfferSignal(bodyStart || text.slice(0, 220), campaign),
+  };
+}
+
+function surfacedLead(plan: TechniquePlan | undefined, text: string, campaign: Campaign): boolean {
+  if (!plan?.lead) return false;
+  const signals = countLeadSignals(text, campaign, plan);
+  return !!signals[plan.lead];
+}
+
+function hasValuePayoffText(text: string): boolean {
+  return /#(?:tip|quicktip|hack|stylehack|caretip|fittip|comforttip|gifttip)|did you know|fun fact|quick fact|one simple rule|rule of thumb|tip:/i.test(text);
+}
+
+function hasPersonaSignoff(brief: GenBrief, campaign: Campaign): boolean {
+  const personaName = BRAND_PERSONA_NAMES[campaign.brandId];
+  if (!personaName) return true;
+  const signOffSurface = `${briefBodyText(brief)} ${brief.ps || ""}`.toLowerCase();
+  return new RegExp(`\\b${personaName.toLowerCase()}\\b`).test(signOffSurface);
+}
+
+function hasQuestionOrCuriosity(brief: GenBrief): boolean {
+  const allBodyText = Object.values(brief.body || {}).map((v) => stripCopyMarkup(String(v || ""))).join(" ");
+  return /\?/.test(allBodyText) || /\b(did you know|ever notice|wonder why|imagine if|sound familiar|ever feel|ever tried|remember when|what if)\b/i.test(allBodyText);
+}
+
+function hasPowerCtas(brief: GenBrief): boolean {
+  const ctas = [
+    brief.banner?.cta,
+    ...(brief.products || []).map((p) => p.cta),
+  ].filter((v): v is string => !!v?.trim());
+  if (!ctas.length) return false;
+  return ctas.every((cta) => /\b(shop|try|grab|see|get|find|choose|wear|start|open|save|build|upgrade|claim)\b/i.test(cta) && !WEAK_CTA.includes(cta.toLowerCase()));
+}
+
+function offerCapOk(brief: GenBrief): boolean {
+  return bodySegmentTexts(brief).every((text) => {
+    const priceMentions = (text.match(/💲\d|\$\d|\b\d+\s*%\s*(?:off|o\.f\.f|saving)/gi) || []).length;
+    const shipMentions = (text.match(/free\s+(?:shipping|ship)/gi) || []).length;
+    return priceMentions <= MAX_BODY_OFFER_MENTIONS && shipMentions <= 1;
+  });
+}
+
+export function computeTechniqueCoverage(brief: GenBrief, campaign: Campaign): TechniqueCoverage {
+  const plan = brief.creative_direction?.concept?.techniquePlan;
+  const rawSurface = JSON.stringify(brief);
+  const scan = copyForTechniqueScan(brief);
+  const bodyTexts = bodySegmentTexts(brief);
+  const band = bodyWordBand(campaign.brandId);
+  const segmentKeys = campaign.segments.map(segJsonKey);
+  const subjectLines = brief.subject_lines || {};
+  const selectedSubjectPairs = segmentKeys
+    .map((key) => `${subjectLines[key]?.subject || ""} ${subjectLines[key]?.preheader || ""}`)
+    .filter((value) => value.trim());
+  const allBodiesWithinBand = bodyTexts.length > 0 && bodyTexts.every((text) => {
+    const words = wordCount(text);
+    return words >= band.min && words <= band.max;
+  });
+  const leadSignals = countLeadSignals(scan, campaign, plan);
+  const allowedSupportSignals = new Set([plan?.lead, ...(plan?.seasoning || []), "direct_offer", "fomo_scarcity"].filter(Boolean));
+  const competingLeadSignals = Object.entries(leadSignals)
+    .filter(([id, active]) => active && !allowedSupportSignals.has(id))
+    .map(([id]) => id);
+  const checks: TechniqueCoverage["checks"] = {
+    plan_present: !!plan?.lead,
+    lead_surfaced: surfacedLead(plan, scan, campaign),
+    single_lead: competingLeadSignals.length <= 4,
+    personalization: selectedSubjectPairs.length > 0 && selectedSubjectPairs.every((pair) => /{{\s*first_name\s*}}/i.test(pair)),
+    persona_signoff: hasPersonaSignoff(brief, campaign),
+    question_or_curiosity: hasQuestionOrCuriosity(brief),
+    brand_concision: allBodiesWithinBand,
+    value_payoff: campaign.brandId === "gents_lux" ? hasValuePayoffText(`${briefBodyText(brief)} ${brief.ps || ""}`) : true,
+    power_cta: hasPowerCtas(brief),
+    offer_cap: offerCapOk(brief),
+    formatting: (rawSurface.match(ACCENT_MARKER)?.length || 0) + (rawSurface.match(BOLD_MARKER)?.length || 0) >= 2 && MARKDOWN_ANY_LINK.test(rawSurface),
+    low_sales_pressure: bodyTexts.every((text) => hardSellHits(text).length <= 1),
+    emoji_budget: countEmoji(`${briefBodyText(brief)} ${brief.ps || ""}`) <= (BRANDS[campaign.brandId]?.emojiPolicy === "yes" ? 1 : 0),
+  };
+  const notes: string[] = [];
+  if (!checks.plan_present) notes.push("No technique plan on creative_direction.concept");
+  if (plan?.lead && !checks.lead_surfaced) notes.push(`Lead technique not clearly surfaced: ${getTechnique(plan.lead)?.rule || plan.lead}`);
+  if (!checks.single_lead) notes.push(`Copy may stack competing lead hooks (${competingLeadSignals.slice(0, 3).join(", ")}); keep one dominant entry point`);
+  if (!checks.brand_concision) notes.push(`Body word count should sit in the ${band.min}-${band.max} band for this brand`);
+  if (!checks.value_payoff) notes.push("GentsLux needs a useful #Tip/#QuickTip/Dig-you-know payoff");
+  if (!checks.low_sales_pressure) notes.push("Body has multiple hard-sell commands; keep offer pressure calm");
+  if (!checks.emoji_budget) notes.push("Emoji count exceeds the brand budget");
+
+  const weights: Record<keyof TechniqueCoverage["checks"], number> = {
+    plan_present: 8,
+    lead_surfaced: 14,
+    single_lead: 8,
+    personalization: 8,
+    persona_signoff: 8,
+    question_or_curiosity: 8,
+    brand_concision: 10,
+    value_payoff: 8,
+    power_cta: 7,
+    offer_cap: 8,
+    formatting: 6,
+    low_sales_pressure: 5,
+    emoji_budget: 2,
+  };
+  const score = (Object.keys(weights) as (keyof TechniqueCoverage["checks"])[])
+    .reduce((total, key) => total + (checks[key] ? weights[key] : 0), 0);
+  return { score, lead: plan?.lead || "missing", checks, notes };
+}
+
 /** Tier counts for UI ("serious vs polish") — lets REVIEW distinguish real risk from cosmetics. */
 export function flagTierCounts(flags: Flag[] = []): { serious: number; structural: number; cosmetic: number; errors: number } {
   const counts = { serious: 0, structural: 0, cosmetic: 0, errors: 0 };
@@ -2049,6 +2124,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   normalizePrimarySubjectSelections(brief);
   const subjectMax = BRANDS[campaign.brandId]?.subjectMax || 58;
   const subjectMin = BRANDS[campaign.brandId]?.subjectMin || 42;
+  const bodyBand = bodyWordBand(campaign.brandId);
 
   (["creative_direction", "subject_lines", "theme", "banner", "body", "products", "quality_checks"] as const).forEach(
     (f) => {
@@ -2267,8 +2343,8 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (text && /we('ve| have)?\s+(missed|been missing)\s+you|(we'?re|we are)\s+sorry|we\s+apologize|feel\s+bad\s+(that|about)|it's been\s+a\s+while\s+since/i.test(String(text).slice(0, 250))) {
       addFlag(brief, "warn", `${seg} reactivation guilt/apology opener — lead with value, not an apology`);
     }
-    if (text && wordCount(text) > 150) addFlag(brief, "warn", `${seg} body over 150 words (${wordCount(text)})`);
-    if (text && wordCount(text) < 100) addFlag(brief, "warn", `${seg} body too short (${wordCount(text)} words; target 120-150)`);
+    if (text && wordCount(text) > bodyBand.max) addFlag(brief, "warn", `${seg} body over ${bodyBand.max} words (${wordCount(text)})`);
+    if (text && wordCount(text) < bodyBand.min) addFlag(brief, "warn", `${seg} body too short (${wordCount(text)} words; target ${bodyBand.min}-${bodyBand.max})`);
     if (campaign.bodyLayout === "interspersed" && paras.length > 2) {
       addFlag(brief, "warn", `${seg} interspersed body should be opener + one short bridge only`);
     }
@@ -2418,6 +2494,15 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   if (brief._creative_score < 70) {
     addFlag(brief, "warn", `Creative score ${brief._creative_score}/100 — add a concrete scene/story and reduce repeated mechanism or offer phrasing`);
   }
+  brief._technique_coverage = computeTechniqueCoverage(brief, campaign);
+  brief._technique_score = brief._technique_coverage.score;
+  if (brief._technique_score < 75) {
+    addFlag(
+      brief,
+      "warn",
+      `Technique coverage ${brief._technique_score}/100 — ${brief._technique_coverage.notes.slice(0, 2).join("; ") || "tighten playbook technique execution"}`
+    );
+  }
 
   const split = splitValidationFlags(brief._flags || []);
   brief._flags = split.compliance;
@@ -2499,6 +2584,11 @@ export function briefContrastIssues(a: GenBrief, b: GenBrief): string[] {
     ].filter(Boolean).length;
     if (conceptMatches > 3) {
       issues.push("A/B concept tuples overlap on too many axes; force a different device, format, proof path, and opener mechanic");
+    }
+    const aLead = aCd.concept.techniquePlan?.lead;
+    const bLead = bCd.concept.techniquePlan?.lead;
+    if (aLead && bLead && aLead === bLead) {
+      issues.push("A/B technique leads are the same; choose a different lead method such as story vs fact, curiosity vs offer, or pain-relief vs VIP");
     }
   }
   const directionTextA = [aCd.flow, aCd.differentiator, aCd.source_pattern].filter(Boolean).join(" ");

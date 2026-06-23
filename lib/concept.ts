@@ -1,4 +1,5 @@
 import { BRANDS } from "./config/brands";
+import { selectTechniquePlan, type TechniquePlan } from "./config/techniques";
 import type { Campaign, Product } from "./config/types";
 
 export interface EmailConcept {
@@ -10,6 +11,7 @@ export interface EmailConcept {
   format: string;
   proofPath: string;
   openerMechanic: string;
+  techniquePlan?: TechniquePlan;
 }
 
 const ANGLES = ["Pain Relief", "Mechanism", "Proof", "Offer", "Reactivation", "Occasion/Gift"];
@@ -31,19 +33,21 @@ function pick<T>(items: T[], seed: number, offset = 0): T {
   return items[(seed + offset) % items.length];
 }
 
-function recentPenalty(campaign: Campaign, concept: Pick<EmailConcept, "angle" | "framework" | "creativeDevice" | "heroProductSlug" | "openerMechanic">): number {
+function recentPenalty(campaign: Campaign, concept: Pick<EmailConcept, "angle" | "framework" | "creativeDevice" | "heroProductSlug" | "openerMechanic" | "techniquePlan">): number {
   return (campaign.recentSendHistory || []).reduce((score, row) => {
     const opener = row.openerMechanic?.toLowerCase() || "";
+    const lead = concept.techniquePlan?.lead || "";
     return score
       + (row.angle === concept.angle ? 2 : 0)
       + (row.framework === concept.framework ? 2 : 0)
       + (row.heroSlug === concept.heroProductSlug ? 2 : 0)
       + (opener && concept.openerMechanic.toLowerCase().includes(opener) ? 1 : 0)
+      + (lead && opener.includes(lead.replace(/_/g, " ")) ? 2 : 0)
       + (row.visualPattern?.toLowerCase().includes(concept.creativeDevice.toLowerCase()) ? 1 : 0);
   }, 0);
 }
 
-function buildConcept(campaign: Campaign, products: Product[], seed: number, offset: number): EmailConcept {
+function buildConcept(campaign: Campaign, products: Product[], seed: number, offset: number, avoidLeadIds: string[] = []): EmailConcept {
   const brand = BRANDS[campaign.brandId];
   const hero = products[0] || brand?.catalog[0];
   const devices = brand?.subjectDevices?.length ? brand.subjectDevices : ["open-loop", "pattern-interrupt", "playful-conceit"];
@@ -56,6 +60,11 @@ function buildConcept(campaign: Campaign, products: Product[], seed: number, off
     format: pick(FORMATS, seed >> 7, offset * 5),
     proofPath: pick(PROOF_PATHS, seed >> 11, offset * 7),
     openerMechanic: pick(OPENERS, seed >> 13, offset * 11),
+    techniquePlan: selectTechniquePlan(campaign, {
+      isOptionB: offset > 0,
+      nonce: `${seed}:${offset}`,
+      avoidLeadIds,
+    }),
   };
 
   for (let guard = 0; guard < 8 && recentPenalty(campaign, concept) >= 4; guard++) {
@@ -67,6 +76,11 @@ function buildConcept(campaign: Campaign, products: Product[], seed: number, off
       format: pick(FORMATS, seed >> 7, offset * 5 + guard + 1),
       proofPath: pick(PROOF_PATHS, seed >> 11, offset * 7 + guard + 1),
       openerMechanic: pick(OPENERS, seed >> 13, offset * 11 + guard + 1),
+      techniquePlan: selectTechniquePlan(campaign, {
+        isOptionB: offset > 0,
+        nonce: `${seed}:${offset}:${guard + 1}`,
+        avoidLeadIds,
+      }),
     };
   }
   return concept;
@@ -81,6 +95,7 @@ export function conceptDifferenceCount(a: EmailConcept, b: EmailConcept): number
     a.format !== b.format,
     a.proofPath !== b.proofPath,
     a.openerMechanic !== b.openerMechanic,
+    a.techniquePlan?.lead !== b.techniquePlan?.lead,
   ].filter(Boolean).length;
 }
 
@@ -95,14 +110,15 @@ export function selectEmailConceptPair(campaign: Campaign, products: Product[]):
     products.map((p) => p.slug).join("|"),
   ].join("::"));
   const a = buildConcept(campaign, products, seed, 0);
-  let b = buildConcept(campaign, products, seed, 3);
+  let b = buildConcept(campaign, products, seed, 3, a.techniquePlan?.lead ? [a.techniquePlan.lead] : []);
   for (let guard = 0; guard < 8 && conceptDifferenceCount(a, b) < 3; guard++) {
-    b = buildConcept(campaign, products, seed, 4 + guard);
+    b = buildConcept(campaign, products, seed, 4 + guard, a.techniquePlan?.lead ? [a.techniquePlan.lead] : []);
   }
   return { a, b };
 }
 
 export function conceptPrompt(concept: EmailConcept, optionLabel: "A" | "B"): string {
+  const plan = concept.techniquePlan;
   return `Option ${optionLabel} concept tuple:
 - angle: ${concept.angle}
 - framework: ${concept.framework}
@@ -111,6 +127,9 @@ export function conceptPrompt(concept: EmailConcept, optionLabel: "A" | "B"): st
 - format: ${concept.format}
 - proof_path: ${concept.proofPath}
 - opener_mechanic: ${concept.openerMechanic}
+${plan ? `- technique_lead: ${plan.lead}
+- technique_seasoning: ${plan.seasoning.join(", ") || "none"}
+- value_payoff_seed: ${plan.valueTip || "none"}` : ""}
 
 Use this tuple as the creative route. Do not rename it into a near-duplicate of the other option.`;
 }

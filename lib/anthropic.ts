@@ -527,6 +527,8 @@ function briefRevisionSummary(brief?: GenBrief) {
     _flags: _dropFlags,
     _advisory: _dropAdvisory,
     _score: _dropScore,
+    _technique_score: _dropTechniqueScore,
+    _technique_coverage: _dropTechniqueCoverage,
     _provider: _dropProvider,
     _model: _dropModel,
     _prompt_version: _dropPromptVersion,
@@ -536,6 +538,8 @@ function briefRevisionSummary(brief?: GenBrief) {
   void _dropFlags;
   void _dropAdvisory;
   void _dropScore;
+  void _dropTechniqueScore;
+  void _dropTechniqueCoverage;
   void _dropProvider;
   void _dropModel;
   void _dropPromptVersion;
@@ -669,6 +673,22 @@ function stampBrief(brief: GenBrief | undefined, selection: AIModelSelection, va
   brief._model = selection.model;
   brief._prompt_version = PROMPT_REGISTRY_VERSION;
   if (variety) brief.body_variety = cleanBodyVarietyProfile(variety);
+  return brief;
+}
+
+function attachConceptToBrief(brief: GenBrief, concept: EmailConcept): GenBrief {
+  brief.creative_direction = {
+    ...(brief.creative_direction || {}),
+    angle: brief.creative_direction?.angle || concept.angle,
+    framework: brief.creative_direction?.framework || concept.framework,
+    concept: brief.creative_direction?.concept || concept,
+    branch: brief.creative_direction?.branch || concept.format,
+    source_pattern: brief.creative_direction?.source_pattern || concept.creativeDevice,
+  };
+  brief.quality_checks = {
+    ...(brief.quality_checks || {}),
+    opener_mechanic: brief.quality_checks?.opener_mechanic || concept.openerMechanic,
+  };
   return brief;
 }
 
@@ -1325,7 +1345,8 @@ async function generateOptionsSingle(
     const nonceB = `${randomUUID()}:${models.b.provider}:${models.b.model}:B`;
     const campaignA = autoPrompts ? withOptionVariety(campaign, nonceA) : { ...campaign, bodyVariety: campaign.bodyVariety || selectVarietyProfile(campaign, nonceA) };
     const campaignB = autoPrompts ? withOptionVariety(campaign, nonceB) : { ...campaign, bodyVariety: campaign.bodyVariety || selectVarietyProfile(campaign, nonceB) };
-    const sysA = overrides?.system?.trim() || buildSystemPrompt(campaignA, products, false, undefined, nonceA);
+    const concepts = selectEmailConceptPair(campaign, products);
+    const sysA = overrides?.system?.trim() || buildSystemPrompt(campaignA, products, false, undefined, nonceA, concepts.a);
     const usrABase = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaignA, false), revision);
     const usrA = appendSegmentBatchContext(appendModelExecutionStyle(usrABase, "A", models.a), "A", batchContext);
 
@@ -1340,7 +1361,7 @@ async function generateOptionsSingle(
     const buildOptionBMessages = (anchor?: GenBrief, retryNonce = nonceB) => {
       const system = overrides?.system?.trim()
         ? `${overrides.system.trim()}${anchor ? "\n" + contrastInstruction(anchor.creative_direction) : ""}`
-        : buildSystemPrompt(campaignB, products, true, anchor?.creative_direction, retryNonce);
+        : buildSystemPrompt(campaignB, products, true, anchor?.creative_direction, retryNonce, concepts.b);
       const userBase = overrides?.user?.trim()
         ? overrides.user.trim() + "\n\nGenerate Option B now — make it a clearly different challenger from Option A."
         : buildUserPrompt(campaignB, true);
@@ -1364,15 +1385,15 @@ async function generateOptionsSingle(
       ]);
       aFailure = aSettled.status === "rejected" ? aSettled.reason : undefined;
       bFailure = bSettled.status === "rejected" ? bSettled.reason : undefined;
-      a = aSettled.status === "fulfilled" ? sanitizeAndValidateBrief(aSettled.value as unknown as GenBrief, campaign, products) : undefined;
-      b = bSettled.status === "fulfilled" ? sanitizeAndValidateBrief(bSettled.value as unknown as GenBrief, campaign, products) : undefined;
+      a = aSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(aSettled.value as unknown as GenBrief, concepts.a), campaign, products) : undefined;
+      b = bSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(bSettled.value as unknown as GenBrief, concepts.b), campaign, products) : undefined;
       [a, b] = await Promise.all([
         a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
         b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
       ]);
     } else {
       try {
-        a = sanitizeAndValidateBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A })) as unknown as GenBrief, campaign, products);
+        a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A })) as unknown as GenBrief, concepts.a), campaign, products);
         a = await repairBriefIfNeeded("A", a, campaign, products, sysA, models.a);
         stampBrief(a, models.a, campaignA.bodyVariety);
       } catch (err) {
@@ -1383,7 +1404,7 @@ async function generateOptionsSingle(
       sysBInitial = bMessages.system;
       usrB = bMessages.user;
       try {
-        b = sanitizeAndValidateBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B })) as unknown as GenBrief, campaign, products);
+        b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B })) as unknown as GenBrief, concepts.b), campaign, products);
         b = await repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b);
       } catch (err) {
         bFailure = err;
@@ -1412,14 +1433,14 @@ async function generateOptionsSingle(
     if (contrastProblems.length > 0) {
       const sysB = overrides?.system?.trim()
         ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
-        : buildSystemPrompt(campaignB, products, true, a.creative_direction, `${nonceB}:retry`);
+        : buildSystemPrompt(campaignB, products, true, a.creative_direction, `${nonceB}:retry`, concepts.b);
       const retry = `${usrB}
 
 WARNING: A/B contrast failed:
 ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
-      b = sanitizeAndValidateBrief((await createFullBriefWithModel(sysB, retry, models.b, campaign, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, campaign, products);
+      b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, campaign, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, concepts.b), campaign, products);
       b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
       stampBrief(b, models.b, campaignB.bodyVariety);
     }

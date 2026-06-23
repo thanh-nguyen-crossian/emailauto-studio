@@ -15,9 +15,10 @@
 // .eml corpus from disk and calls these).
 
 import { BRANDS } from "../config/brands";
-import { briefContrastIssues, validateBrief, type GenBrief } from "../briefgen";
+import { briefContrastIssues, buildSystemPrompt, estimateTokens, validateBrief, type GenBrief } from "../briefgen";
 import type { Campaign, Product } from "../config/types";
 import { conceptDifferenceCount, selectEmailConceptPair } from "../concept";
+import { selectTechniquePlan } from "../config/techniques";
 import { toDeliverableBrief } from "../present/cleanBrief";
 import { applySanitizeCopy, sanitizeCopy } from "../present/sanitizeCopy";
 import { analyzeProductPriceOutliers } from "./productData";
@@ -105,6 +106,23 @@ export function strongBrief(): GenBrief {
       },
       flow: "Hero comfort promise to a single front-snap product reward and one calm CTA",
       differentiator: "Named-neighbor micro-story opener with one mechanism proof",
+      concept: {
+        angle: "Pain Relief",
+        framework: "PAS",
+        creativeDevice: "open-loop",
+        heroProductSlug: "daisybra",
+        heroProductName: "Daisy Bra 3",
+        format: "single-hero story",
+        proofPath: "mechanism detail",
+        openerMechanic: "story",
+        techniquePlan: {
+          lead: "ugc_story",
+          seasoning: ["question_hook"],
+          alwaysOn: ["personalization", "persona_warmth", "one_question", "emoji_budget", "power_verbs", "concision", "value_payoff"],
+          valueTipId: "bg_tip_band_size",
+          valueTip: "#FitFact: Your band should sit level in front and back. If it rides up, your band size is too big.",
+        },
+      },
     },
     subject_lines: {
       seg_21: {
@@ -138,11 +156,11 @@ export function strongBrief(): GenBrief {
     },
     body: {
       base:
-        "My neighbor Dorothy mentioned the underwire digging in by noon — the exact thing I hear about most from women I talk to. So I wanted you to see the [Daisy Bra 3](slug:daisybra) before the weekend, while it's still at this price.\n\n" +
+        "My neighbor Dorothy mentioned the underwire digging in by noon — sound familiar? It's the exact thing I hear about most from women I talk to. So I wanted you to see the [Daisy Bra 3](slug:daisybra) before the weekend, while it's still at this price.\n\n" +
         "It snaps shut in front in about three seconds, then the ==wire-free lift== quietly does the rest — no reaching behind your back, no red marks at the end of a long day, no fidgeting under your clothes. Dorothy told me she now reaches for hers over everything else in the drawer, and honestly that's the review I trust most.\n\n" +
         "It's **💲12.99** through the next two days, and shipping is on us once you pass 💲35. Take a look while it's still open — I think you'll feel the difference the first time you put it on.\n\n— Sandra",
       seg_21:
-        "My neighbor Dorothy mentioned the underwire digging in by noon — the exact thing I hear about most from women I talk to. So I wanted you to see the [Daisy Bra 3](slug:daisybra) before the weekend, while it's still at this price.\n\n" +
+        "My neighbor Dorothy mentioned the underwire digging in by noon — sound familiar? It's the exact thing I hear about most from women I talk to. So I wanted you to see the [Daisy Bra 3](slug:daisybra) before the weekend, while it's still at this price.\n\n" +
         "It snaps shut in front in about three seconds, then the ==wire-free lift== quietly does the rest — no reaching behind your back, no red marks at the end of a long day, no fidgeting under your clothes. Dorothy told me she now reaches for hers over everything else in the drawer, and honestly that's the review I trust most.\n\n" +
         "It's **💲12.99** through the next two days, and shipping is on us once you pass 💲35. Take a look while it's still open — I think you'll feel the difference the first time you put it on.\n\n— Sandra",
     },
@@ -583,9 +601,47 @@ export function runQualityOverhaulEval(): QualityOverhaulResult {
     diff >= 3,
     `difference axes: ${diff}; A=${JSON.stringify(concepts.a)}; B=${JSON.stringify(concepts.b)}`
   ));
+  checks.push(check(
+    "concept selector assigns different lead techniques",
+    !!concepts.a.techniquePlan?.lead &&
+      !!concepts.b.techniquePlan?.lead &&
+      concepts.a.techniquePlan.lead !== concepts.b.techniquePlan.lead,
+    `A=${concepts.a.techniquePlan?.lead || "missing"}; B=${concepts.b.techniquePlan?.lead || "missing"}`
+  ));
 
   const strongValidated = validateBrief(cloneBrief(strongBrief()), campaign, products);
   const weakValidated = validateBrief(cloneBrief(weakBrief()), campaign, products);
+  checks.push(check(
+    "technique coverage rewards playbook execution",
+    (strongValidated._technique_score || 0) >= 80 &&
+      (strongValidated._technique_score || 0) > (weakValidated._technique_score || 0) + 25,
+    `strong=${strongValidated._technique_score}; weak=${weakValidated._technique_score}; strong notes=${strongValidated._technique_coverage?.notes.join(" | ") || "none"}`
+  ));
+  const promptTokens = estimateTokens(buildSystemPrompt(campaign, products, false, undefined, "eval", concepts.a));
+  checks.push(check(
+    "layered system prompt stays under regression budget",
+    promptTokens <= 10_000,
+    `system prompt ~= ${promptTokens} tokens`
+  ));
+  const glBrand = BRANDS.gents_lux;
+  const glCampaign: Campaign = {
+    ...campaign,
+    brandId: "gents_lux",
+    layout: glBrand.layout,
+    segments: [glBrand.productSegments[0]?.code || "1"],
+    theme: "June movement refresh",
+    offerType: "sitewide_pct",
+    offerValue: "70% OFF",
+    offer: "70% OFF + Free shipping 💲35+",
+  };
+  const valueTipIds = Array.from({ length: 4 }, (_, i) =>
+    selectTechniquePlan({ ...glCampaign, sendDate: `2026-06-${20 + i}`, theme: `${glCampaign.theme} ${i}` }, { nonce: `eval-${i}` }).valueTipId
+  ).filter(Boolean);
+  checks.push(check(
+    "GentsLux value tips rotate across sends",
+    new Set(valueTipIds).size >= 3,
+    valueTipIds.join(", ")
+  ));
   checks.push(check(
     "creative score distinguishes useful story from formulaic sales copy",
     (strongValidated._creative_score || 0) > (weakValidated._creative_score || 0) &&

@@ -528,7 +528,8 @@ export function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
   const sameRoute = routeText(aCd) && routeText(aCd) === routeText(bCd);
   const sameAngle = aCd.angle && aCd.angle === bCd.angle;
   const sameFramework = aCd.framework && aCd.framework === bCd.framework;
-  const risk = sameRoute || sameAngle || sameFramework;
+  const sameTechnique = aCd.concept?.techniquePlan?.lead && aCd.concept.techniquePlan.lead === bCd.concept?.techniquePlan?.lead;
+  const risk = sameRoute || sameAngle || sameFramework || sameTechnique;
   return (
     <div className="section-panel p-3">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -546,8 +547,10 @@ export function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
           route={routeText(aCd) || "No route"}
           angle={aCd.angle || "No angle"}
           framework={aCd.framework || "No framework"}
+          technique={aCd.concept?.techniquePlan?.lead || "No technique"}
           model={[a._provider, a._model].filter(Boolean).join(" · ") || "AI"}
           score={a._score}
+          techniqueScore={a._technique_score}
           issues={`${aCounts.errors} err · ${aCounts.serious} serious · ${aCounts.structural} structural`}
         />
         <ContrastCard
@@ -555,14 +558,16 @@ export function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
           route={routeText(bCd) || "No route"}
           angle={bCd.angle || "No angle"}
           framework={bCd.framework || "No framework"}
+          technique={bCd.concept?.techniquePlan?.lead || "No technique"}
           model={[b._provider, b._model].filter(Boolean).join(" · ") || "AI"}
           score={b._score}
+          techniqueScore={b._technique_score}
           issues={`${bCounts.errors} err · ${bCounts.serious} serious · ${bCounts.structural} structural`}
         />
       </div>
       {risk && (
         <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
-          Same-field risk: {[sameRoute && "route", sameAngle && "angle", sameFramework && "framework"].filter(Boolean).join(", ")}. Add this to feedback if the options feel too close.
+          Same-field risk: {[sameRoute && "route", sameAngle && "angle", sameFramework && "framework", sameTechnique && "technique"].filter(Boolean).join(", ")}. Add this to feedback if the options feel too close.
         </div>
       )}
     </div>
@@ -578,16 +583,20 @@ export function ContrastCard({
   route,
   angle,
   framework,
+  technique,
   model,
   score,
+  techniqueScore,
   issues,
 }: {
   label: string;
   route: string;
   angle: string;
   framework: string;
+  technique: string;
   model: string;
   score?: number;
+  techniqueScore?: number;
   issues: string;
 }) {
   return (
@@ -598,6 +607,7 @@ export function ContrastCard({
       </div>
       <div className="text-sm font-semibold mt-1 truncate" title={route}>{route}</div>
       <div className="text-xs text-[var(--muted)] mt-1">{angle} · {framework}</div>
+      <div className="text-xs text-[var(--muted)] mt-1">Technique: {technique}{typeof techniqueScore === "number" ? ` · ${techniqueScore}/100` : ""}</div>
       <div className="text-[11px] mono text-[var(--muted)] mt-1 truncate" title={model}>{model}</div>
       <div className="text-[11px] text-[var(--muted)] mt-1">{issues}</div>
     </div>
