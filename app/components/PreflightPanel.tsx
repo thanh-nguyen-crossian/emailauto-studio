@@ -25,6 +25,10 @@ const CATEGORIES = [
     pattern: /spam|weak|bold|accent|markdown|link|bullet|paragraph|formatting/i,
   },
   {
+    label: "Playbook compliance",
+    pattern: /playbook|curiosity beat|educational sign.?off|value payoff/i,
+  },
+  {
     label: "Technical / Brand",
     pattern: /.*/i,
   },

@@ -2096,6 +2096,23 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       addFlag(brief, "warn", `Body copy missing persona sign-off — "${personaName}" should appear in the body or P.S.`);
     }
   }
+  // Check for question or curiosity beat across all body segments
+  {
+    const allBodyText = [body.base || "", ...campaign.segments.map((id) => String(body[segJsonKey(id)] || ""))].join(" ");
+    const hasQuestion = /\?/.test(allBodyText);
+    const hasCuriosityGap = /\b(did you know|ever notice|wonder why|imagine if|sound familiar|ever feel|ever tried|ever had|remember when|what if)\b/i.test(allBodyText);
+    if (!hasQuestion && !hasCuriosityGap) {
+      addFlag(brief, "warn", "Body missing a question or curiosity beat — playbook R4: add one genuine question or curiosity gap");
+    }
+  }
+  // GentsLux must include a #Tip / educational sign-off
+  if (campaign.brandId === "gents_lux") {
+    const allBodyText = [body.base || "", ...campaign.segments.map((id) => String(body[segJsonKey(id)] || "")), brief.ps || ""].join(" ");
+    const hasValuePayoff = /#tip|#quicktip|#hack|#hemminghack|#stylehack|did you know|fun fact|quick fact/i.test(allBodyText);
+    if (!hasValuePayoff) {
+      addFlag(brief, "warn", "GentsLux body missing educational sign-off — playbook R22: add a #Tip, #QuickTip, or 'Did you know' line");
+    }
+  }
   if (richText && accentMarks + boldMarks < 2) {
     addFlag(brief, "warn", "Final output needs 2+ bold/accent formatting beats from WinEmailTemps patterns");
   }
