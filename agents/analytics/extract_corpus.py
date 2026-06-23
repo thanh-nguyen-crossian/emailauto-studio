@@ -40,12 +40,28 @@ OCCASION_KEYWORDS = [
     "Valentine's Day", "New Year", "Thanksgiving", "Independence Day"
 ]
 
-# Pun patterns (common wordplay)
+# Pun patterns (common wordplay from corpus analysis)
 PUN_PATTERNS = [
     r"tea-riffic",
     r"brew-tiful",
+    r"brew-tifully",
     r"spook-tacular",
+    r"monster-sized",
+    r"scary good",
+    r"to-die-for",
+    r"fang-tastic",
+    r"boo-tiful",
+    r"fa-boo-lous",
+    r"paw-some",
+    r"claw-some",
+    r"witch-ful",
     r"grand-eur|grand-stand",
+    r"scare-deal",
+    r"o\.f\.f.*pun|pun.*o\.f\.f",  # price pun combos
+    r"\bstatic\b.*radio|\bradio\b.*\bstatic\b",  # radio-day pun
+    r"savings? before it'?s? static",
+    r"grab.*savings.*static|static.*savings",
+    r"\w+-riffic|\w+-tiful|\w+-tacular|\w+-some|\w+-licious|\w+-icious",  # portmanteau pattern
 ]
 
 def is_design_note(text):
