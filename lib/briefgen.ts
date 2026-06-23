@@ -4,6 +4,7 @@
 import { BRANDS } from "./config/brands";
 import { intelligencePromptBlock, getBrandIntelligence } from "./config/intelligence";
 import { performanceFeedbackPromptBlock } from "./performance/feedback";
+import { promptRuleBlock } from "./config/playbook";
 import type { Brand, Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 import { analyzeProductPriceOutliers } from "./quality/productData";
 import type { EmailConcept } from "./concept";
@@ -1477,12 +1478,11 @@ export function renderPromptLayers(layers: { title: string; body?: string }[]): 
     .join("\n\n");
 }
 
-const CORE_PROMPT_LAYER = `Return JSON only. Build in this order: evidence -> segment -> hook contract -> banner/body/products -> subject/preheader -> QA.
-One send = one promise. Subject, preheader, hero, body, product grid, CTA, and P.S. must share the same product/offer/proof/emotion thread.
-The shared thread is: ONE hero product by name + ONE specific proof or price figure + ONE concrete reader situation. All seven copy surfaces must reference at least two of these three elements. A thread tied only by brand name or discount percentage is NOT a shared thread.
-Use supplied facts only for reviews, ratings, counts, guarantees, stock, shipping, prices, and urgency. If proof is missing, write qualitative benefit language.
-Never use fake Re/Fwd, "click here", "learn more", "I hope this email finds you well", "meet your new favorite", "don't let X go to waste", generic gratitude, grammar errors, unsupported medical/age claims, or body/age shaming.
-Use {{first_name}} in subject OR preheader, never both — never in body copy. Replace $ with 💲 in promo copy; use brand off-symbol rules.`;
+const CORE_PROMPT_LAYER = `Return JSON only. Build order: evidence → segment → hook contract → banner/body/products → subject/preheader → QA.
+1 send = 1 promise. All copy surfaces (subject, preheader, hero, body, grid, CTA, P.S.) share ONE thread: [hero product by name] + [specific proof or price] + [concrete reader situation]. Each surface references ≥2 of those 3 thread elements. A thread anchored only by brand name or discount % is NOT a shared thread.
+Proof: use supplied facts only (reviews, ratings, counts, guarantees, stock, shipping, prices, urgency). Missing → qualitative benefit language.
+Prohibit: fake Re/Fwd, "click here", "learn more", guilt opener, "meet your new favorite", "don't let X go to waste", generic gratitude, grammar errors, unsupported medical/age claims, body/age shaming.
+💲 instead of $; brand off-symbol rules; {{first_name}} in subj XOR prehdr only.`;
 
 const CREATIVE_PROMPT_LAYER = `Guardrails are constraints, not a script. Let the model write fresh language.
 A and B are STRUCTURALLY DIFFERENT emails — not synonym swaps. They must differ in ALL of: angle, framework, opener mechanic, body opening sentence, banner headline family, and product-grid pattern. Changing only wording, tone, or surface phrasing while keeping the same paragraph structure IS NOT a valid A/B contrast. If Option A opens with a named micro-story, Option B must not. If Option A uses PAS, Option B must use a different framework. State the structural differences in creative_direction BEFORE writing any copy.
@@ -1490,12 +1490,12 @@ Rotate opener mechanics: story, fact, question, occasion, re-engagement, insider
 Segment versions keep one hook but adapt motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next product; lapsed = low-risk return reason; high-return-risk = fit/material clarity.
 Multi-segment body copy must not be cloned paragraph skeletons. Change the first sentence, proof/risk reducer, product bridge, and final line for every segment.`;
 
-const COMPONENT_PROMPT_LAYER = `SUBJECT / PREHEADER — for every segment write one primary pair plus 3 options. Subject 42-58 chars (hard cap 60), must carry one offer signal, and {{first_name}} appears in subject OR preheader, never both. Preheader 60-90 chars and must add a new proof/deadline/product/tension beat.
-Gmail summary: the first 150-200 chars of live body text act like a second subject line; sentence 1 names the hero product and one offer/proof beat.
-Body: 120-150 words per segment, personal-note first, persona-signed, product-name markdown link by paragraph 2, 2-4 bold/accent/link beats, P.S. 10-15 words, no hard-sell command stack.
-Offer mention cap: state the hero price/discount ONCE in the body (hero reveal) and ONCE in the P.S. max. Support products earn one differentiating line each — no per-product price or "Free Shipping" repeat. Price belongs in product image overlays, not body prose.
-Banner: 3-beat story, not 3 discount headlines — main_text_1 tension/hook, main_text_2 product mechanism/proof, main_text_3 resolution/offer/CTA. image_guidance is 4-6 compact bullets.
-Products: 4-6 products, even count preferred; SantaFare defaults to 4. main_text <=5 words, CTA 2-4 words plain text, USPs <=5 words, sub_text carries price/proof/deadline. Product text/CTA is copy to bake into images.
+const COMPONENT_PROMPT_LAYER = `SUBJ: 42–58c (≤60 hard cap); 1 offer signal; {{first_name}} in subj XOR prehdr; 3 alt subjects with distinct devices.
+PREHDR: 60–90c; new beat (proof/deadline/price/tension). Gmail ¶1: hero product + 1 offer/proof beat in first 150c.
+BODY: 120–150w/seg; personal-note first; persona-signed; md product link by ¶2; 2–4 bold/accent/link beats; P.S. 10–15w; no hard-sell commands.
+OFFER: price/discount once in body (hero reveal) + once in P.S. Support products: 1 differentiating line each — no per-product price or "Free Shipping" repeat.
+BANNER: main_text_1=tension/hook; main_text_2=proof/mech; main_text_3=resolution/offer. image_guidance: 4–6 bullets.
+PRODUCTS: 4–6 (even preferred; SF default 4). main_text ≤5w; CTA 2–4w plain text; USPs ≤5w; sub_text=price/proof/deadline. Copy bakes into images.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
 
 const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
@@ -1659,6 +1659,7 @@ This rule applies to every segment in body[segKey].`,
     { title: "Email Content XLSX Reference", body: EXCEL_BRIEF_REFERENCE_LAYER },
     { title: "Brand Brief Pattern Memory", body: brandBriefPatternLayer(campaign.brandId) },
     { title: "Brand Rules", body: BRAND_PLAYBOOK_RULES[campaign.brandId] || "" },
+    { title: "Playbook Rules", body: promptRuleBlock(campaign.brandId, "prompt") },
     { title: "Subject Devices", body: subjectDeviceLayer(brand) },
     { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
     { title: "Adaptive Performance Feedback", body: performanceFeedbackPromptBlock(campaign.performanceHistory, campaign.brandId) },
