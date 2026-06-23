@@ -11,6 +11,31 @@ import type { EmailConcept } from "./concept";
 import { TECHNIQUES, techniquesForBrand, getTechnique } from "./config/techniques";
 import { occasionsInWindow, evergreenOccasions, punsForBrand, getOccasion } from "./config/occasions";
 
+// Token budget logger (AI_PROMPT_DEBUG=on)
+const PROMPT_DEBUG = /^(1|true|on|yes)$/i.test(process.env.AI_PROMPT_DEBUG || "");
+/** Approximate token count: 1 token ≈ 4 chars (GPT/Claude heuristic). */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+/**
+ * Budget thresholds — warn if exceeded (regression guard, not a hard cap).
+ * Targets from plan C5: system prompt ≤ 3,500t (aspirational after full C4);
+ * set regression ceiling at 10,000t until layered generation reaches C4 target.
+ */
+const PROMPT_BUDGET_SYSTEM = 10_000;
+const PROMPT_BUDGET_PATCH = 2_000;
+
+function logPromptBudget(label: string, text: string, budget: number): void {
+  if (!PROMPT_DEBUG) return;
+  const tokens = estimateTokens(text);
+  const over = tokens > budget;
+  const marker = over ? "⚠️  OVER BUDGET" : "✓";
+  console.log(`[PromptBudget] ${label}: ~${tokens}t / ${budget}t ${marker}`);
+  if (over) {
+    console.warn(`[PromptBudget] ${label} exceeds regression ceiling (${tokens} > ${budget}). Check for prompt growth.`);
+  }
+}
+
 export const PROMPT_REGISTRY_VERSION = "emailstudio-email-brief-v2026-06-16.1";
 
 // ---- generated output shape (snake_case, matching the prompt schema) ----
@@ -1731,7 +1756,7 @@ export function buildSystemPrompt(
   }
 }`;
 
-  return renderPromptLayers([
+  const assembled = renderPromptLayers([
     {
       title: "Prompt Registry",
       body: `Prompt id/version: ${PROMPT_REGISTRY_VERSION}. Keep output compatible with this JSON schema; do not mention this id in recipient-facing copy.`,
@@ -1777,6 +1802,8 @@ This rule applies to every segment in body[segKey].`,
       body: `Return ONLY valid JSON. No prose, no markdown fence. Escape quotes inside strings.\n${outputSchema}`,
     },
   ]);
+  logPromptBudget(`buildSystemPrompt(${campaign.brandId}, optB=${isOptionB})`, assembled, PROMPT_BUDGET_SYSTEM);
+  return assembled;
 }
 
 function recentSendHistoryPrompt(campaign: Campaign): string {

@@ -62,6 +62,7 @@ npx tsc --noEmit     # type-check without emitting
 | `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
 | `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default 78 |
 | `AI_REPAIR_TEMP` | server | optional compliance repair-pass temperature; default 0.6 |
+| `AI_PROMPT_DEBUG` | server | set `on` to log assembled prompt token counts + regression warnings to console |
 | `AI_SEGMENT_BATCH_THRESHOLD` | server | layered generation starts at this segment count for default prompts; default 1 |
 | `AI_SEGMENT_BATCH_SIZE` | server | segments per patch call; default 1 |
 | `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent segment patch batches after foundations; default 2 |
