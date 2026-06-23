@@ -1272,7 +1272,7 @@ const ROUTE_TO_LEAD: Record<string, string> = {
 function selectTechniquePlan(campaign: Campaign, isOptionB: boolean, nonce = ""): TechniquePlan {
   const route = selectCreativeRoute(campaign, isOptionB, nonce);
   const lead = ROUTE_TO_LEAD[route.branch] ?? "honor_vip";
-  const brandId = campaign.brandId as any; // Campaign.brandId is string; cast to BrandId for config lookups
+  const brandId = campaign.brandId as "bra_goddess" | "gents_lux" | "lux_fitting" | "santa_fare";
 
   // Resolve occasion when lead === "occasion"
   let occasion: string | undefined;
@@ -2233,7 +2233,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   }
   // Check for question or curiosity beat across all body segments
   {
-    const allBodyText = [body.base || "", ...campaign.segments.map((id) => String(body[segJsonKey(id)] || ""))].join(" ");
+    // Strip markdown links (which may contain ? in URL query strings) before checking
+    const allBodyText = [body.base || "", ...campaign.segments.map((id) => String(body[segJsonKey(id)] || ""))]
+      .map(stripCopyMarkup)
+      .join(" ");
     const hasQuestion = /\?/.test(allBodyText);
     const hasCuriosityGap = /\b(did you know|ever notice|wonder why|imagine if|sound familiar|ever feel|ever tried|ever had|remember when|what if)\b/i.test(allBodyText);
     if (!hasQuestion && !hasCuriosityGap) {

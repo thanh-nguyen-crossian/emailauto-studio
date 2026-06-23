@@ -296,19 +296,25 @@ export function occasionsInWindow(
   targetDay: number,
   brandId?: BrandId
 ): Occasion[] {
+  // Convert month/day to approximate day-of-year (ignores leap year — ±1 day acceptable)
+  const MONTH_OFFSETS = [0, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  function toDoy(m: number, d: number): number {
+    return MONTH_OFFSETS[m] + d;
+  }
+  const targetDoy = toDoy(targetMonth, targetDay);
+
   return OCCASIONS.filter((occ) => {
     if (occ.evergreen) return false; // evergreen occasions handled separately
     if (!occ.date.month) return false; // skip undated
-    const occDay = occ.date.month * 100 + occ.date.day;
-    const targetNumeric = targetMonth * 100 + targetDay;
-    // Check if within windowDays before the occasion
-    // Approximate: compare numeric dates (ignores month boundary wrap — acceptable for ≤30 day windows)
-    const windowStart = occDay - occ.windowDays;
-    const inWindow = targetNumeric >= windowStart && targetNumeric <= occDay;
+    const occDoy = toDoy(occ.date.month, occ.date.day);
+    // Compute days before the occasion, wrapping across year boundary (day 366 → 1)
+    let daysUntil = occDoy - targetDoy;
+    if (daysUntil < 0) daysUntil += 365;
+    const inWindow = daysUntil >= 0 && daysUntil <= occ.windowDays;
     if (!inWindow) return false;
     if (!brandId) return true;
     if (occ.brands === "all") return true;
-    return occ.brands.includes(brandId);
+    return (occ.brands as BrandId[]).includes(brandId);
   });
 }
 
