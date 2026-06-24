@@ -63,7 +63,7 @@ function subjectSchema(compact = false): JsonSchema {
 function productSchema(): JsonSchema {
   return {
     type: "object",
-    required: ["slot", "name", "main_text", "sub_text", "popup_badge", "usps", "review", "cta", "main_image", "sub_image", "alt_text", "image_notes"],
+    required: ["slot", "name", "template_style", "main_text", "sub_text", "popup_badge", "usps", "review", "cta", "main_image", "sub_image", "alt_text", "image_notes"],
     additionalProperties: true,
     properties: {
       slot: { type: "number" },
@@ -79,6 +79,62 @@ function productSchema(): JsonSchema {
       sub_image: stringSchema,
       alt_text: stringSchema,
       image_notes: stringSchema,
+    },
+  };
+}
+
+function bannerOptionSchema(): JsonSchema {
+  return {
+    type: "object",
+    required: [
+      "label",
+      "model_hint",
+      "main_text_1",
+      "main_text_2",
+      "main_text_3",
+      "sub_text_1",
+      "sub_text_2",
+      "sub_text_3",
+      "cta",
+      "review_texts",
+      "main_image",
+      "sub_image",
+      "trust_booster",
+      "emergency",
+      "image_guidance",
+    ],
+    additionalProperties: false,
+    properties: {
+      label: stringSchema,
+      model_hint: stringSchema,
+      main_text_1: stringSchema,
+      main_text_2: stringSchema,
+      main_text_3: stringSchema,
+      sub_text_1: stringSchema,
+      sub_text_2: stringSchema,
+      sub_text_3: stringSchema,
+      cta: stringSchema,
+      review_texts: stringArraySchema,
+      main_image: stringSchema,
+      sub_image: stringSchema,
+      trust_booster: stringSchema,
+      emergency: stringSchema,
+      image_guidance: stringSchema,
+    },
+  };
+}
+
+function bodyOptionSchema(): JsonSchema {
+  return {
+    type: "object",
+    required: ["label", "model_hint", "body", "ps", "placement_note"],
+    additionalProperties: false,
+    properties: {
+      label: stringSchema,
+      model_hint: stringSchema,
+      body: stringSchema,
+      ps: stringSchema,
+      placement_note: stringSchema,
     },
   };
 }
@@ -121,7 +177,7 @@ function qualityChecksSchema(): JsonSchema {
       playbook_dos_donts: enumSchema(["pass", "review", "fail"]),
       brand_rule_alignment: enumSchema(["aligned", "review", "off_brand"]),
       accessibility_layout: enumSchema(["ready", "review", "missing"]),
-      opener_mechanic: enumSchema(["story", "fact", "question", "direct_problem", "occasion", "re_engagement", "insider_reveal"]),
+      opener_mechanic: enumSchema(["story", "fact", "question", "sensory_snapshot", "useful_tip", "customer_quote", "occasion_clock", "direct_problem", "occasion", "re_engagement", "insider_reveal"]),
       hook_coherence: enumSchema(["fresh", "reused", "unclear"]),
       cta_assessment: enumSchema(["clear", "weak", "missing"]),
     },
@@ -136,15 +192,27 @@ function segmentBodyProperties(segments: string[]): Record<string, JsonSchema> {
   return Object.fromEntries(segments.map((segment) => [segJsonKey(segment), stringSchema]));
 }
 
+function segmentBodyOptionsProperties(segments: string[]): Record<string, JsonSchema> {
+  return Object.fromEntries(segments.map((segment) => [
+    segJsonKey(segment),
+    {
+      type: "array",
+      items: bodyOptionSchema(),
+      description: "Two editable body alternatives: selected route and alternate route.",
+    } satisfies JsonSchema,
+  ]));
+}
+
 export function genBriefJsonSchema(segments: string[], compact = false): ProviderJsonSchema {
   const subjectProperties = segmentSubjectProperties(segments, compact);
   const bodyProperties = { base: stringSchema, ...segmentBodyProperties(segments) };
+  const bodyOptionsProperties = segmentBodyOptionsProperties(segments);
   return {
     name: compact ? "email_brief_compact" : "email_brief",
     schema: {
       type: "object",
       additionalProperties: true,
-      required: ["creative_direction", "subject_lines", "theme", "banner", "body", "ps", "products", "quality_checks"],
+      required: ["creative_direction", "subject_lines", "theme", "banner", "body", "body_options", "ps", "products", "quality_checks"],
       properties: {
         creative_direction: {
           type: "object",
@@ -183,7 +251,7 @@ export function genBriefJsonSchema(segments: string[], compact = false): Provide
         banner: {
           type: "object",
           additionalProperties: true,
-          required: ["logo_stars", "main_text_1", "main_text_2", "main_text_3", "sub_text_1", "sub_text_2", "sub_text_3", "image_guidance", "review_quote", "review_texts", "main_image", "sub_image", "trust_booster", "emergency", "cta"],
+          required: ["logo_stars", "main_text_1", "main_text_2", "main_text_3", "sub_text_1", "sub_text_2", "sub_text_3", "image_guidance", "review_quote", "review_texts", "main_image", "sub_image", "trust_booster", "emergency", "cta", "options"],
           properties: {
             logo_stars: stringSchema,
             main_text_1: stringSchema,
@@ -200,6 +268,7 @@ export function genBriefJsonSchema(segments: string[], compact = false): Provide
             trust_booster: stringSchema,
             emergency: stringSchema,
             cta: stringSchema,
+            options: { type: "array", items: bannerOptionSchema(), description: "Two editable banner alternatives with distinct headline family and visual composition." },
           },
         },
         body: {
@@ -207,6 +276,12 @@ export function genBriefJsonSchema(segments: string[], compact = false): Provide
           additionalProperties: false,
           required: Object.keys(bodyProperties),
           properties: bodyProperties,
+        },
+        body_options: {
+          type: "object",
+          additionalProperties: false,
+          required: Object.keys(bodyOptionsProperties),
+          properties: bodyOptionsProperties,
         },
         ps: stringSchema,
         products: { type: "array", items: productSchema() },
@@ -255,7 +330,7 @@ export function foundationBriefJsonSchema(): ProviderJsonSchema {
         banner: {
           type: "object",
           additionalProperties: true,
-          required: ["logo_stars", "main_text_1", "main_text_2", "main_text_3", "sub_text_1", "sub_text_2", "sub_text_3", "image_guidance", "review_quote", "review_texts", "main_image", "sub_image", "trust_booster", "emergency", "cta"],
+          required: ["logo_stars", "main_text_1", "main_text_2", "main_text_3", "sub_text_1", "sub_text_2", "sub_text_3", "image_guidance", "review_quote", "review_texts", "main_image", "sub_image", "trust_booster", "emergency", "cta", "options"],
           properties: {
             logo_stars: stringSchema,
             main_text_1: stringSchema,
@@ -272,6 +347,7 @@ export function foundationBriefJsonSchema(): ProviderJsonSchema {
             trust_booster: stringSchema,
             emergency: stringSchema,
             cta: stringSchema,
+            options: { type: "array", items: bannerOptionSchema(), description: "Two editable banner alternatives with distinct headline family and visual composition." },
           },
         },
         body: {
@@ -293,12 +369,13 @@ export function foundationBriefJsonSchema(): ProviderJsonSchema {
 export function segmentPatchJsonSchema(segments: string[], compact = true): ProviderJsonSchema {
   const subjectProperties = segmentSubjectProperties(segments, compact);
   const bodyProperties = segmentBodyProperties(segments);
+  const bodyOptionsProperties = segmentBodyOptionsProperties(segments);
   return {
     name: "segment_copy_patch",
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["subject_lines", "body"],
+      required: ["subject_lines", "body", "body_options"],
       properties: {
         subject_lines: {
           type: "object",
@@ -311,6 +388,12 @@ export function segmentPatchJsonSchema(segments: string[], compact = true): Prov
           additionalProperties: false,
           required: Object.keys(bodyProperties),
           properties: bodyProperties,
+        },
+        body_options: {
+          type: "object",
+          additionalProperties: false,
+          required: Object.keys(bodyOptionsProperties),
+          properties: bodyOptionsProperties,
         },
       },
     },

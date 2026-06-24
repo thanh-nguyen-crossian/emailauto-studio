@@ -18,7 +18,19 @@ const ANGLES = ["Pain Relief", "Mechanism", "Proof", "Offer", "Reactivation", "O
 const FRAMEWORKS = ["PAS", "BAB", "Proof Ladder", "Mechanism", "Suspended Loop", "Short Sale"];
 const FORMATS = ["single-hero story", "mechanism reveal", "review-led note", "occasion conceit", "before-after turn", "quiet sale memo"];
 const PROOF_PATHS = ["supplied review", "mechanism detail", "price permission", "fit/use-case proof", "risk reducer", "visual demonstration"];
-const OPENERS = ["story", "fact", "question", "occasion", "re_engagement", "insider_reveal", "direct_problem"];
+const OPENERS = [
+  "story",
+  "fact",
+  "question",
+  "occasion",
+  "re_engagement",
+  "insider_reveal",
+  "direct_problem",
+  "sensory_snapshot",
+  "useful_tip",
+  "customer_quote",
+  "occasion_clock",
+];
 
 function hashSeed(input: string): number {
   let h = 2166136261;

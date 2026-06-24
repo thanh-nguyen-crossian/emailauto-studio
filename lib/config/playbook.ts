@@ -50,8 +50,8 @@ export const PLAYBOOK_RULES: PlaybookRule[] = [
     id: "R4",
     name: "Body opener + proof",
     scope: "ALL",
-    win: "Open with a 2-3 sentence named micro-story tied to one pain or product moment. Weave factual proof when supplied; artificial review-style voice allowed unlabeled and metric-free.",
-    fail: "Bullet/checkmark opener, recycled feature bullets, standalone statistics, fake verified review details, or unsupported factual proof.",
+    win: "Rotate opener: direct problem, sensory snapshot, tip, quote, fact/question, occasion clock, or brief story. Artificial review/claim texture stays unlabeled, qualitative, and metric-free.",
+    fail: "Always opening with story, bullet/checkmark opener, recycled feature bullets, fake verified review details, or unsupported factual proof.",
     enforce: "both",
   },
   {
@@ -181,8 +181,8 @@ export const PLAYBOOK_RULES: PlaybookRule[] = [
     id: "R20",
     name: "No unsupplied proof",
     scope: "ALL",
-    win: "Use only proof and review details that are explicitly supplied in the campaign brief or product data.",
-    fail: "Inventing: 'clinically proven', 'doctor recommended', 'rated #1', 'thousands of customers', specific star counts not supplied, or fake verified review details.",
+    win: "Use supplied facts for verified proof; artificial review/claim texture may be qualitative only, or mark factual ideas as needs-verification notes.",
+    fail: "Inventing verified labels, ratings, counts, ages, dates, medical outcomes, stock, shipping facts, or fake verified review details.",
     enforce: "validate",
   },
   {

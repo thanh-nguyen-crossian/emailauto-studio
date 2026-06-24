@@ -3103,8 +3103,8 @@
               <tr>
                 <td>4</td>
                 <td><strong>Body opener + proof</strong></td>
-                <td class="win-cell">Open with a 2-3 sentence named micro-story tied to one pain, occasion, or product moment. Weave factual proof when supplied; artificial review-style voice is allowed when unlabeled and metric-free.</td>
-                <td class="fail-cell">Bullet/checkmark opener, recycled feature bullets, formal feature-list copy, standalone statistics, fake verified review details, or unsupported factual proof.</td>
+                <td class="win-cell">Rotate the opener by send: direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock, or a brief named micro-story. Weave factual proof when supplied; artificial review/claim texture is allowed when unlabeled, qualitative, and not presented as verified proof.</td>
+                <td class="fail-cell">Always opening with a story, bullet/checkmark opener, recycled feature bullets, formal feature-list copy, standalone statistics, fake verified review details, or unsupported factual proof.</td>
                 <td><span class="scope-badge scope-all">ALL</span></td>
               </tr>
               <tr>
@@ -3263,10 +3263,10 @@
       <div style="margin-bottom:24px">
         <h2 style="font-size:22px;font-weight:700;letter-spacing:-.02em">Part 2 — AI Prompt
           Templates</h2>
-        <p style="color:var(--muted);margin-top:6px;font-size:13.5px">5 chained prompts + 1 all-in-one prompt per brand &middot;
-          Fill <span
+        <p style="color:var(--muted);margin-top:6px;font-size:13.5px">Compact layered prompts per brand &middot;
+          <span
             style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px">[HOOK_CONTRACT]</span>
-          first; final subject lines are generated last from the same locked hook.</p>
+          may be filled or auto-created; final subject lines are generated last from the chosen creative contract.</p>
       </div>
 
       <!-- HOW TO USE -->
@@ -3277,8 +3277,8 @@
         <div class="how-to">
           <div class="how-to-step">
             <div class="step-num">0</div>
-            <div class="step-label">Hook Contract</div>
-            <div class="step-desc">Lock one angle before prompts</div>
+            <div class="step-label">Creative Contract</div>
+            <div class="step-desc">Use supplied hook or auto-create one compact promise</div>
           </div>
           <div class="how-to-step">
             <div class="step-num">1</div>
@@ -3293,7 +3293,7 @@
           <div class="how-to-step">
             <div class="step-num">3</div>
             <div class="step-label">Base Body</div>
-            <div class="step-desc">Full email from brand persona — paste output into Prompt 4</div>
+            <div class="step-desc">Persona body with rotated opener — paste output into Prompt 4</div>
           </div>
           <div class="how-to-step">
             <div class="step-num">4</div>
@@ -3330,24 +3330,38 @@
             <tbody>
               <tr>
                 <td><code>[HOOK_CONTRACT]</code></td>
-                <td>Source of truth for all prompts</td>
-                <td class="example">comfort relief + Daisy Bra + review mode + midnight deadline
-                  + no gratitude opener</td>
+                <td>Optional source of truth; if blank, AI creates one from segment tension, hero product, payoff, proof/review/claim texture, offer, urgency, and avoid rule</td>
+                <td class="example">comfort relief + Daisy Bra + $12.99 + midnight + avoid gratitude opener</td>
               </tr>
               <tr>
                 <td><code>[PROOF_POINTS]</code></td>
-                <td>Factual proof only; reviews can be supplied or artificial by mode</td>
-                <td class="example">4.8 rating, 30-day fit guarantee, ships in 24hrs; no fake metrics</td>
+                <td>Factual proof only; unsourced claims must become qualitative copy</td>
+                <td class="example">30-day fit guarantee, cotton blend, verified rating if supplied; no fake metrics</td>
               </tr>
               <tr>
                 <td><code>[SOURCE_REVIEW]</code></td>
-                <td>Review to adapt if supplied; otherwise use artificial review-style copy only when allowed</td>
-                <td class="example">Supplied: Martha, 62: "No shoulder marks." / Artificial: first-name only, no rating/date/age</td>
+                <td>Review to adapt if supplied; otherwise use artificial voice-of-customer texture only when allowed</td>
+                <td class="example">Supplied: Martha: "No shoulder marks." / Artificial: first-name voice only, no rating/date/age</td>
               </tr>
               <tr>
                 <td><code>[REVIEW_MODE]</code></td>
                 <td>Review handling rule</td>
                 <td class="example">supplied / artificial / none</td>
+              </tr>
+              <tr>
+                <td><code>[CLAIM_MODE]</code></td>
+                <td>How claims should be handled when proof is missing</td>
+                <td class="example">sourced / artificial-qualitative / none</td>
+              </tr>
+              <tr>
+                <td><code>[OPENER_ROTATION]</code></td>
+                <td>Preferred opener type or recent opener to avoid</td>
+                <td class="example">avoid story; use direct problem, sensory snapshot, tip, quote, curiosity/fact, or occasion clock</td>
+              </tr>
+              <tr>
+                <td><code>[CREATIVE_SPARK]</code></td>
+                <td>Optional variety seed for model-specific style</td>
+                <td class="example">contrarian fit myth / quiet luxury / one-breath urgency / editorial tip</td>
               </tr>
               <tr>
                 <td><code>[LAST_SEND_ANGLE]</code></td>
@@ -3433,16 +3447,11 @@
                 <pre class="prompt-code"
                   id="bg-p1">Provide banner ideas (content and visual) for a marketing email of https://bragoddess.com/ — an ecommerce store on women's bras and intimate apparel, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be concise, emotionally resonant, and confidence-boosting. Use supplied proof and voice-of-customer language that creates comfort, confidence, and self-worth.
 
@@ -3478,16 +3487,11 @@ REQUIRED WIN RULES:
                 <pre class="prompt-code"
                   id="bg-p2">Using the banner direction above, provide <span class="placeholder">[NUMBER]</span> product block ideas for the products below. Each block contains 1 product (content and visual) for the email above.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Each block should contain:
 - A headline under 6 words that's emotionally compelling, relates to <span class="placeholder">[CAMPAIGN_THEME]</span>, and makes women feel beautiful and supported. Must feel personal, not promotional.
@@ -3508,7 +3512,7 @@ Lead product must be Daisy Bra. Secondary products: Bustella, ZenaLift, LushFitt
                 <span class="prompt-num">3</span>
                 <span>
                   <div class="prompt-title">Email Body — Base Copy</div>
-                  <div class="prompt-subtitle">From Sandra · Named micro-story opener · Paste output
+                  <div class="prompt-subtitle">From Sandra · Rotated opener · Paste output
                     into Prompt 4</div>
                 </span>
                 <span class="prompt-arrow">&#9662;</span>
@@ -3517,27 +3521,23 @@ Lead product must be Daisy Bra. Secondary products: Bustella, ZenaLift, LushFitt
                 <pre class="prompt-code"
                   id="bg-p3">Using the outputs above, write a customer-centric body text for the marketing email from a single person standpoint, named Sandra, who is from BraGoddess (https://bragoddess.com/). Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if you were having a natural, warm, one-on-one conversation with them — like a trusted friend who genuinely wants to help.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Make it compact with absolutely no spammy or salesy words. Focus on feelings, confidence, and physical comfort — not just features. Mention <span class="placeholder">[CAMPAIGN_THEME]</span>, <span class="placeholder">[PROMO_DETAILS]</span>, and <span class="placeholder">[SHIPPING_OFFER]</span>.
 
-Open with a 2–3 sentence micro-story about a named woman (neighbor, friend, or relative) who discovered BraGoddess and experienced a specific physical relief or confidence moment. Make it specific — name, situation, and product detail.
+Choose ONE opener type from <span class="placeholder">[OPENER_ROTATION]</span> or this menu: direct problem, sensory snapshot, useful fit tip, customer quote, curiosity/fact, occasion clock, or brief named micro-story. Do not default to story. If the last send used a story, avoid story unless the campaign theme truly requires it.
 
-STRUCTURE RULES (non-negotiable):
-• Open with the named micro-story ONLY — no bullet lists, no checkmarks, no feature openers under any circumstances
-• Body carries the SAME single theme as the Hook Contract and preheader strategy — introduce no new competing hooks or angles mid-email
-• Review copy: embed supplied review details as name + specific pain + product relief. If using artificial review-style copy, keep it plausible and unlabeled; never invent age, date, rating, count, or verification.
-• State the specific sale price ($X.XX) at least once in the body
-• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's when she found the Daisy Bra") — secondary CTA, must feel conversational not promotional
+STRUCTURE RULES:
+• Start with the chosen opener in 1-3 short sentences; no bullets, checkmarks, feature-list starts, or generic greeting.
+• Body carries the SAME creative contract and click promise from opener -> product link -> CTA.
+• Review/claim texture may be supplied or artificial. If artificial, keep it plausible, unlabeled, and qualitative; never invent age, date, rating, count, verification, medical outcome, stock, or shipping fact.
+• State the specific sale price ($X.XX) at least once in the body.
+• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's when she found the Daisy Bra") — secondary CTA, conversational not promotional.
+• End with "Opener used: [type]" after the body so Prompt 4 can preserve or rotate it intentionally.
 
 Use only the relevant items below; do not force every tactic into one email:
 - Concise and straight to the point
@@ -3573,12 +3573,13 @@ Close warmly as Sandra.<button class="copy-btn" onclick="copyPrompt('bg-p3',this
                 <pre class="prompt-code"
                   id="bg-p4">From the above, shorten the following email body text while retaining the ideas, emotional arc, and Sandra's personal voice — no spammy words — in 5 different versions, each targeting a specific customer segment to encourage them to buy.
 
-Hook contract to preserve: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to preserve: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SEGMENT DO / DON'T GUARDRAILS:
-- DO preserve the Hook Contract, price, proof/review limits, persona voice, one inline product link, and the same click promise in every segment version.
+- DO preserve the Creative Contract, price, proof/review/claim limits, persona voice, one inline product link, and the same click promise in every segment version.
 - DO adapt motivation by segment: loyal buyers get recognition/early access; high-risk buyers get proof and friction removal; low-frequency buyers get the natural next product; lapsed buyers get one low-risk reason to return.
-- DON'T add new hooks, new products, new claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
+- DO preserve the chosen opener type from Prompt 3 unless a segment-specific reason makes one adjacent opener stronger; if changing it, label "Opener used" for that segment.
+- DON'T add new hooks, new products, new factual claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
 
 21 - Bralettes/Daily/Comfort/Wirefree, Low AOV, High frequency, High product risk (daily comfort seekers — loyal, high-frequency buyers; acknowledge the ritual of wearing a bra that makes life easier; speak to "first look" access and the update they deserve)
 22 - Contour/Underwire/Push Up, Medium AOV, Medium frequency, High product risk (structure/shape-focused buyers — they want lift, support, and confidence; name the exact shape goal; bridge to new styles that elevate what they already love)
@@ -3611,10 +3612,11 @@ The body text is:
                 <pre class="prompt-code"
                   id="bg-p5">Write 4 subject/preheader pairs for each of the 5 segment emails above (segments 21, 22, 45, 8, 3). Total = 20 pairs.
 
-Hook contract to amplify: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to amplify: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SUBJECT/PREHEADER DO / DON'T GUARDRAILS:
-- DO generate subjects last from the Hook Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO generate subjects last from the Creative Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO make the 4 pairs per segment meaningfully different: direct value, curiosity, sensory/emotional, and urgency/proof. Label each style/model lens; if actual models are selected, use their real outputs rather than imitating them. Do not produce paraphrases.
 - DO keep preheader as a new beat: deadline, reveal, proof, price, or urgency not already stated in the subject.
 - DO proofread for grammar, character limit, name placement, brand symbol rules, and offer accuracy before final output.
 - DON'T repeat the subject in the preheader, use fake Re/Fwd, add a new angle, use generic greetings, invent factual proof or fake verified review details, over-personalize, or use "don't let X go to waste".
@@ -3631,7 +3633,7 @@ For each pair, choose the strongest relevant elements from this list:
 - Curiosity gap (withhold the full offer until they open)
 
 Rules:
-- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
+- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT or auto-contract]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
 - Max 50 characters per subject
 - Use "o.f.f" instead of "OFF" and "💲" instead of "$"
 - Never use "don't let X go to waste"
@@ -3663,9 +3665,12 @@ INPUTS:
 - Store context: BraGoddess is an ecommerce store on women's bras and intimate apparel.
 - Send: <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>
 - Campaign theme: <span class="placeholder">[CAMPAIGN_THEME]</span>
-- Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>
+- Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (if blank, auto-create one compact promise)
 - Target segment overview: <span class="placeholder">[TARGET_SEGMENT]</span>
 - Review mode: <span class="placeholder">[REVIEW_MODE: supplied / artificial / none]</span>
+- Claim mode: <span class="placeholder">[CLAIM_MODE: sourced / artificial-qualitative / none]</span>
+- Opener rotation: <span class="placeholder">[OPENER_ROTATION: preferred opener or opener to avoid]</span>
+- Creative spark: <span class="placeholder">[CREATIVE_SPARK: optional style/angle seed]</span>
 - Factual proof: <span class="placeholder">[PROOF_POINTS]</span>
 - Source review if supplied: <span class="placeholder">[SOURCE_REVIEW]</span>
 - Promo: <span class="placeholder">[PROMO_DETAILS]</span>; shipping: <span class="placeholder">[SHIPPING_OFFER]</span>; duration: <span class="placeholder">[SALE_DURATION]</span>
@@ -3674,12 +3679,14 @@ INPUTS:
 - Last send angle to avoid: <span class="placeholder">[LAST_SEND_ANGLE]</span>
 
 GLOBAL DO / DON'T:
-- DO build from the Hook Contract first — subjects/previews generated last, output them first for review.
-- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path.
+- DO build from the Creative Contract first. If [HOOK_CONTRACT] is blank, auto-create it from segment tension + hero product/result + proof/review/claim texture + offer + urgency + avoid rule. Subjects/previews are generated last but output first for review.
+- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path; A/B options must vary framework, opener, banner layout, product-block layout, visual direction, copy-tactic mix, and subject style, not just wording.
 - DO show price as comparison (was $X → now $Y), a specific deadline ("midnight" / "24 hrs" — never "ending soon"), hero product, and primary CTA above fold.
-- DO open each body with a named 2-3 sentence micro-story (situation → product → relief/confidence moment); one inline product link by paragraph 2.
-- DO use factual proof from PROOF_POINTS; artificial reviews (REVIEW_MODE=artificial) may include plausible names, counts, and ratings — never label them "verified" or "confirmed".
-- DON'T use bullet/checkmark openers, feature-list openers, corporate gratitude angles, panic framing ("Eek!", "Oh no…"), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
+- DO rotate body openers: direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock, or brief named micro-story. Choose the best fit per segment and label "Opener used".
+- DO use factual proof from PROOF_POINTS. Artificial review/claim texture may be used as qualitative customer language only. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+- DO rotate style ingredients across subject, preview, banner, body, and product blocks: concise/direct is mandatory, then choose 2-4 from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, and smart-deal framing.
+- DO make banner/product-block layouts visibly different across options: split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
+- DON'T use bullet/checkmark openers, feature-list starts, generic greetings/thanks, corporate gratitude angles unless brand-relevant, panic framing ("Eek!", "Oh no..."), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
 - DON'T use vague deadlines, repeat the same CTA 3+ times, hide the price, add a second offer, use 7+ products, create orphan rows, or use off-brand colors.
 - DON'T guess what a segment ID means. Use the segment definitions below exactly, and adapt only within those buyer motivations.
 
@@ -3700,11 +3707,11 @@ SEGMENT DEFINITIONS:
 - 3 - Strapless &amp; Backless &amp; Special Occasion, Medium AOV, Low frequency, High product risk. Special-occasion buyers who bought for an outfit or event; bridge to the next strapless/backless style; urgency should be event-driven, not generic time pressure.
 
 OUTPUT:
-1) Subject + preview options: 3 subject/preview pairs for each segment 21, 22, 45, 8, 3. Label segment ID + segment name, angle, Subject, Preview. Subjects 45-55 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per segment): {{first_name}}, emojis (max 1-2, relevant), specific price anchor, sensory language (comfort, softness, relief), wordplay or puns on bra fit/support/comfort, FOMO or time pressure, curiosity gap. BG winning preheader formula: add time pressure or supplied social proof — e.g., "'Til Midnight.⚡" / "Over [verified count] women switched — tonight's your turn".
+1) Subject + preview options: 3 subject/preview pairs for each segment 21, 22, 45, 8, 3. Label segment ID + segment name, style/model lens, angle, Subject, Preview. Subjects 45-55 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per segment): {{first_name}}, emojis (max 1-2, relevant), specific price anchor, sensory language (comfort, softness, relief), wordplay or puns on bra fit/support/comfort, FOMO or time pressure, curiosity gap. BG winning preheader formula: add time pressure or supplied social proof — e.g., "'Til Midnight.⚡" / "Over [verified count] women switched — tonight's your turn".
 2) Banner ideas: 2 options — one for recent buyers (acknowledge they already trust BraGoddess, reward with first-look access), one for long-time-no-see customers (gentle re-engagement + irresistible offer). For each: headline, subhead, visual layout, hero product placement, CTA, color notes (#a02338-#d63268 range), and how the first 200px delivers the full Hook Contract. Urgency flavor: soft social + time pressure — "someone just grabbed theirs", "tonight only", "before midnight" — never hard-sell. Banner and eventual preheader must feel like two halves of one sentence.
 3) Product blocks: use [NUMBER] if supplied; otherwise 4-6 products, even count. For each: product + URL, sale price, headline under 6 words (emotionally compelling, personal — never feature-listy), two pain -> relief benefits under 4 words each (draw from: shoulder marks, back ache, underwire discomfort, poor fit, posture strain — most specific to that product), trust signal using factual proof only, CTA 2-4 words (e.g., "SNAG YOURS →", "GRAB DAISY BRA", "TREAT YOURSELF").
-4) Segment body copy: one final body version each for segments 21, 22, 45, 8, 3. Label segment ID + segment name. No base version. Each body must include: Sandra's warm, confidence-boosting first-person voice and a warm close as Sandra; a named 2-3 sentence micro-story opener (specific name, situation, product, physical relief or confidence moment — never a bullet opener); visible price, shipping threshold, and deadline in-copy; at least one inline product hyperlink within a narrative sentence (conversational, not promotional); 1 seasonal tip relevant to [SEND_DATE] woven naturally into the narrative; and one primary CTA. Use only the relevant tactics from this pool — do not force all into one version: educational content (bra fit science, posture, shoulder/back pain connection), emotional storytelling, pain highlights (shoulder marks, back ache, underwire discomfort), FOMO or curiosity, sense of self-care and feeling treated right.
-5) QA checklist: single hook match, artificial review safe, factual claims sourced, price visible, Daisy lead, CTA above fold, grid valid, color valid, subject/preview not repetitive, last angle avoided, seasonal tip included, Sandra sign-off present.<button class="copy-btn" onclick="copyPrompt('bg-p6',this)">Copy</button></pre>
+4) Segment body copy: one final body version each for segments 21, 22, 45, 8, 3. Label segment ID + segment name. No base version. Each body must include: Sandra's warm, confidence-boosting first-person voice and a warm close as Sandra; one chosen opener from the rotation (direct problem, sensory snapshot, fit tip, customer quote, curiosity/fact, occasion clock, or brief story — never a bullet opener); visible price, shipping threshold, and deadline in-copy; at least one inline product hyperlink within a narrative sentence (conversational, not promotional); 1 seasonal tip relevant to [SEND_DATE] woven naturally into the narrative; one primary CTA; and an "Opener used" label. Use only the relevant tactics from this pool — do not force all into one version: educational content (bra fit science, posture, shoulder/back pain connection), emotional storytelling, pain highlights (shoulder marks, back ache, underwire discomfort), FOMO or curiosity, sense of self-care and feeling treated right.
+5) QA checklist: creative contract match, opener varied/labeled, artificial review/claim safe, factual claims sourced, price visible, Daisy lead, CTA above fold, grid valid, color valid, subject/preview not repetitive, last angle avoided, seasonal tip included, Sandra sign-off present.<button class="copy-btn" onclick="copyPrompt('bg-p6',this)">Copy</button></pre>
               </div>
             </div>
           </div>
@@ -3739,16 +3746,11 @@ OUTPUT:
                 <pre class="prompt-code"
                   id="gl-p1">Provide banner ideas (content and visual) for a marketing email of https://gentslux.com/ - an ecommerce store on men's clothing, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be confident, understated, and proof-aware. Use supplied facts plus supplied or artificial voice-of-customer language that resonates with men who value quality and comfort.
 
@@ -3765,7 +3767,7 @@ Focus on design mood, headline text, visual composition, color usage (deep navy 
 REQUIRED WIN RULES:
 - Hook alignment: this banner must reinforce the Hook Contract's exact theme - same angle, no new competing message; if the Hook Contract withholds the offer until the reveal, the banner should build intrigue not reveal it
 - F-pattern: design so the complete hook lands within the first 200px of email height - prime attention zone
-- Urgency type for GentsLux: fear of loss + scarcity - "limited stock", "ends tonight", "this price won't repeat" - confident, not desperate
+- Urgency type for GentsLux: fear of loss + scarcity - "limited stock if supplied", "ends tonight", "this price won't repeat" - confident, not desperate
 - Never let the banner introduce a gratitude or reflective angle the Hook Contract did not set up<button class="copy-btn" onclick="copyPrompt('gl-p1',this)">Copy</button></pre>
               </div>
             </div>
@@ -3783,16 +3785,11 @@ REQUIRED WIN RULES:
                 <pre class="prompt-code"
                   id="gl-p2">Using the banner direction above, provide <span class="placeholder">[NUMBER]</span> product block ideas for the products below. Each block contains 1 product (content and visual) for the email above.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Each block should contain:
 - A headline under 6 words that's compelling to men and relates to <span class="placeholder">[CAMPAIGN_THEME]</span>. Must feel confident and outcome-focused, not feature-listy.
@@ -3812,7 +3809,7 @@ Lead product must be JettJeans or FlexCamo. Secondary products can rotate from c
                 <span class="prompt-num">3</span>
                 <span>
                   <div class="prompt-title">Email Body — Base Copy</div>
-                  <div class="prompt-subtitle">From Jordan · Named male micro-story · Direct, no
+                  <div class="prompt-subtitle">From Jordan · Rotated opener · Direct, no
                     over-effusive sign-off</div>
                 </span>
                 <span class="prompt-arrow">&#9662;</span>
@@ -3821,27 +3818,23 @@ Lead product must be JettJeans or FlexCamo. Secondary products can rotate from c
                 <pre class="prompt-code"
                   id="gl-p3">Using the outputs above, write a customer-centric body text for the marketing email from a single person standpoint, named Jordan, who is from GentsLux (https://gentslux.com/). Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if Jordan is speaking directly to one man — direct, warm, confident, and honest.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Make it compact with no spammy or salesy words. Focus on the physical discomfort men tolerate in everyday clothing and how GentsLux solves it. Mention <span class="placeholder">[CAMPAIGN_THEME]</span>, <span class="placeholder">[PROMO_DETAILS]</span>, and <span class="placeholder">[SHIPPING_OFFER]</span>.
 
-Open with a 2–3 sentence micro-story about a named man (colleague, friend, or customer) who experienced a specific joint or comfort issue and found relief through a GentsLux product. Include their name, the exact situation, and the product detail.
+Choose ONE opener type from <span class="placeholder">[OPENER_ROTATION]</span> or this menu: direct problem, self-identifying question, mechanism-first fact, quick field note, customer quote, scarcity reveal, or brief named micro-story. Do not default to story; GentsLux often performs better with direct problem, mechanism, or curiosity first.
 
-STRUCTURE RULES (non-negotiable):
-• Open with the named micro-story ONLY — no bullet lists, no checkmarks, no feature openers
-• Body carries the SAME single theme as the Hook Contract and preheader strategy — introduce no new competing hooks or angles
-• Review copy: embed supplied review details as name + specific pain + product relief. If using artificial review-style copy, keep it plausible and unlabeled; never invent age, date, rating, count, or verification.
-• State the specific sale price ($X.XX) at least once in the body
-• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's when he tried the JettJeans") — secondary CTA, must feel conversational not promotional
+STRUCTURE RULES:
+• Start with the chosen opener in 1-3 short sentences; no bullets, checkmarks, feature-list starts, or generic greeting.
+• Body carries the SAME creative contract and click promise from opener -> product link -> CTA.
+• Review/claim texture may be supplied or artificial. If artificial, keep it plausible, unlabeled, and qualitative; never invent age, date, rating, count, verification, stock, or shipping fact.
+• State the specific sale price ($X.XX) at least once in the body.
+• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's when he tried the JettJeans") — secondary CTA, conversational not promotional.
+• End with "Opener used: [type]" after the body so Prompt 4 can preserve or rotate it intentionally.
 
 Use only the relevant items below; do not force every tactic into one email:
 - Concise and straight to the point (men respond to brevity)
@@ -3850,7 +3843,7 @@ Use only the relevant items below; do not force every tactic into one email:
 - User-Generated Content and Emotional Storytelling
 - Highlight Pain Points (stiff joints, restricted movement, uncomfortable waistbands, overheating) and Benefits (stretch, breathability, pull-on ease)
 - Present supplied factual data only; if none is supplied, use qualitative benefits or artificial review-style voice without fake metrics
-- FOMO (subtle — time limit or limited stock)
+- FOMO (subtle — time limit or limited stock if supplied)
 - Credibility and understated pride
 
 Include 1 practical tip relevant to the season / <span class="placeholder">[SEND_DATE]</span> context.
@@ -3875,12 +3868,13 @@ Close as Jordan — confident, direct, no over-effusive sign-off.<button class="
                 <pre class="prompt-code"
                   id="gl-p4">From the above, shorten the following email body text while retaining the ideas, tone, and Jordan's direct voice — no spammy words — in 3 different versions targeting:
 
-Hook contract to preserve: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to preserve: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SEGMENT DO / DON'T GUARDRAILS:
-- DO preserve the Hook Contract, price, proof/review limits, persona voice, one inline product link, and the same click promise in every segment version.
+- DO preserve the Creative Contract, price, proof/review/claim limits, persona voice, one inline product link, and the same click promise in every segment version.
 - DO adapt motivation by segment: loyal buyers get recognition/early access; high-risk buyers get proof and friction removal; low-frequency buyers get the natural next product; lapsed buyers get one low-risk reason to return.
-- DON'T add new hooks, new products, new claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
+- DO preserve the chosen opener type from Prompt 3 unless a segment-specific reason makes one adjacent opener stronger; if changing it, label "Opener used" for that segment.
+- DON'T add new hooks, new products, new factual claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
 
 71 - Men's Tops, Medium AOV, High purchasing frequency, Medium product risk (frequent tops buyers — they return regularly; acknowledge their style consistency; make the case that the pants they're looking at complete what they already own; speak to wardrobe completion, not isolated purchase)
 72 - Men's Bottoms, High AOV, Medium purchasing frequency, High product risk (premium pants buyers — high value but high churn risk; they bought once and need a reason to come back; speak to fit specificity, durability data, and exactly how these pants are different from what they already have)
@@ -3910,10 +3904,11 @@ The body text is:
                 <pre class="prompt-code"
                   id="gl-p5">Write 4 subject/preheader pairs for each of the 3 segment emails above (segments 71, 72, 73). Total = 12 pairs.
 
-Hook contract to amplify: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to amplify: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SUBJECT/PREHEADER DO / DON'T GUARDRAILS:
-- DO generate subjects last from the Hook Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO generate subjects last from the Creative Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO make the 4 pairs per segment meaningfully different: direct value, curiosity, sensory/emotional, and urgency/proof. Label each style/model lens; if actual models are selected, use their real outputs rather than imitating them. Do not produce paraphrases.
 - DO keep preheader as a new beat: deadline, reveal, proof, price, or urgency not already stated in the subject.
 - DO proofread for grammar, character limit, name placement, brand symbol rules, and offer accuracy before final output.
 - DON'T repeat the subject in the preheader, use fake Re/Fwd, add a new angle, use generic greetings, invent factual proof or fake verified review details, over-personalize, or use "don't let X go to waste".
@@ -3929,7 +3924,7 @@ For each pair, choose the strongest relevant elements from this list:
 - Questions that create a self-identification moment ("Still wearing pants that fight back?")
 
 Rules:
-- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
+- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT or auto-contract]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
 - Max 52 characters per subject
 - Use "o.f.f" instead of "OFF" and "💲" instead of "$"
 - Never use "don't let X go to waste"
@@ -3962,9 +3957,12 @@ INPUTS:
 - Store context: GentsLux is an ecommerce store on men's clothing.
 - Send: <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>
 - Campaign theme: <span class="placeholder">[CAMPAIGN_THEME]</span>
-- Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>
+- Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (if blank, auto-create one compact promise)
 - Target segment overview: <span class="placeholder">[TARGET_SEGMENT]</span>
 - Review mode: <span class="placeholder">[REVIEW_MODE: supplied / artificial / none]</span>
+- Claim mode: <span class="placeholder">[CLAIM_MODE: sourced / artificial-qualitative / none]</span>
+- Opener rotation: <span class="placeholder">[OPENER_ROTATION: preferred opener or opener to avoid]</span>
+- Creative spark: <span class="placeholder">[CREATIVE_SPARK: optional style/angle seed]</span>
 - Factual proof: <span class="placeholder">[PROOF_POINTS]</span>
 - Source review if supplied: <span class="placeholder">[SOURCE_REVIEW]</span>
 - Promo: <span class="placeholder">[PROMO_DETAILS]</span>; shipping: <span class="placeholder">[SHIPPING_OFFER]</span>; duration: <span class="placeholder">[SALE_DURATION]</span>
@@ -3973,12 +3971,14 @@ INPUTS:
 - Last send angle to avoid: <span class="placeholder">[LAST_SEND_ANGLE]</span>
 
 GLOBAL DO / DON'T:
-- DO build from the Hook Contract first — subjects/previews generated last, output them first for review.
-- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path.
+- DO build from the Creative Contract first. If [HOOK_CONTRACT] is blank, auto-create it from segment tension + hero product/result + proof/review/claim texture + offer + urgency + avoid rule. Subjects/previews are generated last but output first for review.
+- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path; A/B options must vary framework, opener, banner layout, product-block layout, visual direction, copy-tactic mix, and subject style, not just wording.
 - DO show price as comparison (was $X → now $Y), a specific deadline ("midnight" / "24 hrs" — never "ending soon"), hero product, and primary CTA above fold.
-- DO open each body with a named 2-3 sentence micro-story (situation → product → relief/confidence moment); one inline product link by paragraph 2.
-- DO use factual proof from PROOF_POINTS; artificial reviews (REVIEW_MODE=artificial) may include plausible names, counts, and ratings — never label them "verified" or "confirmed".
-- DON'T use bullet/checkmark openers, feature-list openers, corporate gratitude angles, panic framing ("Eek!", "Oh no…"), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
+- DO rotate body openers: direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock, or brief named micro-story. Choose the best fit per segment and label "Opener used".
+- DO use factual proof from PROOF_POINTS. Artificial review/claim texture may be used as qualitative customer language only. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+- DO rotate style ingredients across subject, preview, banner, body, and product blocks: concise/direct is mandatory, then choose 2-4 from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, and smart-deal framing.
+- DO make banner/product-block layouts visibly different across options: split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
+- DON'T use bullet/checkmark openers, feature-list starts, generic greetings/thanks, corporate gratitude angles unless brand-relevant, panic framing ("Eek!", "Oh no..."), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
 - DON'T use vague deadlines, repeat the same CTA 3+ times, hide the price, add a second offer, use 7+ products, create orphan rows, or use off-brand colors.
 - DON'T guess what a segment ID means. Use the segment definitions below exactly, and adapt only within those buyer motivations.
 
@@ -3987,7 +3987,7 @@ GENTSLUX RULES:
 - Lead product: JettJeans or FlexCamo first; Icy Shorts only when season/product fit is real.
 - Core pains: stiff knees, restricted movement, overheating, waistband pressure, cheap construction; write mechanism -> daily comfort.
 - Subject formula: curiosity + scarcity, 48-58 chars. Curiosity gap preferred — withhold the full offer in the subject; let the preview reveal it. Put {{first_name}} mid-subject if used, do not repeat it in preview.
-- Preview reveals the offer scale, deadline, price, stock, or mechanism the subject withholds. GL winning preheader formula: reveal offer scale + urgency — e.g., "24 hours. The lowest prices in GentsLux history. Go! 🏃‍♂️".
+- Preview reveals the offer scale, deadline, price, supplied stock status, or mechanism the subject withholds. GL winning preheader formula: reveal offer scale + urgency — e.g., "24 hours. The lowest prices in GentsLux history. Go! 🏃‍♂️".
 - Palette: deep navy #002850-#1d3d56; avoid #26508d, #013faa, #183647.
 - Promo code preference when choosing from supplied options: F-code default.
 - Grammar: GL is a premium brand — proofread every line; one error destroys trust.
@@ -3998,11 +3998,11 @@ SEGMENT DEFINITIONS:
 - 73 - Men's Others (accessories/misc), Medium AOV, Low purchasing frequency, Medium product risk. Lapsed or peripheral buyers who bought something small or non-core; step them up to the flagship product; lead with one compelling reason and remove risk via satisfaction guarantee/easy returns when supplied.
 
 OUTPUT:
-1) Subject + preview options: 3 subject/preview pairs for each segment 71, 72, 73. Label segment ID + segment name, angle, Subject, Preview. Subjects 48-58 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per segment): {{first_name}} mid-subject, 1 emoji max, implied value without revealing the offer, understated confidence, wordplay on fit/comfort/movement, FOMO via scarcity or time, self-identification questions (e.g., "Still wearing pants that fight back?"). GL winning preheader formula: reveal offer scale + urgency — e.g., "24 hours. The lowest prices in GentsLux history. Go! 🏃‍♂️".
-2) Banner ideas: 2 options — one that creates a curiosity gap (suggests something extraordinary without revealing the full offer), one that leads with credibility and trust (supplied fact, guarantee, product mechanism, or quality signal). For each: headline, subhead, visual layout, hero product placement, CTA, color notes (deep navy #002850-#1d3d56; avoid #26508d, #013faa, #183647), and how the first 200px confirms the Hook Contract. Urgency flavor: fear of loss + scarcity — "limited stock", "ends tonight", "this price won't repeat" — confident, not desperate. Never introduce a gratitude or reflective angle the Hook Contract did not set up.
+1) Subject + preview options: 3 subject/preview pairs for each segment 71, 72, 73. Label segment ID + segment name, style/model lens, angle, Subject, Preview. Subjects 48-58 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per segment): {{first_name}} mid-subject, 1 emoji max, implied value without revealing the offer, understated confidence, wordplay on fit/comfort/movement, FOMO via scarcity or time, self-identification questions (e.g., "Still wearing pants that fight back?"). GL winning preheader formula: reveal offer scale + urgency — e.g., "24 hours. The lowest prices in GentsLux history. Go! 🏃‍♂️".
+2) Banner ideas: 2 options — one that creates a curiosity gap (suggests something extraordinary without revealing the full offer), one that leads with credibility and trust (supplied fact, guarantee, product mechanism, or quality signal). For each: headline, subhead, visual layout, hero product placement, CTA, color notes (deep navy #002850-#1d3d56; avoid #26508d, #013faa, #183647), and how the first 200px confirms the Hook Contract. Urgency flavor: fear of loss + scarcity — "limited stock if supplied", "ends tonight", "this price won't repeat" — confident, not desperate. Never introduce a gratitude or reflective angle the Hook Contract did not set up.
 3) Product blocks: use [NUMBER] if supplied; otherwise 4-6 products, even count. For each: product + URL, sale price, headline under 6 words (confident and outcome-focused — never feature-listy), two pain -> relief benefits under 4 words each (draw from: stiff knees, restricted movement, overheating, waistband pressure — most specific to that product), trust signal using factual proof only, CTA 2-4 words (e.g., "GRAB JETTJEANS →", "GET YOURS NOW", "CLAIM 70% O.F.F").
-4) Segment body copy: one final body version each for segments 71, 72, 73. Label segment ID + segment name. No base version. Each body must include: Jordan's direct, confident first-person voice and a confident, direct close as Jordan — no over-effusive sign-off; a named 2-3 sentence male micro-story opener (name, joint or comfort issue, product detail, resolution — never a bullet opener); visible price, shipping threshold, and deadline in-copy; at least one inline product hyperlink within a narrative sentence (conversational, not promotional); 1 practical tip relevant to the season / [SEND_DATE]; and one primary CTA. Use only the relevant tactics from this pool — do not force all into one version: educational content (joint stress from stiff fabrics, circulation in tight waistbands, posture and pant fit), emotional storytelling, pain highlights (stiff joints, restricted movement, overheating), subtle FOMO (time limit or limited stock), credibility and understated pride.
-5) QA checklist: single hook match, artificial review safe, factual claims sourced, price visible, JettJeans/FlexCamo lead, CTA above fold, grid valid, color valid, grammar perfect, last angle avoided, seasonal tip included, Jordan sign-off correct.<button class="copy-btn" onclick="copyPrompt('gl-p6',this)">Copy</button></pre>
+4) Segment body copy: one final body version each for segments 71, 72, 73. Label segment ID + segment name. No base version. Each body must include: Jordan's direct, confident first-person voice and a confident, direct close as Jordan — no over-effusive sign-off; one chosen opener from the rotation (direct problem, self-identifying question, mechanism fact, field note, customer quote, scarcity reveal, or brief story — never a bullet opener); visible price, shipping threshold, and deadline in-copy; at least one inline product hyperlink within a narrative sentence (conversational, not promotional); 1 practical tip relevant to the season / [SEND_DATE]; one primary CTA; and an "Opener used" label. Use only the relevant tactics from this pool — do not force all into one version: educational content (joint stress from stiff fabrics, circulation in tight waistbands, posture and pant fit), emotional storytelling, pain highlights (stiff joints, restricted movement, overheating), subtle FOMO (time limit or limited stock if supplied), credibility and understated pride.
+5) QA checklist: creative contract match, opener varied/labeled, artificial review/claim safe, factual claims sourced, price visible, JettJeans/FlexCamo lead, CTA above fold, grid valid, color valid, grammar perfect, last angle avoided, seasonal tip included, Jordan sign-off correct.<button class="copy-btn" onclick="copyPrompt('gl-p6',this)">Copy</button></pre>
               </div>
             </div>
           </div>
@@ -4037,16 +4037,11 @@ OUTPUT:
                 <pre class="prompt-code"
                   id="lf-p1">Provide banner ideas (content and visual) for a marketing email of https://luxfitting.com/ — an ecommerce store on women's clothing, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be concise, fun, and personal. Use supplied facts plus a supplied or artificial compact customer review when helpful. Focus on comfort, outfit usefulness, and non-medical health-adjacent benefits as the sale angle. <span class="placeholder">[NUMBER]</span> items on sale are:
 <span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (was $XX.XX, now $XX.XX)"]</span>
@@ -4078,16 +4073,11 @@ REQUIRED WIN RULES:
                 <pre class="prompt-code"
                   id="lf-p2">Using the banner direction above, provide <span class="placeholder">[NUMBER]</span> product block ideas for <span class="placeholder">[NUMBER]</span> products below, each block contains 1 product (content and visual) for the email above, each block should contain the following:
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 - A headline under 6 words that's attractive to customers and make them want to buy the product and relates to <span class="placeholder">[CAMPAIGN_THEME]</span>. If possible, it should be personal, emotional, powerful
 - 2 product benefits each following a pain → relief arc: name a specific customer pain (e.g., elastic waistband discomfort, leg swelling, overheating in summer) → then the specific product feature that relieves it. Under 4 words each. Use supplied data only; never imply medical results.
@@ -4115,23 +4105,20 @@ StretchActive must be the first product block. Remaining products can rotate fro
                 <pre class="prompt-code"
                   id="lf-p3">Using the outputs above, write a customer-centric body text for the marketing email from a single person standpoint, named Adele, who is from the online store above. Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if you were having a natural and friendly conversation with them. Make it compact with no spammy words. Focus on benefits and emotions and motivate the customers to buy the products. Mention the sale program, <span class="placeholder">[PROMO_DETAILS]</span>. Include useful tips and tricks for <span class="placeholder">[SEASON / occasion relevant to SEND_DATE]</span>.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
-
-STRUCTURE RULES (non-negotiable):
-• Open with a 2–3 sentence named micro-story ONLY — no bullet lists, no checkmarks, no feature openers
-• Body carries the SAME single theme as the Hook Contract and preheader strategy — introduce no new competing hooks or angles
-• Review copy: embed supplied review details as name + specific pain + product relief. If using artificial review-style copy, keep it plausible and unlabeled; never invent age, date, rating, count, or verification.
-• State the specific sale price ($X.XX) at least once in the body
-• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's why so many of our readers keep reaching for their StretchActive") — secondary CTA, conversational not promotional
+STRUCTURE RULES:
+• Choose ONE opener type from <span class="placeholder">[OPENER_ROTATION]</span> or this menu: sensory comparison, useful styling tip, direct comfort problem, customer quote, seasonal moment, curiosity/fact, or brief named micro-story. Do not default to story.
+• Start with the chosen opener in 1-3 short sentences; no bullets, checkmarks, feature-list starts, or generic greeting.
+• Body carries the SAME creative contract and click promise from opener -> product link -> CTA.
+• Review/claim texture may be supplied or artificial. If artificial, keep it plausible, unlabeled, and qualitative; never invent age, date, rating, count, verification, medical outcome, stock, or shipping fact.
+• State the specific sale price ($X.XX) at least once in the body.
+• Inline product link: naturally hyperlink at least one product name within a narrative sentence (e.g., "That's why so many of our readers keep reaching for their StretchActive") — secondary CTA, conversational not promotional.
+• End with "Opener used: [type]" after the body so Prompt 4 can preserve or rotate it intentionally.
 
 Use only the relevant items below; do not force every tactic into one email:
 - Concise and straight to the point
@@ -4163,12 +4150,13 @@ Close warmly as Adele.<button class="copy-btn" onclick="copyPrompt('lf-p3',this)
                 <pre class="prompt-code"
                   id="lf-p4">From the above, shorten the following email body text while retaining the ideas and styles with no spammy words, in 4 different versions, targeting at the following 4 customer segments to encourage them to buy the clothes above:
 
-Hook contract to preserve: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to preserve: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SEGMENT DO / DON'T GUARDRAILS:
-- DO preserve the Hook Contract, price, proof/review limits, persona voice, one inline product link, and the same click promise in every segment version.
+- DO preserve the Creative Contract, price, proof/review/claim limits, persona voice, one inline product link, and the same click promise in every segment version.
 - DO adapt motivation by segment: loyal buyers get recognition/early access; high-risk buyers get proof and friction removal; low-frequency buyers get the natural next product; lapsed buyers get one low-risk reason to return.
-- DON'T add new hooks, new products, new claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
+- DO preserve the chosen opener type from Prompt 3 unless a segment-specific reason makes one adjacent opener stronger; if changing it, label "Opener used" for that segment.
+- DON'T add new hooks, new products, new factual claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
 
 61 - Women's Tops, Medium AOV, High purchasing frequency, Medium product risk (frequent tops buyers — they return regularly and know what they like; acknowledge their style loyalty; cross-sell the bottoms or dresses that complete what they already own; speak to the effortless outfit angle)
 62 - Women's Bottoms, High AOV, High purchasing frequency, High product risk (high-value bottoms buyers — they spend more and return often but have high risk of leaving for a competitor; speak to fit precision, quality of fabric, and what makes these bottoms different from anything else they've tried)
@@ -4199,10 +4187,11 @@ The body text is:
                 <pre class="prompt-code"
                   id="lf-p5">Write 4 updated subject/preheader pairs for each email above (segments 61, 62, 63, 64). Total = 16 pairs.
 
-Hook contract to amplify: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to amplify: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SUBJECT/PREHEADER DO / DON'T GUARDRAILS:
-- DO generate subjects last from the Hook Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO generate subjects last from the Creative Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO make the 4 pairs per segment meaningfully different: direct value, curiosity, sensory/emotional, and urgency/proof. Label each style/model lens; if actual models are selected, use their real outputs rather than imitating them. Do not produce paraphrases.
 - DO keep preheader as a new beat: deadline, reveal, proof, price, or urgency not already stated in the subject.
 - DO proofread for grammar, character limit, name placement, brand symbol rules, and offer accuracy before final output.
 - DON'T repeat the subject in the preheader, use fake Re/Fwd, add a new angle, use generic greetings, invent factual proof or fake verified review details, over-personalize, or use "don't let X go to waste".
@@ -4220,7 +4209,7 @@ For each pair, choose the strongest relevant elements from this list:
 - Questions
 
 Rules:
-- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
+- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT or auto-contract]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
 - Max 50 characters
 - Use "💲" instead of "$" and "o.f.f" instead of "OFF"
 - Best-performing formula for LF: "[sensory comparison] for 💲[price]?" — use as one of the alternatives per segment
@@ -4252,9 +4241,12 @@ INPUTS:
 - Store context: LuxFitting is an ecommerce store on women's clothing.
 - Send: <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>
 - Campaign theme: <span class="placeholder">[CAMPAIGN_THEME]</span>
-- Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>
+- Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (if blank, auto-create one compact promise)
 - Target segment overview: <span class="placeholder">[TARGET_SEGMENT]</span>
 - Review mode: <span class="placeholder">[REVIEW_MODE: supplied / artificial / none]</span>
+- Claim mode: <span class="placeholder">[CLAIM_MODE: sourced / artificial-qualitative / none]</span>
+- Opener rotation: <span class="placeholder">[OPENER_ROTATION: preferred opener or opener to avoid]</span>
+- Creative spark: <span class="placeholder">[CREATIVE_SPARK: optional style/angle seed]</span>
 - Factual proof: <span class="placeholder">[PROOF_POINTS]</span>
 - Source review if supplied: <span class="placeholder">[SOURCE_REVIEW]</span>
 - Promo: <span class="placeholder">[PROMO_DETAILS]</span>; shipping: <span class="placeholder">[SHIPPING_OFFER]</span>; duration: <span class="placeholder">[SALE_DURATION]</span>
@@ -4263,12 +4255,14 @@ INPUTS:
 - Last send angle to avoid: <span class="placeholder">[LAST_SEND_ANGLE]</span>
 
 GLOBAL DO / DON'T:
-- DO build from the Hook Contract first — subjects/previews generated last, output them first for review.
-- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path.
+- DO build from the Creative Contract first. If [HOOK_CONTRACT] is blank, auto-create it from segment tension + hero product/result + proof/review/claim texture + offer + urgency + avoid rule. Subjects/previews are generated last but output first for review.
+- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path; A/B options must vary framework, opener, banner layout, product-block layout, visual direction, copy-tactic mix, and subject style, not just wording.
 - DO show price as comparison (was $X → now $Y), a specific deadline ("midnight" / "24 hrs" — never "ending soon"), hero product, and primary CTA above fold.
-- DO open each body with a named 2-3 sentence micro-story (situation → product → relief/confidence moment); one inline product link by paragraph 2.
-- DO use factual proof from PROOF_POINTS; artificial reviews (REVIEW_MODE=artificial) may include plausible names, counts, and ratings — never label them "verified" or "confirmed".
-- DON'T use bullet/checkmark openers, feature-list openers, corporate gratitude angles, panic framing ("Eek!", "Oh no…"), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
+- DO rotate body openers: direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock, or brief named micro-story. Choose the best fit per segment and label "Opener used".
+- DO use factual proof from PROOF_POINTS. Artificial review/claim texture may be used as qualitative customer language only. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+- DO rotate style ingredients across subject, preview, banner, body, and product blocks: concise/direct is mandatory, then choose 2-4 from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, and smart-deal framing.
+- DO make banner/product-block layouts visibly different across options: split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
+- DON'T use bullet/checkmark openers, feature-list starts, generic greetings/thanks, corporate gratitude angles unless brand-relevant, panic framing ("Eek!", "Oh no..."), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
 - DON'T use vague deadlines, repeat the same CTA 3+ times, hide the price, add a second offer, use 7+ products, create orphan rows, or use off-brand colors.
 - DON'T guess what a segment ID means. Use the segment definitions below exactly, and adapt only within those buyer motivations.
 
@@ -4288,11 +4282,11 @@ SEGMENT DEFINITIONS:
 - 64 - Women's Others (misc/accessories), Medium AOV, Low purchasing frequency, Medium product risk. Infrequent peripheral buyers; bridge from what they bought to the main collection; remove risk and make the step up feel easy.
 
 OUTPUT:
-1) Subject + preview options: 3 subject/preview pairs for each segment 61, 62, 63, 64. Label segment ID + segment name, angle, Subject, Preview. Subjects 44-56 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per segment): personalization, emojis, specific price or value, trendy language, wordplay/puns, actionable power words, FOMO, questions, fun or playful framing. Best-performing LF subject formula: "[sensory comparison] for &#x1F4B2;[price]?" — use as one of the three pairs per segment. LF winning preheader formula: escalate the tension — e.g., "Thanks but this ends midnight!" / "Ends tonight — grab yours before they're gone".
+1) Subject + preview options: 3 subject/preview pairs for each segment 61, 62, 63, 64. Label segment ID + segment name, style/model lens, angle, Subject, Preview. Subjects 44-56 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per segment): personalization, emojis, specific price or value, trendy language, wordplay/puns, actionable power words, FOMO, questions, fun or playful framing. Best-performing LF subject formula: "[sensory comparison] for &#x1F4B2;[price]?" — use as one of the three pairs per segment. LF winning preheader formula: escalate the tension — e.g., "Thanks but this ends midnight!" / "Ends tonight — grab yours before they're gone".
 2) Banner ideas: 2 options — one for recent buyers (acknowledge and reward with the offer), one for long-time-no-see customers (re-engagement with sensory appeal). For each: headline, subhead, visual layout, StretchActive as hero, CTA, color notes (#e7324a-#fe397b; contextual holiday exceptions only if the entire email is season-themed), and how the first 200px delivers the sensory promise + price from the Hook Contract. Urgency flavor: gratitude + deadline — "as a thank-you, but only until midnight tonight" — warm not pushy. Never introduce a new hook the Hook Contract did not set up.
 3) Product blocks: use [NUMBER] if supplied; otherwise 4-6 products, even count. For each: product + URL, sale price, headline under 6 words (attractive and desire-driving — never feature-listy), two pain -> relief benefits under 4 words each (draw from: elastic pressure, leg swelling, overheating, outfit restriction — health-adjacent only, never medical), urgent indicator or trust booster using supplied proof only, CTA 2-4 words (e.g., "SNAG YOURS →", "FEEL THE DIFFERENCE", "GRAB STRETCHACTIVE").
-4) Segment body copy: one final body version each for segments 61, 62, 63, 64. Label segment ID + segment name. No base version. Each body must include: Adele's warm, friendly first-person voice and a warm close as Adele; a named 2-3 sentence micro-story opener (specific name, situation, product, comfort or confidence moment — never a bullet opener); visible price, shipping threshold, and deadline in-copy; at least one inline product hyperlink within a narrative sentence (conversational, not promotional); 1 useful tip or trick relevant to the season / [SEND_DATE] woven naturally; and one primary CTA. Use only the relevant tactics from this pool — do not force all into one version: educational content (outfit pairing, comfort science, seasonal dressing tips), emotional storytelling, pain highlights (elastic pressure, leg swelling, overheating), FOMO and curiosity, feeling appreciated and treated well.
-5) QA checklist: single hook match, artificial review safe, factual claims sourced, price visible, StretchActive lead, CTA above fold, grid valid, color valid, no medical claim, last angle avoided, seasonal tip included, Adele sign-off present.<button class="copy-btn" onclick="copyPrompt('lf-p6',this)">Copy</button></pre>
+4) Segment body copy: one final body version each for segments 61, 62, 63, 64. Label segment ID + segment name. No base version. Each body must include: Adele's warm, friendly first-person voice and a warm close as Adele; one chosen opener from the rotation (sensory comparison, styling tip, direct comfort problem, customer quote, seasonal moment, curiosity/fact, or brief story — never a bullet opener); visible price, shipping threshold, and deadline in-copy; at least one inline product hyperlink within a narrative sentence (conversational, not promotional); 1 useful tip or trick relevant to the season / [SEND_DATE] woven naturally; one primary CTA; and an "Opener used" label. Use only the relevant tactics from this pool — do not force all into one version: educational content (outfit pairing, comfort science, seasonal dressing tips), emotional storytelling, pain highlights (elastic pressure, leg swelling, overheating), FOMO and curiosity, feeling appreciated and treated well.
+5) QA checklist: creative contract match, opener varied/labeled, artificial review/claim safe, factual claims sourced, price visible, StretchActive lead, CTA above fold, grid valid, color valid, no medical claim, last angle avoided, seasonal tip included, Adele sign-off present.<button class="copy-btn" onclick="copyPrompt('lf-p6',this)">Copy</button></pre>
               </div>
             </div>
           </div>
@@ -4327,16 +4321,11 @@ OUTPUT:
                 <pre class="prompt-code"
                   id="sf-p1">Provide banner ideas (content and visual) for a marketing email of https://santafare.com/ — an ecommerce store on accessories, handbags, and lifestyle gifts, on <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>. The content is about <span class="placeholder">[CAMPAIGN_THEME]</span>.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Target customers are <span class="placeholder">[TARGET_SEGMENT]</span>. Be warm, story-driven, and occasion-aware. Use supplied facts plus supplied or artificial review-style language that creates gift urgency and occasion relevance. If supplied, incorporate a compact customer review about receiving or gifting a product (reviewer name and date when available) with several unique selling points. Focus on the gifting moment and travel/lifestyle utility as the emotional core. <span class="placeholder">[NUMBER]</span> items on sale are:
 <span class="placeholder">[PRODUCT_LIST — format: "ProductName - Description (was $XX.XX, now $XX.XX)"]</span>
@@ -4370,16 +4359,11 @@ REQUIRED WIN RULES:
                 <pre class="prompt-code"
                   id="sf-p2">Using the banner direction above, provide <span class="placeholder">[NUMBER]</span> product block ideas for the products below. Each block contains 1 product (content and visual) for the email above.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Each block should contain:
 - A headline under 6 words related to <span class="placeholder">[CAMPAIGN_THEME]</span> — must feel like a gift recommendation from a trusted friend, not a sale announcement
@@ -4404,7 +4388,7 @@ REQUIRED WIN RULES:
                 <span class="prompt-num">3</span>
                 <span>
                   <div class="prompt-title">Email Body — Base Copy</div>
-                  <div class="prompt-subtitle">From Mary · Gifting micro-story · Occasion-first
+                  <div class="prompt-subtitle">From Mary · Rotated gifting opener · Occasion-first
                     narrative</div>
                 </span>
                 <span class="prompt-arrow">&#9662;</span>
@@ -4413,28 +4397,22 @@ REQUIRED WIN RULES:
                 <pre class="prompt-code"
                   id="sf-p3">Using the outputs above, write a customer-centric body text for the marketing email from a single person standpoint, named Mary, who is from SantaFare (https://santafare.com/). Make it appeal to <span class="placeholder">[TARGET_SEGMENT]</span> as if Mary is having a warm, personal conversation — someone who genuinely cares about helping them find the perfect gift or treat.
 
-Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>. Use this as the source of truth for angle, emotion, hero product, proof, urgency, and avoid rule.
-Proof standard: factual claims must come from <span class="placeholder">[PROOF_POINTS]</span>. User review copy may be supplied or artificial via <span class="placeholder">[REVIEW_MODE]</span>; artificial reviews must sound plausible — specific customer details (names, counts, star ratings, ages) are permitted — but must never claim to be verified, invent medical outcomes, or state specific shipping/inventory figures.
-
-EMAILAUTO DO / DON'T GUARDRAILS:
-- DO keep one Hook Contract across banner, body, grid, CTA, subject, and preheader; subject lines come last and must inherit the locked hook, not dictate earlier content.
-- DO write for the buyer segment and purchase history; use persona voice, customer language, price comparison (was $X → now $Y), shipping threshold, specific deadline ("midnight"/"24 hrs"), and one clear click path.
-- DO use factual proof from <span class="placeholder">[PROOF_POINTS]</span>; use <span class="placeholder">[SOURCE_REVIEW]</span> when supplied, or artificial review-style copy when <span class="placeholder">[REVIEW_MODE]</span>=artificial, without verified/rating/date/age/count claims.
-- DO prefer named micro-stories, pain -> relief benefits, 2-4 word CTAs, brand-approved hero product order, and clean mobile-first layout.
-- DON'T use bullet/checkmark openers, feature-list openers, generic greetings, generic thank-you angles, multi-hook copy, fake Re/Fwd, fake verified reviewers, unsupported medical claims, grammar errors, or "don't let X go to waste".
-- DON'T hide the price, overstuff the grid, use 7+ products, create orphan final rows, use off-brand colors, add a second offer, or target broad inactive/+Yahoo lists without a specific suppression/quality reason.
+Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (or auto-create one if blank: segment tension + hero product/result + proof/review/claim texture + offer + urgency + one avoid rule). It must guide banner, body, products, CTA, subject, and preheader.
+Evidence: use <span class="placeholder">[PROOF_POINTS]</span> for factual claims. <span class="placeholder">[REVIEW_MODE]</span> and <span class="placeholder">[CLAIM_MODE]</span> may provide artificial customer/review/claim texture, but keep it qualitative and never present it as verified. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+Guardrails: one promise, one click path, price + deadline visible, one natural product link, 2-4 word CTA, mobile-first layout. Rotate opener (story, direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock); never default to story. When generating 2+ options, vary framework, opener, banner layout, product-block layout, visual logic, CTA energy, copy-tactic mix, and subject style — not just wording. Avoid feature-list/checkmark openers, generic greetings/thanks, fake Re/Fwd, multi-hook copy, grammar errors, off-brand colors, orphan product rows, second offers, or "don't let X go to waste".
+Style rotation: concise/direct is always required; then use 2-4 relevant tactics from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/emotional story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, or smart-deal framing. Do not cram all tactics into one email.
+Layout experiments: banner and product blocks should test visibly different layouts such as split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
 
 Make it compact with no spammy words. Focus on the gift moment, the story behind giving, and the quality that makes SantaFare worth it. Mention <span class="placeholder">[CAMPAIGN_THEME]</span>, <span class="placeholder">[PROMO_DETAILS]</span>, and <span class="placeholder">[SHIPPING_OFFER]</span>.
 
-STRUCTURE RULES (non-negotiable):
-• Open with a named gifting micro-story: give a real name (Mary's sister, a friend, a customer), the occasion, the specific product, and the emotional moment — minimum 2 sentences, maximum 3
-• Never open with a bullet list, a checklist, or a "Here's what you get" format — story always comes first
-• Single hook rule: the email must carry ONE unresolved gifting situation from Hook Contract -> opener -> CTA; never introduce a second competing theme mid-email
-• Review copy may be supplied or artificial. If artificial, keep it plausible and unlabeled; never invent a rating, age, statistic, date, or verified customer claim.
-• Price must appear in body copy at least once — never make the reader click to find out
-• Include one inline product hyperlink embedded in a narrative sentence (e.g., "the [Pouchic](product:pouchic) fit everything she needed for the weekend") — this is the secondary CTA, not a standalone button
-
-Open with a 2–3 sentence gifting micro-story — a named person (Mary's sister, a friend, a customer) who gave or received a SantaFare product at a meaningful moment. Be specific: name, occasion, product, and the emotional response.
+STRUCTURE RULES:
+• Choose ONE opener type from <span class="placeholder">[OPENER_ROTATION]</span> or this menu: unresolved gift situation, occasion clock, direct gifting problem, quiet product detail, customer quote, seasonal tip, or brief named gifting micro-story. Do not default to story unless the hook contract is explicitly story-led.
+• Start with the chosen opener in 1-3 short sentences; no bullet list, checklist, "Here's what you get," or generic greeting.
+• Single hook rule: the email must carry ONE unresolved gifting situation from creative contract -> opener -> CTA; never introduce a second competing theme mid-email.
+• Review/claim texture may be supplied or artificial. If artificial, keep it plausible, unlabeled, and qualitative; never invent a rating, age, statistic, date, verified customer claim, stock, or shipping fact.
+• Price must appear in body copy at least once — never make the reader click to find out.
+• Include one inline product hyperlink embedded in a narrative sentence (e.g., "the [Pouchic](product:pouchic) fit everything she needed for the weekend") — this is the secondary CTA, not a standalone button.
+• End with "Opener used: [type]" after the body so Prompt 4 can preserve or rotate it intentionally.
 
 Use only the relevant items below; do not force every tactic into one email:
 - Concise and story-driven
@@ -4443,7 +4421,7 @@ Use only the relevant items below; do not force every tactic into one email:
 - User-Generated Content and Emotional Storytelling (gifting anecdotes)
 - Highlight Pain Points (generic gifts, wrong size, poor quality, last-minute stress) and Benefits (timeless design, premium feel, thoughtful choice)
 - Present supplied factual data only; if none is supplied, use qualitative benefits or artificial review-style voice without fake metrics
-- FOMO and Urgency (deadline, limited stock — reluctant, not desperate)
+- FOMO and Urgency (deadline, limited stock if supplied — reluctant, not desperate)
 - Create a sense of occasion and occasion-fit
 
 Include 1 seasonal gifting tip relevant to <span class="placeholder">[SEND_DATE]</span>.
@@ -4468,13 +4446,14 @@ Close warmly as Mary — brief, personal, not over-effusive.<button class="copy-
                 <pre class="prompt-code"
                   id="sf-p4">REQUIRED FOR ALL 4 VERSIONS:
 
-Hook contract to preserve: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to preserve: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SEGMENT DO / DON'T GUARDRAILS:
-- DO preserve the Hook Contract, price, proof/review limits, persona voice, one inline product link, and the same click promise in every segment version.
+- DO preserve the Creative Contract, price, proof/review/claim limits, persona voice, one inline product link, and the same click promise in every segment version.
 - DO adapt motivation by segment: loyal buyers get recognition/early access; high-risk buyers get proof and friction removal; low-frequency buyers get the natural next product; lapsed buyers get one low-risk reason to return.
-- DON'T add new hooks, new products, new claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
-• Retain the named gifting micro-story from Prompt 3 — shorten it, never remove it; the story is the emotional anchor for every segment
+- DO preserve the chosen opener type from Prompt 3 unless a segment-specific reason makes one adjacent opener stronger; if changing it, label "Opener used" for that segment.
+- DON'T add new hooks, new products, new factual claims, new urgency, bullet/checkmark formatting, or a different CTA strategy while shortening.
+• Retain the Prompt 3 opener strategy — shorten it if needed, and do not force a gifting micro-story unless Prompt 3 chose one
 • Maintain Mary's warm, personal voice across all versions — never let any version sound corporate, aggressive, or like a sale alert
 • Each version must still carry the single suspended-loop hook — the unresolved gifting situation must persist; never resolve it before the CTA
 • Price must remain visible in each version
@@ -4505,10 +4484,11 @@ The body text is:
                 <pre class="prompt-code"
                   id="sf-p5">Write 4 subject/preheader pairs for each of the 4 lifecycle tier versions above (Segment 1: tiers 1-A Active, 1-B Drifting, 1-C Lapsed, 1-D VIP). Total = 16 pairs.
 
-Hook contract to amplify: <span class="placeholder">[HOOK_CONTRACT]</span>
+Creative contract to amplify: <span class="placeholder">[HOOK_CONTRACT or Prompt 3 auto-contract]</span>
 
 SUBJECT/PREHEADER DO / DON'T GUARDRAILS:
-- DO generate subjects last from the Hook Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO generate subjects last from the Creative Contract, banner, body, and segment copy; each pair must set the same expectation the email fulfills.
+- DO make the 4 pairs per segment meaningfully different: direct value, curiosity, sensory/emotional, and urgency/proof. Label each style/model lens; if actual models are selected, use their real outputs rather than imitating them. Do not produce paraphrases.
 - DO keep preheader as a new beat: deadline, reveal, proof, price, or urgency not already stated in the subject.
 - DO proofread for grammar, character limit, name placement, brand symbol rules, and offer accuracy before final output.
 - DON'T repeat the subject in the preheader, use fake Re/Fwd, add a new angle, use generic greetings, invent factual proof or fake verified review details, over-personalize, or use "don't let X go to waste".
@@ -4523,7 +4503,7 @@ For each pair, choose the strongest relevant elements from this list:
 - Exclusivity or limited access signal
 
 Rules:
-- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
+- Final subjects must align with <span class="placeholder">[HOOK_CONTRACT or auto-contract]</span>, the banner, the body, and the segment copy; do not introduce a new angle.
 - Max 54 characters per subject
 - Use "💲" instead of "$" and "SAVING" instead of "OFF"
 - Never use "don't let X go to waste" or off-theme seasonal puns
@@ -4555,9 +4535,12 @@ INPUTS:
 - Store context: SantaFare is an ecommerce store on accessories, handbags, and lifestyle gifts.
 - Send: <span class="placeholder">[SEND_DAY]</span>, <span class="placeholder">[SEND_DATE]</span>
 - Campaign theme: <span class="placeholder">[CAMPAIGN_THEME]</span>
-- Hook contract: <span class="placeholder">[HOOK_CONTRACT]</span>
+- Creative contract: <span class="placeholder">[HOOK_CONTRACT]</span> (if blank, auto-create one compact promise)
 - Target segment overview: <span class="placeholder">[TARGET_SEGMENT]</span>
 - Review mode: <span class="placeholder">[REVIEW_MODE: supplied / artificial / none]</span>
+- Claim mode: <span class="placeholder">[CLAIM_MODE: sourced / artificial-qualitative / none]</span>
+- Opener rotation: <span class="placeholder">[OPENER_ROTATION: preferred opener or opener to avoid]</span>
+- Creative spark: <span class="placeholder">[CREATIVE_SPARK: optional style/angle seed]</span>
 - Factual proof: <span class="placeholder">[PROOF_POINTS]</span>
 - Source review if supplied: <span class="placeholder">[SOURCE_REVIEW]</span>
 - Promo: <span class="placeholder">[PROMO_DETAILS]</span>; shipping: <span class="placeholder">[SHIPPING_OFFER]</span>; duration: <span class="placeholder">[SALE_DURATION]</span>
@@ -4566,12 +4549,14 @@ INPUTS:
 - Last send angle to avoid: <span class="placeholder">[LAST_SEND_ANGLE]</span>
 
 GLOBAL DO / DON'T:
-- DO build from the Hook Contract first — subjects/previews generated last, output them first for review.
-- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path.
+- DO build from the Creative Contract first. If [HOOK_CONTRACT] is blank, auto-create it from segment tension + hero product/result + proof/review/claim texture + offer + urgency + avoid rule. Subjects/previews are generated last but output first for review.
+- DO keep one promise across subject, preview, banner, body, grid, CTA, price, and link path; A/B options must vary framework, opener, banner layout, product-block layout, visual direction, copy-tactic mix, and subject style, not just wording.
 - DO show price as comparison (was $X → now $Y), a specific deadline ("midnight" / "24 hrs" — never "ending soon"), hero product, and primary CTA above fold.
-- DO open each body with a named 2-3 sentence gifting micro-story (occasion → product → emotional moment); one inline product link by paragraph 2.
-- DO use factual proof from PROOF_POINTS; artificial reviews (REVIEW_MODE=artificial) may include plausible names, counts, and ratings — never label them "verified" or "confirmed".
-- DON'T use bullet/checkmark openers, feature-list openers, corporate gratitude angles, panic framing ("Eek!", "Oh no…"), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
+- DO rotate body openers: unresolved gift situation, occasion clock, direct gifting problem, quiet product detail, customer quote, seasonal tip, or brief named gifting micro-story. Choose the best fit per lifecycle tier and label "Opener used".
+- DO use factual proof from PROOF_POINTS. Artificial review/claim texture may be used as qualitative customer language only. Verified labels, ratings, counts, ages, dates, medical outcomes, stock, and shipping facts must be supplied or marked &quot;needs verification&quot; in the brief, not invented in final copy.
+- DO rotate style ingredients across subject, preview, banner, body, and product blocks: concise/direct is mandatory, then choose 2-4 from personalization, emoji restraint, value, numbers/list framing, trendy/plainspoken wording, wordplay/puns/idioms, actionable power words, light humor, FOMO, questions, education, UGC/story, pain/benefit contrast, supplied data/facts, curiosity, praise/honor, and smart-deal framing.
+- DO make banner/product-block layouts visibly different across options: split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, wide hero + 2-up support, alternating overlay, ranked guide, mechanism close-up, or review-chip layout.
+- DON'T use bullet/checkmark openers, feature-list starts, generic greetings/thanks, corporate gratitude angles unless brand-relevant, panic framing ("Eek!", "Oh no..."), fake Re/Fwd, multi-hook copy, grammar errors, or "don't let X go to waste".
 - DON'T use vague deadlines, repeat the same CTA 3+ times, hide the price, add a second offer, use 7+ products, create orphan rows, or use off-brand colors.
 - DON'T guess what a lifecycle tier means. Use the lifecycle definitions below exactly, and adapt only within those buyer motivations.
 
@@ -4592,11 +4577,11 @@ SEGMENT &amp; LIFECYCLE DEFINITIONS:
 - 1-D VIP - 2+ orders or highest spend in Segment 1. Use exclusive gifting, first-look, or limited availability; acknowledge they already know SantaFare quality; speak to elevation and trusted taste.
 
 OUTPUT:
-1) Subject + preview options: 3 subject/preview pairs for each lifecycle tier 1-A, 1-B, 1-C, 1-D. Label lifecycle tier + tier name, angle, Subject, Preview. Subjects 42-56 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per tier): {{first_name}}, 1-2 occasion-relevant emojis (🎁 ✈️ 👜 ⏰ ⚠️), suspended loop or unresolved gifting situation, specific price anchor, reluctant FOMO (the brand doesn't want to take it back — but has to), occasion-fit timing, exclusivity signal. SF best-performing formula: "[Unresolved situation]... {{first_name}}'s [earned thing] = [status/risk]". SF winning preheader formula: reluctant deadline or suspended revelation — e.g., "Tonight only" / "We're taking this back at midnight" / "Only [N] left at this price".
+1) Subject + preview options: 3 subject/preview pairs for each lifecycle tier 1-A, 1-B, 1-C, 1-D. Label lifecycle tier + tier name, style/model lens, angle, Subject, Preview. Subjects 42-56 chars; previews 60-90 chars. Subject elements to draw from (choose strongest per tier): {{first_name}}, 1-2 occasion-relevant emojis (🎁 ✈️ 👜 ⏰ ⚠️), suspended loop or unresolved gifting situation, specific price anchor, reluctant FOMO (the brand doesn't want to take it back — but has to), occasion-fit timing, exclusivity signal. SF best-performing formula: "[Unresolved situation]... {{first_name}}'s [earned thing] = [status/risk]". SF winning preheader formula: reluctant deadline or suspended revelation — e.g., "Tonight only" / "We're taking this back at midnight" / "Only [N] left at this price".
 2) Banner ideas: 2 options — one that creates a suspended loop / unresolved situation that compels the open (something important is about to be missed), one that leads with a gifting story visual (a person receiving the perfect accessory at an emotional moment). For each: headline, subhead, visual layout, Pouchic and/or TimelessMark as hero products, CTA, color notes (deep scarlet #890106-#c00f28 only — no pink, no cheerful orange-red), and how the first 200px preserves the suspended loop and Hook Contract. Urgency flavor: reluctant deadline only — "we'd love to keep this open, but we have to take it back at midnight" — never loud, never pushy, never countdown-clock energy. Never introduce a cheerful or seasonal angle the Hook Contract did not establish.
 3) Product blocks: 4 products only (use [NUMBER] only if explicitly supplied and less). Pouchic and TimelessMark must appear among the first two. For each: product + URL, sale price, headline under 6 words (gift recommendation from a trusted friend — not a sale announcement), two gift problem -> thoughtful resolution benefits under 4 words each — pain->relief arc is mandatory, never write a plain feature (e.g., "Cheap bags fall apart → full-grain leather that lasts"; "Generic gifts feel forgettable → personalised monogram in 48hrs"), trust signal using factual proof only, CTA 2-4 words (e.g., "Gift Pouchic Now", "See TimelessMark", "Claim This Gift").
-4) Lifecycle body copy: one final body version each for 1-A Active, 1-B Drifting, 1-C Lapsed, 1-D VIP. Label lifecycle tier + tier name. No base version. Each body must include: Mary's warm, personal first-person voice and a warm brief close as Mary — never over-effusive; a named 2-3 sentence gifting micro-story opener (name, occasion, specific product, emotional moment — never a bullet opener; shorten for length but never remove it — it is the emotional anchor); the single suspended-loop hook must carry from opener through CTA — the unresolved gifting situation must never resolve before the click; visible price, shipping threshold, and reluctant deadline in-copy; at least one inline product hyperlink within a narrative sentence; 1 seasonal gifting tip relevant to [SEND_DATE] woven naturally; and one primary CTA. Urgency tone stays reluctant — Mary is sorry to say it, not excited about the deadline. Use only the relevant tactics from this pool — do not force all into one version: educational content (how to pick a meaningful gift, what makes a gift memorable), emotional storytelling/gifting anecdotes, pain highlights (generic gifts, last-minute stress, wrong size), reluctant FOMO, sense of occasion and occasion-fit.
-5) QA checklist: single suspended-loop match, artificial review safe, factual claims sourced, price visible, Pouchic/TimelessMark lead, CTA above fold, 4-product grid, scarlet color valid, off-season reason valid, reluctant urgency tone maintained, last angle avoided, seasonal gifting tip included, Mary sign-off present.<button class="copy-btn" onclick="copyPrompt('sf-p6',this)">Copy</button></pre>
+4) Lifecycle body copy: one final body version each for 1-A Active, 1-B Drifting, 1-C Lapsed, 1-D VIP. Label lifecycle tier + tier name. No base version. Each body must include: Mary's warm, personal first-person voice and a warm brief close as Mary — never over-effusive; one chosen opener from the rotation (unresolved gift situation, occasion clock, direct gifting problem, quiet product detail, customer quote, seasonal tip, or brief gifting story — never a bullet opener); the single suspended-loop hook must carry from opener through CTA — the unresolved gifting situation must never resolve before the click; visible price, shipping threshold, and reluctant deadline in-copy; at least one inline product hyperlink within a narrative sentence; 1 seasonal gifting tip relevant to [SEND_DATE] woven naturally; one primary CTA; and an "Opener used" label. Urgency tone stays reluctant — Mary is sorry to say it, not excited about the deadline. Use only the relevant tactics from this pool — do not force all into one version: educational content (how to pick a meaningful gift, what makes a gift memorable), emotional storytelling/gifting anecdotes, pain highlights (generic gifts, last-minute stress, wrong size), reluctant FOMO, sense of occasion and occasion-fit.
+5) QA checklist: suspended-loop contract match, opener varied/labeled, artificial review/claim safe, factual claims sourced, price visible, Pouchic/TimelessMark lead, CTA above fold, 4-product grid, scarlet color valid, off-season reason valid, reluctant urgency tone maintained, last angle avoided, seasonal gifting tip included, Mary sign-off present.<button class="copy-btn" onclick="copyPrompt('sf-p6',this)">Copy</button></pre>
               </div>
             </div>
           </div>
@@ -4975,10 +4960,9 @@ OUTPUT:
                 </tr>
                 <tr>
                   <td>Body Opener</td>
-                  <td>Use named micro-story or direct problem, 2-3 sentences max.</td>
-                  <td>Bullet/checkmark opener, feature-list opener, generic thanks, or corporate
-                    voice.</td>
-                  <td>One person, one situation, one product relief.</td>
+                  <td>Rotate one opener: direct problem, sensory snapshot, useful tip, customer quote, curiosity/fact, occasion clock, or brief named micro-story. Keep it 1-3 sentences.</td>
+                  <td>Always-story pattern, bullet/checkmark opener, feature-list opener, generic thanks, or corporate voice.</td>
+                  <td>One clear reason to keep reading before the product action.</td>
                 </tr>
                 <tr>
                   <td>Body Proof</td>
@@ -5144,7 +5128,7 @@ OUTPUT:
             <div class="cc-brand-rule-card sf">
               <h4>SantaFare</h4>
               <ul>
-                <li>Use a named gifting micro-story and one unresolved gifting situation.</li>
+                <li>Use one unresolved gifting situation; opener may be an occasion clock, direct gifting problem, quiet product detail, quote, seasonal tip, or brief story.</li>
                 <li>Use event-triggered sends off-season; route broad Mar-Oct campaigns away from
                   SF when possible.</li>
                 <li>Keep urgency reluctant and calm, not countdown-clock energy.</li>

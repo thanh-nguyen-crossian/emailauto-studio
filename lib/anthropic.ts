@@ -11,6 +11,7 @@ import {
   buildSystemPrompt,
   buildUserPrompt,
   contrastInstruction,
+  creativeSurfaceVarietyPrompt,
   isComplianceRepairFlag,
   isHighImpactFlag,
   promoLine,
@@ -575,6 +576,12 @@ function optionAContrastContext(brief: GenBrief): string {
       emotionalArc: brief.body_variety.emotionalArc,
       proofRole: brief.body_variety.proofRole,
       visualDirection: brief.body_variety.visualDirection,
+      bannerPattern: brief.body_variety.bannerPattern,
+      productGridPattern: brief.body_variety.productGridPattern,
+      productBlockRole: brief.body_variety.productBlockRole,
+      ctaStyle: brief.body_variety.ctaStyle,
+      bodyPlacement: brief.body_variety.bodyPlacement,
+      copyTactics: brief.body_variety.copyTactics,
     } : undefined,
     opener_mechanic: brief.quality_checks?.opener_mechanic,
     first_product: brief.products?.[0] ? {
@@ -660,6 +667,12 @@ function cleanBodyVarietyProfile(variety?: BodyVarietyProfile): BodyVarietyProfi
     proofRole: variety.proofRole,
     subjectStyle: variety.subjectStyle,
     visualDirection: variety.visualDirection,
+    bannerPattern: variety.bannerPattern,
+    productGridPattern: variety.productGridPattern,
+    productBlockRole: variety.productBlockRole,
+    ctaStyle: variety.ctaStyle,
+    bodyPlacement: variety.bodyPlacement,
+    copyTactics: variety.copyTactics,
   };
 }
 
@@ -790,13 +803,13 @@ function foundationOutputSchema(products: Product[]): string {
   return `{
   "creative_direction":{"angle":"","framework":"","branch":"","brief_route":"","source_pattern":"","hook_contract":{"segment_insight":"","emotion":"","hero_product":"","proof_or_price":"","urgency":"","avoid_rule":""},"flow":"","differentiator":""},
   "theme":"",
-  "banner":{"logo_stars":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet","review_quote":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","cta":""},
+  "banner":{"logo_stars":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet","review_quote":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","cta":"","options":[{"label":"${products.length ? "primary" : "A"}","model_hint":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","cta":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet"},{"label":"alternate","model_hint":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","cta":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet"}]},
   "body":{"base":"plain-English layout summary for designer/marketer; no internal generation terms"},
   "ps":"",
   "products":[
     ${productRows}
   ],
-  "quality_checks":{"click_reason":"specific|weak|missing","hook_alignment":"aligned|weak|missing","proof_safety":"supplied|needs_review|invented_risk","spam_risk":"low|medium|high","optout_risk":"low|medium|high","photo_watchout":"clear|needs_review|missing","first_200px":"cta_visible|cta_late|missing","inline_link_plan":"ready|weak|missing","layout_risk":"low|medium|high","playbook_dos_donts":"pass|review|fail","brand_rule_alignment":"aligned|review|off_brand","accessibility_layout":"ready|review|missing","opener_mechanic":"story|fact|question|direct_problem|occasion|re_engagement|insider_reveal","hook_coherence":"fresh|reused|unclear","cta_assessment":"clear|weak|missing"}
+  "quality_checks":{"click_reason":"specific|weak|missing","hook_alignment":"aligned|weak|missing","proof_safety":"supplied|needs_review|invented_risk","spam_risk":"low|medium|high","optout_risk":"low|medium|high","photo_watchout":"clear|needs_review|missing","first_200px":"cta_visible|cta_late|missing","inline_link_plan":"ready|weak|missing","layout_risk":"low|medium|high","playbook_dos_donts":"pass|review|fail","brand_rule_alignment":"aligned|review|off_brand","accessibility_layout":"ready|review|missing","opener_mechanic":"story|fact|question|sensory_snapshot|useful_tip|customer_quote|occasion_clock|direct_problem|occasion|re_engagement|insider_reveal","hook_coherence":"fresh|reused|unclear","cta_assessment":"clear|weak|missing"}
 }`;
 }
 
@@ -865,12 +878,14 @@ function buildFoundationPrompt(
     {
       title: "Playbook Core",
       body: `One send = one promise. Every shared surface must connect one hero product + one proof/price + one reader situation.
-Use supplied facts only for reviews, ratings, counts, guarantees, stock, shipping, prices, and urgency. If proof is absent, use qualitative benefit language.
-Banner uses 3 beats: main_text_1 tension/hook, main_text_2 mechanism/proof, main_text_3 resolution/offer/CTA. Product rows are image-overlay copy; main_text <=5 words, USPs <=5 words.
+Verified labels, ratings, counts, ages, dates, medical/health outcomes, stock, shipping, prices, urgency, and guarantees must be supplied by product/campaign data or marked "needs verification" in brief notes — never invented as final recipient-facing facts. Artificial review/claim texture may be unlabeled qualitative customer language.
+Banner uses 3 beats: main_text_1 tension/hook, main_text_2 mechanism/proof, main_text_3 resolution/offer/CTA. Include two banner.options with different headline family and image composition.
+Product rows are image-overlay copy; main_text <=5 words, USPs <=5 words. Each product block needs a distinct role/use case/mechanism; template_style names that role.
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
     { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
+    { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
     { title: "Model Lens", body: modelExecutionStyle(selection) },
     {
       title: "Output Contract",
@@ -893,6 +908,7 @@ Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, he
     { title: "Segments To Serve Later", body: segmentPromptContext(campaign) },
     { title: "Segment Motivation Map", body: segmentBodyDirectionLines(campaign) },
     { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
+    { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
     { title: "Option Contrast", body: optionContrast },
     { title: "User Feedback", body: foundationRevisionPrompt(revision) },
   ]);
@@ -912,6 +928,12 @@ function bodyPatchSchema(campaign: Campaign): string {
   return campaign.segments.map((id) => `"${segJsonKey(id)}":""`).join(",\n    ");
 }
 
+function bodyOptionsPatchSchema(campaign: Campaign): string {
+  return campaign.segments
+    .map((id) => `"${segJsonKey(id)}":[{"label":"Primary route","model_hint":"","body":"","ps":"","placement_note":""},{"label":"Alternate route","model_hint":"","body":"","ps":"","placement_note":""}]`)
+    .join(",\n    ");
+}
+
 function segmentPatchOutputSchema(campaign: Campaign): string {
   return `{
   "subject_lines": {
@@ -919,6 +941,9 @@ function segmentPatchOutputSchema(campaign: Campaign): string {
   },
   "body": {
     ${bodyPatchSchema(campaign)}
+  },
+  "body_options": {
+    ${bodyOptionsPatchSchema(campaign)}
   }
 }`;
 }
@@ -999,8 +1024,8 @@ function buildSegmentPatchPrompt(
       title: "Playbook Rules",
       body: `${brandPlaybookRuleBlock(campaign.brandId)}
 Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 60-90 char preheader, {{first_name}} in subject OR preheader only, offer signal required.
-Body: 120-150 words per segment, no {{first_name}}, personal-note first, one calm urgency beat, product-name markdown link by paragraph 2, 2-4 formatting/link beats, no hard-sell command stack.
-Use renderer-safe tokens only: ==accent==, **bold**, [Product](slug:slug), [home text](home). Use supplied facts only for reviews, prices, proof, counts, shipping, stock, and urgency.`,
+Body: selected body plus body_options per segment. body_options must include a primary route and an alternate route with different opener/proof/placement, not paraphrases. Selected body 120-150 words per segment, no {{first_name}}, personal-note first, one calm urgency beat, product-name markdown link by paragraph 2, 2-4 formatting/link beats, no hard-sell command stack.
+Use renderer-safe tokens only: ==accent==, **bold**, [Product](slug:slug), [home text](home). Factual/verified proof must be supplied or marked "needs verification" in notes; artificial review/claim texture may be qualitative only, with no fake ratings/counts/dates/ages/medical outcomes/stock/shipping facts.`,
     },
   ]);
 
@@ -1027,6 +1052,7 @@ ${segmentPromptContext(campaign)}`,
 ${anchorJson}`,
     },
     { title: "Segment Differentiation", body: segmentBodyDirectionLines(campaign) },
+    { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
     {
       title: "Model Lens",
       body: `${modelExecutionStyle(selection)}
@@ -1054,13 +1080,16 @@ async function createSegmentPatch(
   selection: AIModelSelection,
   revision?: RevisionFeedback
 ): Promise<SegmentCopyPatch> {
-  const { system, user } = buildSegmentPatchPrompt(campaign, products, optionLabel, anchor, ctx, selection, revision);
+  const promptCampaign = anchor.body_variety
+    ? { ...campaign, bodyVariety: anchor.body_variety }
+    : campaign;
+  const { system, user } = buildSegmentPatchPrompt(promptCampaign, products, optionLabel, anchor, ctx, selection, revision);
   const parsed = await createAndParseWithModel(system, user, selection, {
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
     maxOutputTokens: SEGMENT_PATCH_OUTPUT_TOKENS,
-    schema: segmentPatchJsonSchema(campaign.segments),
+    schema: segmentPatchJsonSchema(promptCampaign.segments),
   });
-  return normalizeSegmentPatch(parsed, campaign);
+  return normalizeSegmentPatch(parsed, promptCampaign);
 }
 
 async function generateSegmentCopyBatch(
@@ -1176,6 +1205,9 @@ function mergeOptionBatches(
 }
 
 function sanitizeAndValidateBrief(brief: GenBrief, campaign: Campaign, products: Product[]): GenBrief {
+  if (!brief.body_variety && campaign.bodyVariety) {
+    brief.body_variety = cleanBodyVarietyProfile(campaign.bodyVariety);
+  }
   applySanitizeCopy(brief, campaign.brandId);
   return validateBrief(brief, campaign, products);
 }
@@ -1380,21 +1412,21 @@ async function generateOptionsSingle(
       usrB = bMessages.user;
       // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa).
       const [aSettled, bSettled] = await Promise.allSettled([
-        createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A }),
-        createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B }),
+        createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A }),
+        createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B }),
       ]);
       aFailure = aSettled.status === "rejected" ? aSettled.reason : undefined;
       bFailure = bSettled.status === "rejected" ? bSettled.reason : undefined;
-      a = aSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(aSettled.value as unknown as GenBrief, concepts.a), campaign, products) : undefined;
-      b = bSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(bSettled.value as unknown as GenBrief, concepts.b), campaign, products) : undefined;
+      a = aSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(aSettled.value as unknown as GenBrief, concepts.a), campaignA, products) : undefined;
+      b = bSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(bSettled.value as unknown as GenBrief, concepts.b), campaignB, products) : undefined;
       [a, b] = await Promise.all([
-        a ? repairBriefIfNeeded("A", a, campaign, products, sysA, models.a) : Promise.resolve(undefined),
-        b ? repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b) : Promise.resolve(undefined),
+        a ? repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a) : Promise.resolve(undefined),
+        b ? repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b) : Promise.resolve(undefined),
       ]);
     } else {
       try {
-        a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaign, { temperature: AI_TEMP_A })) as unknown as GenBrief, concepts.a), campaign, products);
-        a = await repairBriefIfNeeded("A", a, campaign, products, sysA, models.a);
+        a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A })) as unknown as GenBrief, concepts.a), campaignA, products);
+        a = await repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a);
         stampBrief(a, models.a, campaignA.bodyVariety);
       } catch (err) {
         aFailure = err;
@@ -1404,8 +1436,8 @@ async function generateOptionsSingle(
       sysBInitial = bMessages.system;
       usrB = bMessages.user;
       try {
-        b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaign, { temperature: AI_TEMP_B })) as unknown as GenBrief, concepts.b), campaign, products);
-        b = await repairBriefIfNeeded("B", b, campaign, products, sysBInitial, models.b);
+        b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B })) as unknown as GenBrief, concepts.b), campaignB, products);
+        b = await repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b);
       } catch (err) {
         bFailure = err;
       }
@@ -1431,18 +1463,19 @@ async function generateOptionsSingle(
     // Auto-retry once if B collapses into A's strategy, route, body, banner, or product-copy shape.
     const contrastProblems = briefContrastIssues(a, b).filter(isHardContrastIssue);
     if (contrastProblems.length > 0) {
+      const retryCampaignB = withOptionVariety(campaign, `${nonceB}:retry:${contrastProblems.length}`);
       const sysB = overrides?.system?.trim()
         ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
-        : buildSystemPrompt(campaignB, products, true, a.creative_direction, `${nonceB}:retry`, concepts.b);
+        : buildSystemPrompt(retryCampaignB, products, true, a.creative_direction, `${nonceB}:retry`, concepts.b);
       const retry = `${usrB}
 
 WARNING: A/B contrast failed:
 ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
-      b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, campaign, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, concepts.b), campaign, products);
-      b = await repairBriefIfNeeded("B", b, campaign, products, sysB, models.b);
-      stampBrief(b, models.b, campaignB.bodyVariety);
+      b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, retryCampaignB, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, concepts.b), retryCampaignB, products);
+      b = await repairBriefIfNeeded("B", b, retryCampaignB, products, sysB, models.b);
+      stampBrief(b, models.b, retryCampaignB.bodyVariety);
     }
 
     applySanitizeCopy(a, campaign.brandId);

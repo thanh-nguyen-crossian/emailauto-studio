@@ -183,7 +183,11 @@ export interface BodyVarietyProfile {
     | "re_engagement"
     | "insider_reveal"
     | "occasion"
-    | "direct_problem";
+    | "direct_problem"
+    | "sensory_snapshot"
+    | "useful_tip"
+    | "customer_quote"
+    | "occasion_clock";
   openerMechanicLabel: string;
   namedCharacter: string;
   characterRole: string;
@@ -195,6 +199,12 @@ export interface BodyVarietyProfile {
   proofRole: string;
   subjectStyle: string;
   visualDirection: string;
+  bannerPattern?: string;
+  productGridPattern?: string;
+  productBlockRole?: string;
+  ctaStyle?: string;
+  bodyPlacement?: string;
+  copyTactics?: string[];
   /** Injected into the prompt — not a model output field. Stripped on deserialization. */
   _openerDirective?: string;
   /** Injected into the prompt — not a model output field. Stripped on deserialization. */
