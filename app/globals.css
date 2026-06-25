@@ -247,6 +247,61 @@ fieldset.usp-grid { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
 .status-pill { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid currentColor; padding: 3px 8px; font-size: 11px; font-weight: 700; }
 .fmt-btn { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; font-size: 11px; font-weight: 700; cursor: pointer; line-height: 1.4; }
 .fmt-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.mini-badge { display: inline-flex; width: max-content; max-width: 100%; border: 1px solid var(--warn); border-radius: 4px; background: var(--warn-soft); color: var(--warn-text); padding: 0 4px; font-size: 9px; font-weight: 800; line-height: 1.35; }
+.mini-review { border-left: 2px solid var(--border); padding-left: 4px; color: var(--muted); font-size: 9px; font-style: italic; }
+
+.generation-progress {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+}
+
+.progress-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 9999px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 900ms linear infinite;
+  flex-shrink: 0;
+}
+
+.progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+
+.review-action-bar {
+  position: sticky;
+  bottom: 10px;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: rgba(255,255,255,.96);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 /* ── Accessibility ──────────────────────────────────────────────────────────── */
 .skip-link { position: absolute; left: 16px; top: 8px; z-index: 60; transform: translateY(-140%); background: var(--accent); color: #fff; border-radius: 7px; padding: 8px 12px; font-size: 13px; font-weight: 700; }

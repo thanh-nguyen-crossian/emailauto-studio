@@ -76,6 +76,7 @@ function restoreDraftState(state: StudioState, draft: Draft): StudioState {
       genWarning: null,
       systemOverride: null,
       userOverride: null,
+      progress: null,
     },
   };
 }
@@ -135,6 +136,7 @@ function openVersionState(state: StudioState, d: VersionPayload): StudioState {
       genWarning: null,
       systemOverride: null,
       userOverride: null,
+      progress: null,
     },
   };
 }

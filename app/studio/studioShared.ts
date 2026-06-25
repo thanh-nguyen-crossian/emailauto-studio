@@ -155,6 +155,17 @@ export interface StudioGenerationState {
   genWarning: string | null;
   generating: boolean;
   elapsedSec: number;
+  progress: GenerationProgressState | null;
+}
+
+export interface GenerationProgressState {
+  stage: string;
+  message: string;
+  done: number;
+  total: number;
+  partialA: boolean;
+  partialB: boolean;
+  events: string[];
 }
 
 export interface StudioState {
@@ -226,6 +237,7 @@ export function createInitialStudioState(): StudioState {
       genWarning: null,
       generating: false,
       elapsedSec: 0,
+      progress: null,
     },
   };
 }

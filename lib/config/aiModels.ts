@@ -4,7 +4,10 @@ export interface AIModelOption {
   id: string;
   label: string;
   note?: string;
+  speedTier?: AIModelSpeedTier;
 }
+
+export type AIModelSpeedTier = "fast" | "balanced" | "frontier";
 
 export interface AIProviderOption {
   id: AIProvider;
@@ -19,10 +22,10 @@ export const AI_PROVIDERS: AIProviderOption[] = [
     label: "Claude",
     envVar: "ANTHROPIC_API_KEY",
     models: [
-      { id: "claude-opus-4-8", label: "Claude Opus 4.8", note: "Highest quality" },
-      { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", note: "Balanced default" },
-      { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", note: "Fast and economical" },
-      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 alias", note: "Convenience alias" },
+      { id: "claude-opus-4-8", label: "Claude Opus 4.8", note: "Highest quality", speedTier: "frontier" },
+      { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", note: "Balanced default", speedTier: "balanced" },
+      { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", note: "Fast and economical", speedTier: "fast" },
+      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 alias", note: "Convenience alias", speedTier: "fast" },
     ],
   },
   {
@@ -30,14 +33,14 @@ export const AI_PROVIDERS: AIProviderOption[] = [
     label: "Gemini",
     envVar: "GEMINI_API_KEY",
     models: [
-      { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", note: "Stable frontier default" },
-      { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview", note: "Highest reasoning preview" },
-      { id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview", note: "Frontier flash preview" },
-      { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", note: "Fastest current Gemini" },
-      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", note: "Stable quality option" },
-      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", note: "Stable price-performance" },
-      { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", note: "Stable budget option" },
-      { id: "gemini-flash-latest", label: "Gemini Flash Latest", note: "Hot-swapped latest alias" },
+      { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", note: "Stable frontier default", speedTier: "fast" },
+      { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview", note: "Highest reasoning preview", speedTier: "frontier" },
+      { id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview", note: "Frontier flash preview", speedTier: "fast" },
+      { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", note: "Fastest current Gemini", speedTier: "fast" },
+      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", note: "Stable quality option", speedTier: "frontier" },
+      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", note: "Stable price-performance", speedTier: "fast" },
+      { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", note: "Stable budget option", speedTier: "fast" },
+      { id: "gemini-flash-latest", label: "Gemini Flash Latest", note: "Hot-swapped latest alias", speedTier: "fast" },
     ],
   },
   {
@@ -45,16 +48,16 @@ export const AI_PROVIDERS: AIProviderOption[] = [
     label: "ChatGPT",
     envVar: "OPENAI_API_KEY",
     models: [
-      { id: "gpt-5.5", label: "GPT-5.5", note: "Recommended production model" },
-      { id: "gpt-5.5-pro", label: "GPT-5.5 Pro", note: "Highest quality, slower/costlier" },
-      { id: "gpt-5.4", label: "GPT-5.4", note: "Lower cost frontier" },
-      { id: "gpt-5.4-pro", label: "GPT-5.4 Pro", note: "Premium previous frontier" },
-      { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", note: "Fast and economical" },
-      { id: "gpt-5.4-nano", label: "GPT-5.4 Nano", note: "Lowest cost GPT-5.4 class" },
-      { id: "gpt-5-mini", label: "GPT-5 Mini", note: "Near-frontier low latency" },
-      { id: "gpt-5-nano", label: "GPT-5 Nano", note: "Fastest GPT-5 option" },
-      { id: "gpt-4.1", label: "GPT-4.1", note: "Non-reasoning fallback" },
-      { id: "chat-latest", label: "ChatGPT Latest", note: "Tracks ChatGPT instant" },
+      { id: "gpt-5.5", label: "GPT-5.5", note: "Recommended production model", speedTier: "balanced" },
+      { id: "gpt-5.5-pro", label: "GPT-5.5 Pro", note: "Highest quality, slower/costlier", speedTier: "frontier" },
+      { id: "gpt-5.4", label: "GPT-5.4", note: "Lower cost frontier", speedTier: "balanced" },
+      { id: "gpt-5.4-pro", label: "GPT-5.4 Pro", note: "Premium previous frontier", speedTier: "frontier" },
+      { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", note: "Fast and economical", speedTier: "fast" },
+      { id: "gpt-5.4-nano", label: "GPT-5.4 Nano", note: "Lowest cost GPT-5.4 class", speedTier: "fast" },
+      { id: "gpt-5-mini", label: "GPT-5 Mini", note: "Near-frontier low latency", speedTier: "fast" },
+      { id: "gpt-5-nano", label: "GPT-5 Nano", note: "Fastest GPT-5 option", speedTier: "fast" },
+      { id: "gpt-4.1", label: "GPT-4.1", note: "Non-reasoning fallback", speedTier: "balanced" },
+      { id: "chat-latest", label: "ChatGPT Latest", note: "Tracks ChatGPT instant", speedTier: "balanced" },
     ],
   },
 ];
@@ -73,6 +76,16 @@ export function modelLabel(selection?: AIModelSelection): string {
   const provider = AI_PROVIDERS.find((p) => p.id === selection.provider);
   const model = provider?.models.find((m) => m.id === selection.model);
   return model ? `${provider?.label || selection.provider} · ${model.label}` : `${provider?.label || selection.provider} · ${selection.model}`;
+}
+
+export function modelSpeedTier(selection: AIModelSelection): AIModelSpeedTier {
+  const provider = AI_PROVIDERS.find((p) => p.id === selection.provider);
+  const listed = provider?.models.find((m) => m.id === selection.model);
+  if (listed?.speedTier) return listed.speedTier;
+  const id = selection.model.toLowerCase();
+  if (/haiku|flash|lite|mini|nano/.test(id)) return "fast";
+  if (/opus|pro|preview|thinking|reasoning/.test(id) && !/mini|nano|flash|lite/.test(id)) return "frontier";
+  return "balanced";
 }
 
 export function normalizeModelSelection(

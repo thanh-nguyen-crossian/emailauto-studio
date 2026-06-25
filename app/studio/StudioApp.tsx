@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import dynamic from "next/dynamic";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { accessToken, type Profile } from "@/lib/profile";
-import { BriefView, briefToMarkdown } from "../components/BriefView";
+import { briefToMarkdown } from "../components/BriefView";
 import { listVersions, saveVersion, type SavedVersion, type VersionPayload } from "@/lib/history";
 import { Auth } from "../components/Auth";
-import { History } from "../components/History";
-import { AdminPanel } from "../components/AdminPanel";
 import { BRAND_LIST, BRANDS } from "@/lib/config/brands";
 import { AI_PROVIDERS, normalizeModelPair } from "@/lib/config/aiModels";
 import {
@@ -40,10 +39,6 @@ import { analyzeBriefDeliverability } from "@/lib/quality/deliverability";
 import { scoreFreshnessAgainstHistory } from "@/lib/quality/freshness";
 import { analyzeProductPriceOutliers } from "@/lib/quality/productData";
 import { listSendHistory, recordSendHistory, type SendHistoryRow } from "@/lib/sendHistory";
-import { Preview } from "../components/Preview";
-import { PreflightPanel } from "../components/PreflightPanel";
-import { ImageEditor } from "../components/ImageEditor";
-import { HtmlFormatEditor } from "../components/HtmlFormatEditor";
 import {
   CONSENT_OPTIONS,
   CUSTOM_PRODUCT_VALUE,
@@ -57,6 +52,7 @@ import {
   dateToken,
   initSlots,
   type Draft,
+  type GenerationProgressState,
   type OptKey,
   type Slot,
   type StudioCampaignState,
@@ -99,6 +95,18 @@ import {
   scoreColor,
   subjectLenColor,
 } from "./StudioPanels";
+
+const BriefView = dynamic(() => import("../components/BriefView").then((mod) => mod.BriefView), {
+  loading: () => <div className="section-panel text-sm text-[var(--muted)]">Loading brief editor…</div>,
+});
+const History = dynamic(() => import("../components/History").then((mod) => mod.History));
+const AdminPanel = dynamic(() => import("../components/AdminPanel").then((mod) => mod.AdminPanel));
+const Preview = dynamic(() => import("../components/Preview").then((mod) => mod.Preview), {
+  loading: () => <div className="preview-shell text-sm text-[var(--muted)]">Loading preview…</div>,
+});
+const PreflightPanel = dynamic(() => import("../components/PreflightPanel").then((mod) => mod.PreflightPanel));
+const ImageEditor = dynamic(() => import("../components/ImageEditor").then((mod) => mod.ImageEditor));
+const HtmlFormatEditor = dynamic(() => import("../components/HtmlFormatEditor").then((mod) => mod.HtmlFormatEditor));
 
 export function StudioApp() {
   const [studioState, dispatchStudio] = useStudioReducer();
@@ -155,6 +163,7 @@ export function StudioApp() {
     genWarning,
     generating,
     elapsedSec,
+    progress,
   } = generationState;
   const visited = useMemo(() => new Set(uiState.visited), [uiState.visited]);
 
@@ -219,6 +228,7 @@ export function StudioApp() {
   const setGenWarning = (value: SetStateAction<string | null>) => setGenerationField("genWarning", value);
   const setGenerating = (value: SetStateAction<boolean>) => setGenerationField("generating", value);
   const setElapsedSec = (value: SetStateAction<number>) => setGenerationField("elapsedSec", value);
+  const setProgress = (value: SetStateAction<GenerationProgressState | null>) => setGenerationField("progress", value);
   const setSystemOverride = (value: SetStateAction<string | null>) => setGenerationField("systemOverride", value);
   const setUserOverride = (value: SetStateAction<string | null>) => setGenerationField("userOverride", value);
   const setAdvancedPromptsOpen = (value: SetStateAction<boolean>) => setUiField("advancedPromptsOpen", value);
@@ -630,7 +640,7 @@ export function StudioApp() {
   const systemPromptEdited = systemOverride !== null && systemOverride !== systemPromptA;
   const userPromptEdited = userOverride !== null && userOverride !== userPromptA;
   const promptOverridesActive = systemPromptEdited || userPromptEdited;
-  const autoSegmentBatching = !promptOverridesActive;
+  const autoSegmentBatching = !promptOverridesActive || segments.length > 1;
 
   function stopGenTimer() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -639,12 +649,116 @@ export function StudioApp() {
     abortRef.current?.abort();
   }
 
+  type GenerateStreamPayload =
+    | { type?: "stage"; stage?: string; message?: string }
+    | { type?: "progress"; stage?: string; done?: number; total?: number; message?: string }
+    | { type?: "partial"; option?: OptKey; brief?: GenBrief; warning?: string }
+    | { type?: "warning"; message?: string }
+    | { type?: "done"; a?: GenBrief; b?: GenBrief; warning?: string }
+    | { type?: "error"; message?: string }
+    | { type?: "heartbeat" };
+
+  function pushProgress(message: string, patch: Partial<GenerationProgressState> = {}) {
+    setProgress((prev) => {
+      const nextEvents = [message, ...(prev?.events || [])].filter(Boolean).slice(0, 8);
+      return {
+        stage: patch.stage || prev?.stage || "queued",
+        message,
+        done: patch.done ?? prev?.done ?? 0,
+        total: patch.total ?? prev?.total ?? 0,
+        partialA: patch.partialA ?? prev?.partialA ?? false,
+        partialB: patch.partialB ?? prev?.partialB ?? false,
+        events: nextEvents,
+      };
+    });
+  }
+
+  async function readGenerationStream(res: Response): Promise<{ a?: GenBrief; b?: GenBrief; warning?: string; error?: string }> {
+    if (!res.body) return { error: "Streaming response had no readable body." };
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const result: { a?: GenBrief; b?: GenBrief; warning?: string; error?: string } = {};
+
+    const handlePayload = (payload: GenerateStreamPayload) => {
+      if (payload.type === "stage") {
+        pushProgress(payload.message || payload.stage || "Working…", { stage: payload.stage || "stage" });
+      } else if (payload.type === "progress") {
+        pushProgress(payload.message || `${payload.done || 0}/${payload.total || 0}`, {
+          stage: payload.stage || "progress",
+          done: payload.done || 0,
+          total: payload.total || 0,
+        });
+      } else if (payload.type === "partial" && payload.option && payload.brief) {
+        result[payload.option] = payload.brief;
+        setOptions((prev) => ({ ...prev, [payload.option as OptKey]: payload.brief }));
+        setActiveOption(payload.option);
+        setActiveSegment(segments[0]);
+        setOutputTab("preview");
+        setView("output");
+        if (payload.warning) result.warning = [result.warning, payload.warning].filter(Boolean).join(" · ");
+        pushProgress(`Option ${payload.option.toUpperCase()} ready`, {
+          stage: "partial",
+          partialA: payload.option === "a" ? true : undefined,
+          partialB: payload.option === "b" ? true : undefined,
+        });
+      } else if (payload.type === "warning") {
+        result.warning = [result.warning, payload.message].filter(Boolean).join(" · ");
+        pushProgress(payload.message || "Generation warning", { stage: "warning" });
+      } else if (payload.type === "done") {
+        result.a = payload.a || result.a;
+        result.b = payload.b || result.b;
+        result.warning = payload.warning || result.warning;
+        pushProgress("Generation complete", {
+          stage: "done",
+          done: 1,
+          total: 1,
+          partialA: Boolean(payload.a || result.a),
+          partialB: Boolean(payload.b || result.b),
+        });
+      } else if (payload.type === "error") {
+        result.error = payload.message || "Generation failed";
+        pushProgress(result.error, { stage: "error" });
+      }
+    };
+
+    const drain = (chunk: string) => {
+      buffer += chunk;
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        const frame = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const dataLines = frame
+          .split(/\n/)
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trim());
+        if (dataLines.length) {
+          try {
+            handlePayload(JSON.parse(dataLines.join("\n")) as GenerateStreamPayload);
+          } catch {
+            /* ignore malformed heartbeat/proxy frames */
+          }
+        }
+        boundary = buffer.indexOf("\n\n");
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      drain(decoder.decode(value, { stream: true }));
+    }
+    drain(decoder.decode());
+    return result;
+  }
+
   async function generate(feedback?: string) {
     // Do NOT clear edited HTML / sync results here — only on a SUCCESSFUL result. A failed regen
     // must leave the prior options + manual edits intact (the user gains nothing from losing both).
     setGenerating(true);
     setApiError(null);
     setGenWarning(null);
+    setProgress({ stage: "queued", message: "Preparing generation request…", done: 0, total: 0, partialA: false, partialB: false, events: [] });
     setSaveState("idle");
     const controller = new AbortController();
     abortRef.current = controller;
@@ -655,10 +769,11 @@ export function StudioApp() {
     try {
       const res = await fetch("/api/generate-copy", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream", ...(await authHeader()) },
         signal: controller.signal,
         body: JSON.stringify({
           ...campaign,
+          stream: true,
           products: selectedProducts.map((p) => ({
             name: p.name, slug: p.slug, price: p.price, usps: p.usps, review: p.review, url: p.url,
           })),
@@ -671,22 +786,31 @@ export function StudioApp() {
           existingOptions: feedback?.trim() ? options : undefined,
         }),
       });
-      // Read as text first: a serverless timeout/crash returns a plain-text error page, not JSON.
-      const raw = await res.text();
       let data: { a?: GenBrief; b?: GenBrief; error?: string; warning?: string };
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        if (res.status === 504 || /timeout|timed out|FUNCTION_INVOCATION/i.test(raw)) {
-          setApiError("The server timed out while generating. Reset edited system/user prompts to use layered generation, or try a faster model pair (Claude Haiku, Gemini Flash/Lite, GPT mini/nano) and fewer products.");
-        } else {
-          setApiError(`Server returned an unexpected response (HTTP ${res.status}). Please retry.`);
+      const contentType = res.headers.get("content-type") || "";
+      if (res.ok && contentType.includes("text/event-stream")) {
+        data = await readGenerationStream(res);
+      } else {
+        // JSON/plain-text fallback for auth errors, local tools, or streaming disabled.
+        const raw = await res.text();
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          if (res.status === 504 || /timeout|timed out|FUNCTION_INVOCATION/i.test(raw)) {
+            setApiError("The server timed out while generating. Try a faster model pair (Claude Haiku, Gemini Flash/Lite, GPT mini/nano), fewer products, or reset very large prompt edits.");
+          } else {
+            setApiError(`Server returned an unexpected response (HTTP ${res.status}). Please retry.`);
+          }
+          return;
         }
-        return;
+        if (!res.ok) {
+          setApiError(data.error || "Generation failed");
+          return;
+        }
       }
-      if (!res.ok) {
-        setApiError(data.error || "Generation failed");
-        return;
+      if (data.error) {
+        setApiError(data.error);
+        if (!data.a && !data.b) return;
       }
       // Success — now it is safe to drop the previous generation's edits/sync state.
       setSyncResults({});
@@ -695,7 +819,7 @@ export function StudioApp() {
       setEditingHtml(false);
       setSendHistoryState("idle");
       setSendHistoryError(null);
-      setOptions({ a: data.a, b: data.b });
+      setOptions((prev) => ({ a: data.a || prev.a, b: data.b || prev.b }));
       setGenWarning(data.warning || null);
       const usedVariety = data.a?.body_variety || data.b?.body_variety;
       if (usedVariety) {
@@ -709,7 +833,10 @@ export function StudioApp() {
       if (feedback?.trim()) setRevisionFeedback("");
     } catch (e) {
       // A user-initiated cancel is not an error — leave existing output (if any) untouched.
-      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (e instanceof DOMException && e.name === "AbortError") {
+        pushProgress("Generation cancelled", { stage: "cancelled" });
+        return;
+      }
       setApiError(e instanceof Error ? e.message : "Network error");
     } finally {
       setGenerating(false);
@@ -1558,42 +1685,18 @@ export function StudioApp() {
       {/* ============ REVIEW (step 7: pre-flight + prompts before sending) ============ */}
       {view === "review" && (
         <ReviewView>
-          <PerfPanel brandId={brandId} hero={selectedProducts[0]?.name} productCount={selectedProducts.length} />
-          <WinTemplateRhythm />
-          <PlaybookChecklist
-            brandId={brandId}
-            hookContract={hookContract}
-            offer={offer}
-            productCount={selectedProducts.length}
-            segments={segments.length}
-            hasLastSend={Boolean(lastHero || lastAngle || lastNote)}
-          />
-          <OpsReadinessPanel ops={ops} segments={segments.length} />
-
-          <div className="section-panel">
-            <h3 className="text-sm font-semibold mb-2">Pre-flight summary</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-              <Summary k="Brand" v={brand.name} />
-              <Summary k="Send" v={dateToken(sendDate)} />
-              <Summary k="Theme" v={theme || "—"} />
-              <Summary k="Promo" v={offer} />
-              <Summary k="Urgency" v={urgency} />
-              <Summary k="Segments" v={segments.map((s) => s).join(", ") || "—"} />
-              <Summary k="Products" v={`${selectedProducts.length} (${selectedProducts.map((p) => p.name).join(", ")})`} />
-              <Summary k="Body layout" v={bodyLayout} />
-              <Summary k="Body focus" v={bodyFocus} />
-              <Summary k="Product copy" v={productCopyStyle.replace(/_/g, " ")} />
-              <Summary k="Strategy" v={strategyActive ? [strategy.campaignGoal, strategy.keyMessage, strategy.toneKeywords].filter(Boolean).join(" · ") || "enriched" : "none"} />
-              <Summary k="Ops" v={opsSummary} />
+          <div className="section-panel flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base font-bold">Ready to generate</h2>
+              <p className="text-sm text-[var(--muted)] mt-1">
+                2 options × {segments.length} segment{segments.length === 1 ? "" : "s"} × {selectedProducts.length} product{selectedProducts.length === 1 ? "" : "s"} · {autoSegmentBatching ? "layered stream" : "single fallback"} · {offer}
+              </p>
             </div>
-            {productPriceWarnings.length > 0 && (
-              <div className="mt-3">
-                <Banner level="warn">
-                  Product price check: {productPriceWarnings.map((warning) => warning.message).join(" · ")}
-                </Banner>
-              </div>
-            )}
+            <button onClick={() => generate()} disabled={generating || !canGenerate} className="btn-primary">
+              {generating ? "Generating…" : "Generate A + B"}
+            </button>
           </div>
+          {generating && <GenerationProgress elapsedSec={elapsedSec} progress={progress} onCancel={cancelGenerate} />}
 
           <p className="text-sm text-[var(--muted)]">
             One generation run produces <strong className="text-[var(--text)]">per-segment copy + the design brief</strong>. The server now creates compact A/B foundations first, then writes each segment’s subject/body in smaller patch calls before merging.
@@ -1603,20 +1706,13 @@ export function StudioApp() {
               Layered generation is on: shared strategy/banner/products are generated first, then each segment is written separately and merged into one A/B brief.
             </Banner>
           )}
-          {segments.length > 2 && promptOverridesActive && (
+          {segments.length === 1 && promptOverridesActive && (
             <Banner level="warn">
-              Custom system/user prompt edits disable layered generation. Reset those prompt edits before generating if this many segments keeps timing out.
+              One-segment runs with edited system/user prompts use the legacy full-brief fallback. Multi-segment edited prompts now stay layered.
             </Banner>
           )}
           {apiError && <Banner level="fail">{apiError}</Banner>}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <ModelSelector label="Option A model" value={modelA} onChange={setModelA} providers={AI_PROVIDERS} />
-            <ModelSelector label="Option B model" value={modelB} onChange={setModelB} providers={AI_PROVIDERS} />
-          </div>
-          <Banner level="warn">
-            Timeout tip: Opus, Pro, and full frontier GPT models can still be slower on many segments. For fastest drafts, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model for final polish.
-          </Banner>
           <GenerationBudgetPanel
             systemPrompt={effectiveSystem}
             userPrompt={effectiveUser}
@@ -1627,6 +1723,52 @@ export function StudioApp() {
             modelA={modelA}
             modelB={modelB}
           />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <ModelSelector label="Option A model" value={modelA} onChange={setModelA} providers={AI_PROVIDERS} />
+            <ModelSelector label="Option B model" value={modelB} onChange={setModelB} providers={AI_PROVIDERS} />
+          </div>
+          <Banner level="warn">
+            Timeout tip: Opus, Pro, and full frontier GPT models can still be slower on many segments. For fastest drafts, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model for final polish.
+          </Banner>
+
+          <details className="section-panel" open={productPriceWarnings.length > 0}>
+            <summary className="cursor-pointer text-sm font-semibold">
+              Pre-flight <span className={canGenerate && !productPriceWarnings.length ? "badge-ok ml-2" : "badge-warn ml-2"}>{canGenerate && !productPriceWarnings.length ? "Ready" : "Review"}</span>
+            </summary>
+            <div className="mt-4 flex flex-col gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                <Summary k="Brand" v={brand.name} />
+                <Summary k="Send" v={dateToken(sendDate)} />
+                <Summary k="Theme" v={theme || "—"} />
+                <Summary k="Promo" v={offer} />
+                <Summary k="Urgency" v={urgency} />
+                <Summary k="Segments" v={segments.map((s) => s).join(", ") || "—"} />
+                <Summary k="Products" v={`${selectedProducts.length} (${selectedProducts.map((p) => p.name).join(", ")})`} />
+                <Summary k="Body layout" v={bodyLayout} />
+                <Summary k="Body focus" v={bodyFocus} />
+                <Summary k="Product copy" v={productCopyStyle.replace(/_/g, " ")} />
+                <Summary k="Strategy" v={strategyActive ? [strategy.campaignGoal, strategy.keyMessage, strategy.toneKeywords].filter(Boolean).join(" · ") || "enriched" : "none"} />
+                <Summary k="Ops" v={opsSummary} />
+              </div>
+              {productPriceWarnings.length > 0 && (
+                <Banner level="warn">
+                  Product price check: {productPriceWarnings.map((warning) => warning.message).join(" · ")}
+                </Banner>
+              )}
+              <PerfPanel brandId={brandId} hero={selectedProducts[0]?.name} productCount={selectedProducts.length} />
+              <WinTemplateRhythm />
+              <PlaybookChecklist
+                brandId={brandId}
+                hookContract={hookContract}
+                offer={offer}
+                productCount={selectedProducts.length}
+                segments={segments.length}
+                hasLastSend={Boolean(lastHero || lastAngle || lastNote)}
+              />
+              <OpsReadinessPanel ops={ops} segments={segments.length} />
+            </div>
+          </details>
 
           <PromptBlock
             title="Performance context"
@@ -1670,14 +1812,17 @@ export function StudioApp() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="review-action-bar">
+            <div className="text-xs text-[var(--muted)] min-w-0">
+              {canGenerate ? `${segments.length} segment(s), ${selectedProducts.length} product(s), ${autoSegmentBatching ? "streamed layered run" : "single fallback"}` : `Pick at least one segment and 1–${maxProducts} products.`}
+            </div>
+            <div className="flex items-center gap-2">
             <button onClick={() => setView("build")} className="btn-ghost">Back to brief</button>
             <button onClick={() => generate()} disabled={generating || !canGenerate} className="btn-primary">
               {generating ? "Generating A + B…" : "Generate A + B"}
             </button>
-            {!canGenerate && <span className="text-xs text-[var(--warn)]">Pick at least one segment and 1–{maxProducts} products.</span>}
+            </div>
           </div>
-          {generating && <GenerationProgress elapsedSec={elapsedSec} onCancel={cancelGenerate} />}
         </ReviewView>
       )}
 
@@ -1744,7 +1889,7 @@ export function StudioApp() {
                   {incompleteOutputLabels.length > 8 ? `, +${incompleteOutputLabels.length - 8} more` : ""}. Export and SendGrid sync will ask for confirmation or stay blocked on affected segments.
                 </Banner>
               )}
-              {generating && <GenerationProgress elapsedSec={elapsedSec} onCancel={cancelGenerate} />}
+              {generating && <GenerationProgress elapsedSec={elapsedSec} progress={progress} onCancel={cancelGenerate} />}
 
               {activeBrief && <FormatCoverage brief={activeBrief} />}
               {activeBrief && <FreshnessPanel result={activeFreshness} historyCount={recentSendHistory.length} />}

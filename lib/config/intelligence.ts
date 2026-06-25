@@ -33,6 +33,7 @@ export interface BrandIntelligence {
   subjectRule: string;
   bodyRule: string;
   visualRule: string;
+  exemplars: string[];
   avoid: string[];
 }
 
@@ -47,6 +48,10 @@ export const BRAND_INTELLIGENCE: Record<string, BrandIntelligence> = {
     subjectRule: "Emotion or price first, offer second; avoid generic gratitude and \"go to waste\".",
     bodyRule: "Named mature-woman micro-story → specific comfort/lift relief → exact price → CTA above first scroll.",
     visualRule: "Pastel pink or deep crimson; one smiling mature model; one hero product; no busy collage.",
+    exemplars: [
+      "Subject spine: \"Your Daisy fit is 💲12.99, {{first_name}}\" → preheader reveals comfort + midnight.",
+      "Body spine: one fitting-room pain, Daisy as the quiet fix, price once, Sandra closes with reassurance.",
+    ],
     avoid: ["feature-bullet opener", "lower-converting hero without reason", "generic thank-you arc", "too much review text", "go to waste"],
   },
   gents_lux: {
@@ -58,6 +63,10 @@ export const BRAND_INTELLIGENCE: Record<string, BrandIntelligence> = {
     subjectRule: "Curiosity or scarcity with restraint; do not over-explain the product in the subject.",
     bodyRule: "Named male testimonial → practical movement/weather pain → premium utility proof → direct CTA.",
     visualRule: "Deep navy, strong contrast, product depth/shadow; one main product plus supporting detail shots.",
+    exemplars: [
+      "Subject spine: \"The jeans that do not fight back\" → preheader reveals FlexCamo/JettJeans offer scale.",
+      "Body spine: one movement problem, waistband/stretch mechanism, controlled scarcity, Jordan closes direct.",
+    ],
     avoid: ["premature seasonal pivot", "hyperbole like 10 years younger", "grammar errors", "too many products in banner", "generic thank-you arc"],
   },
   lux_fitting: {
@@ -69,6 +78,10 @@ export const BRAND_INTELLIGENCE: Record<string, BrandIntelligence> = {
     subjectRule: "Sensory phrase + price anchor; one hook only.",
     bodyRule: "Single seasonal/body comfort problem → pant or short relief → price proof → CTA.",
     visualRule: "Happy mature full-body model; readable main text; clear product/USP separation; no color-strip clutter.",
+    exemplars: [
+      "Subject spine: \"Cool stretch, today only 💲14.99\" → preheader names the outfit/weather payoff.",
+      "Body spine: one warm-day dressing problem, StretchActive/Icy relief, one styling tip, Adele signs off.",
+    ],
     avoid: ["spring + birthday + countdown stacking", "7+ product rows", "thin hard-to-read banner type", "split CTA", "generic thank-you arc"],
   },
   santa_fare: {
@@ -80,6 +93,10 @@ export const BRAND_INTELLIGENCE: Record<string, BrandIntelligence> = {
     subjectRule: "Gift narrative or unresolved loop; deadline only when true.",
     bodyRule: "Specific recipient story → personalized object → gifting moment → short CTA.",
     visualRule: "Heritage red, real usage or large product image, personalized proof, minimal text.",
+    exemplars: [
+      "Subject spine: \"The small gift she kept touching\" → preheader reveals Pouchic/TimelessMark personalization.",
+      "Body spine: named recipient moment, object detail, gifting occasion, calm Mary sign-off.",
+    ],
     avoid: ["off-season campaign before November", "pink/off-brand accent", "long CTA", "generic discount-only hook"],
   },
 };
@@ -103,5 +120,6 @@ Page winners: ${intel.pageWinners.join(" | ")}
 Subject rule: ${intel.subjectRule}
 Body structural arc (use as a guide for narrative progression, not a verbatim script — vary the phrasing and entry point): ${intel.bodyRule}
 Visual rule: ${intel.visualRule}
+Winning-copy exemplars (abstract pattern only; do not copy wording): ${intel.exemplars.join(" | ")}
 Avoid: ${intel.avoid.join(" | ")}`;
 }

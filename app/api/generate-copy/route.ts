@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateOptions, providerConfigError } from "@/lib/anthropic";
+import { generateOptions, providerConfigError, type GenerationEvent } from "@/lib/anthropic";
 import type { GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS } from "@/lib/config/brands";
@@ -26,6 +26,7 @@ export const maxDuration = 300;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const GENERATE_RATE_LIMIT_PER_MIN = Math.max(0, Number(process.env.AI_GENERATE_RATE_LIMIT_PER_MIN || 6));
 const generateRateBuckets = new Map<string, { count: number; resetAt: number }>();
+const STREAMING_ENABLED = !/^(0|false|off|no)$/i.test(process.env.AI_GENERATION_STREAMING || "");
 
 function rateLimitKey(req: NextRequest, userId?: string): string {
   if (userId) return `user:${userId}`;
@@ -196,6 +197,69 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
   return { ok: true, campaign, products };
 }
 
+function wantsEventStream(req: NextRequest, body: unknown): boolean {
+  const b = body as { stream?: unknown };
+  return STREAMING_ENABLED && (b.stream === true || Boolean(req.headers.get("accept")?.includes("text/event-stream")));
+}
+
+function sseFrame(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+function streamGenerate(
+  campaign: Campaign,
+  products: Product[],
+  overrides: { system?: string; user?: string } | undefined,
+  models: ReturnType<typeof normalizeModelPair>,
+  revision: { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } } | undefined
+): Response {
+  const encoder = new TextEncoder();
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let closed = false;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const send = (event: string, data: unknown) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(sseFrame(event, data)));
+        } catch {
+          closed = true;
+        }
+      };
+      const onEvent = (event: GenerationEvent) => send(event.type, event);
+      send("stage", { type: "stage", stage: "queued", message: "Generation request accepted", elapsedMs: 0 });
+      heartbeat = setInterval(() => send("heartbeat", { type: "heartbeat", elapsedMs: undefined }), 5_000);
+      generateOptions(campaign, products, overrides, models, revision, onEvent)
+        .catch((err) => {
+          send("error", { type: "error", message: err instanceof Error ? err.message : "Generation failed" });
+        })
+        .finally(() => {
+          if (heartbeat) clearInterval(heartbeat);
+          closed = true;
+          try {
+            controller.close();
+          } catch {
+            /* stream already gone */
+          }
+        });
+    },
+    cancel() {
+      closed = true;
+      if (heartbeat) clearInterval(heartbeat);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   let activeUser: { userId: string } | null = null;
   try {
@@ -233,6 +297,9 @@ export async function POST(req: NextRequest) {
   const revision = revisionBody.feedback?.trim()
     ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
     : undefined;
+  if (wantsEventStream(req, body)) {
+    return streamGenerate(v.campaign, v.products, overrides, models, revision);
+  }
   const result = await generateOptions(v.campaign, v.products, overrides, models, revision);
   if (result.error) {
     const status = /API_KEY|not set/i.test(result.error) ? 500 : 502;

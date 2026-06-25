@@ -19,6 +19,8 @@ docs/email-brief-generator.local.js
 /out/
 next-env.d.ts
 *.tsbuildinfo
+*.pack.gz
+*_client-reference-manifest.js
 
 # Vercel
 .vercel

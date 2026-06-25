@@ -11,6 +11,7 @@ import { analyzeListQuality, isPeakSend } from "@/lib/quality/listQuality";
 import type { SendHistoryRow } from "@/lib/sendHistory";
 import type { ProductLayout } from "@/lib/render/email";
 import { CONSENT_OPTIONS, CUSTOM_PRODUCT_VALUE, OPS_PROVIDER_OPTIONS, type Slot } from "./studioShared";
+import type { GenerationProgressState } from "./studioShared";
 
 export function CopyButton({ text, label = "Copy", className = "btn-ghost" }: { text: string; label?: string; className?: string }) {
   const [state, setState] = useState<"idle" | "ok" | "err">("idle");
@@ -55,28 +56,41 @@ export function relativeTime(ts: number): string {
   return `${Math.round(hr / 24)} day(s) ago`;
 }
 
-export function GenerationProgress({ elapsedSec, onCancel }: { elapsedSec: number; onCancel: () => void }) {
+export function GenerationProgress({ elapsedSec, progress, onCancel }: { elapsedSec: number; progress: GenerationProgressState | null; onCancel: () => void }) {
   const mins = Math.floor(elapsedSec / 60);
   const label = mins > 0 ? `${mins}m ${String(elapsedSec % 60).padStart(2, "0")}s` : `${elapsedSec}s`;
-  const stage =
-    elapsedSec < 20
-      ? "Creating shared A/B foundations…"
-      : elapsedSec < 60
-      ? "Writing segment subject/body patches, then merging…"
-      : "Still working through small segment batches — slower frontier models may take a few minutes.";
+  const pct = progress?.total ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 12;
+  const steps = [
+    ["Foundations", /foundation|foundations|layered_start|queued/.test(progress?.stage || "") || progress?.partialA || progress?.partialB],
+    ["Segments", /segment|segments/.test(progress?.stage || "") || progress?.partialA || progress?.partialB],
+    ["Merge", /merge|partial/.test(progress?.stage || "") || progress?.partialA || progress?.partialB],
+    ["Done", progress?.stage === "done"],
+  ] as const;
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="section-panel flex items-center gap-3">
-      <span
-        aria-hidden
-        className="animate-spin shrink-0"
-        style={{ display: "inline-block", width: 16, height: 16, borderRadius: 9999, border: "2px solid var(--border)", borderTopColor: "var(--text)" }}
-      />
-      <div className="flex flex-col min-w-0">
-        <span className="text-sm font-medium">Generating A + B — {label} elapsed</span>
-        <span className="text-xs text-[var(--muted)]">{stage}</span>
+    <div role="status" aria-live="polite" aria-busy="true" className="section-panel generation-progress">
+      <div className="flex items-start gap-3">
+        <span aria-hidden className="progress-spinner" />
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-sm font-semibold">Generating A + B — {label} elapsed</span>
+          <span className="text-xs text-[var(--muted)]">{progress?.message || "Starting generation…"}</span>
+          <div className="progress-track mt-3" aria-hidden>
+            <div className="progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {steps.map(([name, active]) => (
+              <span key={name} className={`status-pill ${active ? "text-ok" : "text-[var(--muted)]"}`}>{active ? "✓ " : ""}{name}</span>
+            ))}
+            <span className={`status-pill ${progress?.partialA ? "text-ok" : "text-[var(--muted)]"}`}>A {progress?.partialA ? "ready" : "working"}</span>
+            <span className={`status-pill ${progress?.partialB ? "text-ok" : "text-[var(--muted)]"}`}>B {progress?.partialB ? "ready" : "working"}</span>
+          </div>
+          {!!progress?.events.length && (
+            <div className="mt-3 text-[11px] text-[var(--muted)]">
+              {progress.events.slice(0, 3).map((event, i) => <div key={`${event}-${i}`} className="truncate">• {event}</div>)}
+            </div>
+          )}
+        </div>
+        <button onClick={onCancel} className="btn-ghost shrink-0">Cancel</button>
       </div>
-      <div className="flex-1" />
-      <button onClick={onCancel} className="btn-ghost shrink-0">Cancel</button>
     </div>
   );
 }
@@ -133,9 +147,9 @@ export function GenerationBudgetPanel({
         <ModelBudgetCard label="Option A" selection={modelA} />
         <ModelBudgetCard label="Option B" selection={modelB} />
       </div>
-      {promptOverridesActive && segments > 2 && (
+      {promptOverridesActive && segments === 1 && (
         <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
-          Custom prompt edits disable layered generation. Reset system/user prompt edits for more reliable large-segment runs.
+          Edited prompts use the legacy full-brief fallback for single-segment runs; multi-segment runs stay layered.
         </div>
       )}
     </div>
@@ -861,21 +875,17 @@ export function ModelSelector({
 export function MiniProductBlock({ lines }: { lines: { text: string; style: "headline" | "badge" | "usp" | "review" | "price" | "sub" }[] }) {
   const colorMap: Record<string, string> = {
     headline: "font-bold text-[11px] uppercase tracking-wide",
-    badge: "text-[9px] font-bold px-1 rounded",
+    badge: "mini-badge",
     usp: "text-[9px] text-[var(--muted)] flex items-center gap-0.5",
-    review: "text-[9px] italic text-[var(--muted)]",
+    review: "mini-review",
     price: "text-[11px] font-bold",
     sub: "text-[9px] text-[var(--muted)]",
-  };
-  const styleMap: Partial<Record<string, React.CSSProperties>> = {
-    badge: { background: "#fef9c3", color: "#78350f", border: "1px solid #fde047" },
-    review: { borderLeft: "2px solid var(--border)", paddingLeft: 4 },
   };
   return (
     <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2 w-full flex flex-col gap-0.5 text-left">
       <div className="h-8 rounded mb-1" style={{ background: "var(--border)" }} />
       {lines.map((l, i) => (
-        <span key={i} className={colorMap[l.style]} style={styleMap[l.style]}>
+        <span key={i} className={colorMap[l.style]}>
           {l.style === "usp" && <span style={{ color: "var(--ok)", fontSize: 9, fontWeight: 800 }}>+</span>}
           {l.text}
         </span>
@@ -1161,7 +1171,7 @@ export function ProductSlotCard({
         <span className="text-xs font-semibold">{index === 0 ? "Hero product" : `Support ${index + 1}`}</span>
         <div className="flex items-center gap-2">
           {isRecent && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--warn-soft, #fef3c7)", color: "var(--warn-text, #92400e)" }}>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--warn-soft)] text-[var(--warn-text)]">
               recent
             </span>
           )}

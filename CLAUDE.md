@@ -48,12 +48,16 @@ npx tsc --noEmit     # type-check without emitting
 | `GEMINI_API_KEY` | server | Gemini generation |
 | `OPENAI_API_KEY` | server | ChatGPT/OpenAI generation |
 | `AI_PROVIDER_TIMEOUT_MS` | server | optional per-provider generation timeout override; default 145000 |
+| `AI_PATCH_PROVIDER_TIMEOUT_MS` | server | shorter timeout for segment patch calls; default 60000 |
+| `AI_GENERATION_STREAMING` | server | SSE progress stream toggle for the Studio UI; default true |
+| `AI_SOFT_DEADLINE_MS` | server | stop launching new work near this deadline and return usable partials; default 240000 |
 | `AI_CLAUDE_STREAMING` | server | Claude streaming toggle; default true to avoid long non-streaming operation failures |
 | `AI_PROVIDER_RETRIES` | server | transient overload/rate-limit retries before partial salvage; default 2 |
 | `AI_PROVIDER_RETRY_BASE_MS` | server | first retry backoff delay in ms, doubles per retry; default 900 |
-| `AI_MAX_OUTPUT_TOKENS` | server | full-brief output cap per provider call; default 32000, bounded 4000-64000 |
+| `AI_MAX_OUTPUT_TOKENS` | server | legacy full-brief output cap per provider call; default 18000, bounded 4000-64000 |
 | `AI_FOUNDATION_OUTPUT_TOKENS` | server | shared foundation output cap; default 14000, bounded 4000-32000 |
 | `AI_GENERATE_RATE_LIMIT_PER_MIN` | server | per-user/IP generation limit; default 6; set 0 to disable |
+| `AI_GENERATION_TELEMETRY` | server | optional structured per-stage generation logs; default off; `AI_PROMPT_DEBUG=on` also enables it |
 | `AI_TEMP_A` | server | optional Option A sampling temperature; default 0.85 |
 | `AI_TEMP_B` | server | optional Option B sampling temperature; default 1.0 |
 | `AI_TEMP_B_RETRY` | server | optional Option B contrast-retry temperature; default 0.9 |
@@ -63,9 +67,9 @@ npx tsc --noEmit     # type-check without emitting
 | `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default 78 |
 | `AI_REPAIR_TEMP` | server | optional compliance repair-pass temperature; default 0.6 |
 | `AI_PROMPT_DEBUG` | server | set `on` to log assembled prompt token counts + regression warnings to console |
-| `AI_SEGMENT_BATCH_THRESHOLD` | server | layered generation starts at this segment count for default prompts; default 1 |
-| `AI_SEGMENT_BATCH_SIZE` | server | segments per patch call; default 1 |
-| `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent segment patch batches after foundations; default 2 |
+| `AI_SEGMENT_BATCH_THRESHOLD` | server | layered generation starts at this segment count; default 1 |
+| `AI_SEGMENT_BATCH_SIZE` | server | optional override for adaptive segments per patch call |
+| `AI_SEGMENT_BATCH_CONCURRENCY` | server | optional override for adaptive patch concurrency |
 | `SENDGRID_API_KEY` | server | needs Marketing + Templates scopes for `/v3/designs` |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | anon/publishable key — browser-safe, RLS-gated |
@@ -93,19 +97,21 @@ get two contrasting options (**A** and **B**) — B is forced to a different ang
 ### Generation flow (`lib/anthropic.ts → generateOptions`)
 
 1. Build system + user prompt from the campaign (`lib/briefgen.ts`).
-2. If no system/user prompt override is active, use layered generation: create a compact shared
-   foundation for Option A, then a contrasted foundation for Option B. Foundations contain route,
-   banner, products, P.S., `body.base`, and QA only.
-3. Split all selected segments into patch calls (`AI_SEGMENT_BATCH_SIZE`, default 1). Each patch
+2. Use layered generation for bounded runs: create a compact shared foundation for Option A, then a
+   contrasted foundation for Option B. Multi-segment prompt edits are injected as bounded steering
+   layers instead of forcing the monolithic path. Foundations contain route, banner, products,
+   P.S., `body.base`, and QA only.
+3. Split all selected segments into adaptive patch calls (fast models may group more segments;
+   frontier models stay smaller unless `AI_SEGMENT_BATCH_SIZE` overrides it). Each patch
    writes only subject/preheader options and body copy for that segment batch, then the server
    merges patches into the A/B foundations.
 4. Run `validateBrief` (attaches `_flags` + `_score`). If both options exist, `validateBriefPair`
    still checks A/B contrast across route/copy/banner/product surfaces.
-5. Optional `PromptOverrides {system?, user?}` (from the user-edited review step) replace the
-   generated prompts; B's contrast clause is appended to the edited system prompt so divergence
-  survives edits. Full prompt overrides intentionally disable layered generation.
+5. Optional `PromptOverrides {system?, user?}` (from the user-edited review step) are injected into
+   the foundation and segment-patch prompts as steering constraints. Only one-segment edited runs
+   use the legacy full-brief fallback.
 - Models: selected per option from `lib/config/aiModels.ts`; defaults live in `DEFAULT_AI_MODELS`.
-- Output budget: 32,000 tokens for legacy full-brief calls, 14,000 for shared foundations, and a
+- Output budget: 18,000 tokens for legacy full-brief calls, 14,000 for shared foundations, and a
   smaller cap for segment patch calls. Claude uses streaming by default (`AI_CLAUDE_STREAMING=true`)
   so Anthropic does not reject long non-streaming operations.
 - `createAndParseWithModel` retries **once** on a JSON parse failure with a correction note; full

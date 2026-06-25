@@ -1763,7 +1763,33 @@ export function brandPlaybookRuleBlock(brandId: string): string {
 /** The clause appended to Option B's system prompt forcing a different angle + framework than A. */
 export function contrastInstruction(optionADirection: GenCreativeDirection): string {
   const route = optionADirection.brief_route || optionADirection.branch || optionADirection.differentiator || "?";
-  return `\nCRITICAL CONTRAST REQUIREMENT:\nOption A used Angle: ${optionADirection.angle}, Framework: ${optionADirection.framework}, Route: ${route}.\nYou MUST choose a DIFFERENT angle, framework, brief_route/branch, body architecture, banner pattern, subject family, and product-grid emphasis for Option B. State them in creative_direction BEFORE writing copy. Reusing the same route or skeleton is INVALID.`;
+  const concept = optionADirection.concept;
+  const avoid = {
+    angle: optionADirection.angle || "unknown",
+    framework: optionADirection.framework || "unknown",
+    route,
+    opener_mechanic: concept?.openerMechanic || "unknown",
+    creative_device: concept?.creativeDevice || optionADirection.source_pattern || "unknown",
+    format: concept?.format || optionADirection.branch || "unknown",
+    proof_path: concept?.proofPath || "unknown",
+    lead_product: optionADirection.hook_contract?.hero_product || "unknown",
+  };
+  return `\nCRITICAL CONTRAST REQUIREMENT:
+Option A fingerprint:
+${JSON.stringify(avoid)}
+
+Option B must choose a visibly different route on these axes before writing copy:
+1. angle
+2. framework
+3. opener_mechanic
+4. creative_device / subject family
+5. banner layout pattern
+6. product-grid emphasis
+7. body architecture
+8. proof path
+9. lead product or lead-product use case
+
+State the new B choices in creative_direction first. Reusing Option A's route, skeleton, or opening move is invalid even if the words differ.`;
 }
 
 export function buildSystemPrompt(

@@ -92,11 +92,15 @@ post-generation **validation engine** (`validateBrief`) scoring each option 0–
 | `GEMINI_API_KEY` | server | Gemini generation |
 | `OPENAI_API_KEY` | server | ChatGPT/OpenAI generation |
 | `AI_PROVIDER_TIMEOUT_MS` | server | optional provider timeout override; default 145000 |
+| `AI_PATCH_PROVIDER_TIMEOUT_MS` | server | shorter segment-patch timeout; default 60000 |
+| `AI_GENERATION_STREAMING` | server | SSE progress stream toggle; default true |
+| `AI_SOFT_DEADLINE_MS` | server | stop launching work near deadline and return partials; default 240000 |
+| `AI_GENERATION_TELEMETRY` | server | optional structured per-stage generation logs; default off |
 | `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
 | `AI_QUALITY_REPAIR_THRESHOLD` | server | low-score repair threshold; default 78 |
-| `AI_SEGMENT_BATCH_THRESHOLD` | server | auto-batch generation above this segment count; default 2 |
-| `AI_SEGMENT_BATCH_SIZE` | server | segments per AI batch; default 2 |
-| `AI_SEGMENT_BATCH_CONCURRENCY` | server | concurrent continuation batches after anchor; default 2 |
+| `AI_SEGMENT_BATCH_THRESHOLD` | server | layered generation starts at this segment count; default 1 |
+| `AI_SEGMENT_BATCH_SIZE` | server | optional override for adaptive segments per patch call |
+| `AI_SEGMENT_BATCH_CONCURRENCY` | server | optional override for adaptive patch concurrency |
 | `SENDGRID_API_KEY` | server | SendGrid Designs/Templates (needs Marketing + Templates scope) |
 | `NEXT_PUBLIC_SUPABASE_URL` | client | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client | Supabase publishable/anon key (browser-safe, RLS-gated) |
