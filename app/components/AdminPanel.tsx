@@ -11,10 +11,10 @@ interface AdminUser {
   created_at: string;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: "#f5c451",
-  active: "#3ecf8e",
-  inactive: "#ff6b6b",
+const STATUS_COLORS: Record<string, string> = {
+  pending: "var(--warn)",
+  active: "var(--ok)",
+  inactive: "var(--bad)",
 };
 
 // Full-screen in-app admin console (no separate route — reuses the loaded session).
@@ -101,9 +101,9 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
           <button onClick={onClose} className="btn-ghost">Back to studio</button>
         </div>
 
-        {error && <div className="text-sm text-[#ff6b6b] mb-4">{error}</div>}
+        {error && <div className="text-sm text-bad mb-4">{error}</div>}
         {pending.length > 0 && (
-          <div className="mb-6 rounded-lg border border-[#f5c451] bg-[rgba(245,196,81,0.06)] p-3 text-sm">
+          <div className="mb-6 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--warn)", background: "var(--warn-soft)" }}>
             {pending.length} account{pending.length === 1 ? "" : "s"} awaiting approval.
           </div>
         )}
@@ -128,7 +128,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
                   <tr key={u.id} className="border-t border-[var(--border)]">
                     <td className="p-3">{u.email}</td>
                     <td className="p-3">
-                      <span style={{ color: STATUS_COLOR[u.status] }}>● {u.status}</span>
+                      <span style={{ color: STATUS_COLORS[u.status] }}>● {u.status}</span>
                     </td>
                     <td className="p-3 text-[var(--muted)]">{u.is_admin ? "admin" : "user"}</td>
                     <td className="p-3 text-[var(--muted)]">{new Date(u.created_at).toLocaleDateString()}</td>
