@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { accessToken } from "@/lib/profile";
 
 interface AdminUser {
@@ -22,6 +22,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -41,8 +42,39 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
     if (open) {
       setUsers(null);
       load();
+      // Move focus into the dialog when it opens
+      const frame = requestAnimationFrame(() => dialogRef.current?.focus());
+      return () => cancelAnimationFrame(frame);
     }
   }, [open, load]);
+
+  // Focus trap: keep Tab/Shift+Tab cycling within the dialog
+  useEffect(() => {
+    if (!open) return;
+    const el = dialogRef.current;
+    if (!el) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -91,7 +123,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
   const pending = (users || []).filter((u) => u.status === "pending");
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[var(--background)]" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+    <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-50 overflow-y-auto bg-[var(--background)] focus:outline-none" role="dialog" aria-modal="true" aria-labelledby="admin-title">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>

@@ -633,6 +633,8 @@ export function StepCard({
 }: {
   n: number; title: string; done: boolean; status: "ok" | "warn" | "bad"; open: boolean; summary: string; onOpen: () => void; children: React.ReactNode;
 }) {
+  const panelId = `step-panel-${n}`;
+  const btnId = `step-btn-${n}`;
   const indexClass = open
     ? "step-index-open"
     : done
@@ -644,17 +646,25 @@ export function StepCard({
           : "step-index-idle";
   return (
     <div className={`step-card ${open ? "step-card-open" : ""}`}>
-      <button onClick={onOpen} className="step-button" aria-expanded={open}>
-        <span className={`step-index ${indexClass}`}>
+      <button id={btnId} onClick={onOpen} className="step-button" aria-expanded={open} aria-controls={panelId}>
+        <span className={`step-index ${indexClass}`} aria-hidden>
           {done && !open ? "✓" : !open && status === "bad" ? "!" : n}
         </span>
         <span className="flex-1">
-          <span className="text-sm font-semibold">{title}</span>
+          <span className="text-sm font-semibold">
+            {done && !open && <span className="sr-only">Step {n} complete — </span>}
+            {!open && status === "bad" && <span className="sr-only">Step {n} has errors — </span>}
+            {title}
+          </span>
           {!open && <span className="block text-xs text-[var(--muted)] mt-0.5 truncate">{summary}</span>}
         </span>
-        <span className="step-action">{open ? "Collapse" : done ? "Edit" : "Open"}</span>
+        <span className="step-action" aria-hidden>{open ? "Collapse" : done ? "Edit" : "Open"}</span>
       </button>
-      {open && <div className="px-4 pb-4 pt-1 border-t border-[var(--border)]">{children}</div>}
+      {open && (
+        <div id={panelId} role="region" aria-labelledby={btnId} className="px-4 pb-4 pt-1 border-t border-[var(--border)]">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -702,8 +712,14 @@ export function PerfPanel({ brandId, hero, productCount }: { brandId: string; he
 
 export function Banner({ level, children }: { level: "warn" | "fail"; children: React.ReactNode }) {
   const color = level === "fail" ? "var(--bad)" : "var(--warn)";
+  // fail-level banners are announced immediately by screen readers (aria-live="assertive")
   return (
-    <div className="section-panel text-sm" style={{ borderColor: color, color }}>
+    <div
+      className="section-panel text-sm"
+      style={{ borderColor: color, color }}
+      role={level === "fail" ? "alert" : "status"}
+      aria-live={level === "fail" ? "assertive" : "polite"}
+    >
       {children}
     </div>
   );
@@ -739,7 +755,8 @@ export function PromptBlock({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
-          className="prompt-body mono text-xs leading-relaxed p-4 outline-none resize-y"
+          aria-label={`${title} prompt text`}
+          className="prompt-body mono text-xs leading-relaxed p-4 resize-y"
           style={{ height: 220 }}
         />
       )}
@@ -753,13 +770,15 @@ export function VariantTabs({
   variants: string[]; active: string; onSelect: (v: string) => void; labelFor?: (v: string) => string; incompleteFor?: (v: string) => boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Segment variant selector">
       {variants.map((v) => (
         <button key={v} onClick={() => onSelect(v)}
+          aria-pressed={active === v}
           title={incompleteFor?.(v) ? "This segment is missing generated copy" : undefined}
           className={`choice-pill ${active === v ? "choice-pill-active" : ""}`}>
           {labelFor ? labelFor(v) : v}
           {incompleteFor?.(v) && <span aria-hidden style={{ color: "var(--bad)" }}> ⚠</span>}
+          {incompleteFor?.(v) && <span className="sr-only"> — missing copy</span>}
         </button>
       ))}
     </div>
