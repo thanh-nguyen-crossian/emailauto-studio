@@ -144,6 +144,8 @@ button:not(:disabled):hover {
 .nav-step:disabled { opacity: .45; cursor: not-allowed; }
 /* nav-step is inside an overflow container — inset outline keeps it visible */
 .nav-step:focus-visible { outline: 3px solid var(--accent); outline-offset: -2px; }
+/* active nav step has accent bg — white outline ensures 7.5:1 contrast against it */
+.nav-step-active:focus-visible { outline-color: #fff; }
 
 /* ── Panels ─────────────────────────────────────────────────────────────────── */
 .section-panel { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 8px; padding: 16px; box-shadow: var(--shadow-tiny); }
