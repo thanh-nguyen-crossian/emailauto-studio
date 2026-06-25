@@ -211,11 +211,20 @@ function streamGenerate(
   products: Product[],
   overrides: { system?: string; user?: string } | undefined,
   models: ReturnType<typeof normalizeModelPair>,
-  revision: { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } } | undefined
+  revision: { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } } | undefined,
+  requestSignal: AbortSignal
 ): Response {
   const encoder = new TextEncoder();
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let closed = false;
+  const generationController = new AbortController();
+  const abortGeneration = () => {
+    closed = true;
+    generationController.abort();
+    if (heartbeat) clearInterval(heartbeat);
+  };
+  requestSignal.addEventListener("abort", abortGeneration, { once: true });
+  if (requestSignal.aborted) abortGeneration();
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -230,13 +239,16 @@ function streamGenerate(
       const onEvent = (event: GenerationEvent) => send(event.type, event);
       send("stage", { type: "stage", stage: "queued", message: "Generation request accepted", elapsedMs: 0 });
       heartbeat = setInterval(() => send("heartbeat", { type: "heartbeat", elapsedMs: undefined }), 5_000);
-      generateOptions(campaign, products, overrides, models, revision, onEvent)
+      generateOptions(campaign, products, overrides, models, revision, onEvent, generationController.signal)
         .catch((err) => {
-          send("error", { type: "error", message: err instanceof Error ? err.message : "Generation failed" });
+          if (!(err instanceof Error && err.name === "AbortError")) {
+            send("error", { type: "error", message: err instanceof Error ? err.message : "Generation failed" });
+          }
         })
         .finally(() => {
           if (heartbeat) clearInterval(heartbeat);
           closed = true;
+          requestSignal.removeEventListener("abort", abortGeneration);
           try {
             controller.close();
           } catch {
@@ -245,8 +257,8 @@ function streamGenerate(
         });
     },
     cancel() {
-      closed = true;
-      if (heartbeat) clearInterval(heartbeat);
+      abortGeneration();
+      requestSignal.removeEventListener("abort", abortGeneration);
     },
   });
 
@@ -298,9 +310,17 @@ export async function POST(req: NextRequest) {
     ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
     : undefined;
   if (wantsEventStream(req, body)) {
-    return streamGenerate(v.campaign, v.products, overrides, models, revision);
+    return streamGenerate(v.campaign, v.products, overrides, models, revision, req.signal);
   }
-  const result = await generateOptions(v.campaign, v.products, overrides, models, revision);
+  let result;
+  try {
+    result = await generateOptions(v.campaign, v.products, overrides, models, revision, undefined, req.signal);
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return NextResponse.json({ error: "Generation cancelled" }, { status: 499 });
+    }
+    throw err;
+  }
   if (result.error) {
     const status = /API_KEY|not set/i.test(result.error) ? 500 : 502;
     return NextResponse.json({ error: result.error }, { status });

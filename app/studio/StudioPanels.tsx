@@ -10,7 +10,7 @@ import { scoreFreshnessAgainstHistory } from "@/lib/quality/freshness";
 import { analyzeListQuality, isPeakSend } from "@/lib/quality/listQuality";
 import type { SendHistoryRow } from "@/lib/sendHistory";
 import type { ProductLayout } from "@/lib/render/email";
-import { CONSENT_OPTIONS, CUSTOM_PRODUCT_VALUE, OPS_PROVIDER_OPTIONS, type Slot } from "./studioShared";
+import { CONSENT_OPTIONS, CUSTOM_PRODUCT_VALUE, OPS_PROVIDER_OPTIONS, type OptKey, type Slot } from "./studioShared";
 import type { GenerationProgressState } from "./studioShared";
 
 export function CopyButton({ text, label = "Copy", className = "btn-ghost" }: { text: string; label?: string; className?: string }) {
@@ -534,7 +534,135 @@ export function FormatCoverage({ brief }: { brief: GenBrief }) {
   );
 }
 
-export function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
+export function OutputOptionCards({
+  options,
+  activeOption,
+  onSelect,
+}: {
+  options: Partial<Record<OptKey, GenBrief>>;
+  activeOption: OptKey;
+  onSelect: (option: OptKey) => void;
+}) {
+  return (
+    <div className="output-option-grid" role="group" aria-label="Email option selector">
+      {(["a", "b"] as OptKey[]).map((opt) => {
+        const brief = options[opt];
+        if (!brief) {
+          return (
+            <div key={opt} className="output-option-card output-option-card-empty" aria-label={`Option ${opt.toUpperCase()} not generated`}>
+              <div className="text-sm font-semibold">Option {opt.toUpperCase()}</div>
+              <div className="text-xs text-[var(--muted)]">Waiting for generated copy</div>
+            </div>
+          );
+        }
+
+        const cd = brief.creative_direction || {};
+        const counts = flagTierCounts([...(brief._flags || []), ...(brief._advisory || [])]);
+        const health = counts.errors ? "bad" : counts.serious || counts.structural ? "warn" : "ok";
+        const active = activeOption === opt;
+        const issueCopy = counts.errors || counts.serious || counts.structural
+          ? `${counts.errors} error · ${counts.serious} serious · ${counts.structural} structure`
+          : "Ready";
+
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onSelect(opt)}
+            aria-pressed={active}
+            className={`output-option-card ${active ? "output-option-card-active" : ""}`}
+          >
+            <span className="output-option-card-top">
+              <span>
+                <span className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">Option {opt.toUpperCase()}</span>
+                <span className="block text-base font-semibold mt-1">
+                  {cd.angle || "Untitled angle"}
+                </span>
+              </span>
+              <span className={`badge-${health}`}>{health === "ok" ? "Ready" : "Review"}</span>
+            </span>
+            <span className="output-option-metrics">
+              <span><strong style={{ color: scoreColor(brief._score) }}>{brief._score ?? "—"}</strong> quality</span>
+              <span>{typeof brief._creative_score === "number" ? `${brief._creative_score} creative` : "creative —"}</span>
+              <span>{issueCopy}</span>
+            </span>
+            <span className="output-option-route" title={routeText(cd) || cd.framework || ""}>
+              <span>{routeText(cd) || "No route"}</span>
+              <span>{cd.framework || "No framework"}</span>
+            </span>
+            <span className="output-option-model mono" title={[brief._provider, brief._model].filter(Boolean).join(" · ") || "AI"}>
+              {[brief._provider, brief._model].filter(Boolean).join(" · ") || "AI"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function OutputSegmentNavigator({
+  segments,
+  active,
+  onSelect,
+  labelFor,
+  incompleteForOption,
+}: {
+  segments: string[];
+  active: string;
+  onSelect: (segment: string) => void;
+  labelFor?: (segment: string) => string;
+  incompleteForOption: (option: OptKey, segment: string) => boolean;
+}) {
+  return (
+    <div className="output-segment-nav" role="group" aria-label="Segment selector">
+      {segments.map((segment) => {
+        const selected = active === segment;
+        const aMissing = incompleteForOption("a", segment);
+        const bMissing = incompleteForOption("b", segment);
+        const label = labelFor ? labelFor(segment) : segment;
+        return (
+          <button
+            key={segment}
+            type="button"
+            aria-pressed={selected}
+            aria-label={`${label}. Option A ${aMissing ? "missing copy" : "ready"}. Option B ${bMissing ? "missing copy" : "ready"}.`}
+            title={`${label} · A ${aMissing ? "missing" : "ready"} · B ${bMissing ? "missing" : "ready"}`}
+            onClick={() => onSelect(segment)}
+            className={`output-segment-pill ${selected ? "output-segment-pill-active" : ""}`}
+          >
+            <span className="truncate">{label}</span>
+            <span className="segment-dot-wrap" aria-hidden>
+              <span className={`segment-dot ${aMissing ? "segment-dot-missing" : "segment-dot-ready"}`}>A</span>
+              <span className={`segment-dot ${bMissing ? "segment-dot-missing" : "segment-dot-ready"}`}>B</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ABContrastPanel({
+  a,
+  b,
+  segment,
+  subjectA,
+  preheaderA,
+  subjectB,
+  preheaderB,
+  activeOption,
+  onSelectOption,
+}: {
+  a: GenBrief;
+  b: GenBrief;
+  segment?: string;
+  subjectA?: string;
+  preheaderA?: string;
+  subjectB?: string;
+  preheaderB?: string;
+  activeOption?: OptKey;
+  onSelectOption?: (option: OptKey) => void;
+}) {
   const aCd = a.creative_direction || {};
   const bCd = b.creative_direction || {};
   const aCounts = flagTierCounts([...(a._flags || []), ...(a._advisory || [])]);
@@ -544,40 +672,60 @@ export function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
   const sameFramework = aCd.framework && aCd.framework === bCd.framework;
   const sameTechnique = aCd.concept?.techniquePlan?.lead && aCd.concept.techniquePlan.lead === bCd.concept?.techniquePlan?.lead;
   const risk = sameRoute || sameAngle || sameFramework || sameTechnique;
+  const rows = [
+    { label: "Route", a: routeText(aCd) || "No route", b: routeText(bCd) || "No route" },
+    { label: "Angle", a: aCd.angle || "No angle", b: bCd.angle || "No angle" },
+    { label: "Framework", a: aCd.framework || "No framework", b: bCd.framework || "No framework" },
+    {
+      label: "Opener",
+      a: a.quality_checks?.opener_mechanic || a.body_variety?.openerMechanic || "No opener",
+      b: b.quality_checks?.opener_mechanic || b.body_variety?.openerMechanic || "No opener",
+    },
+    { label: "Subject", a: subjectA || "No subject", b: subjectB || "No subject" },
+    { label: "Preheader", a: preheaderA || "No preheader", b: preheaderB || "No preheader" },
+    { label: "Banner", a: bannerSummary(a), b: bannerSummary(b) },
+    { label: "Body lead", a: bodyLeadSummary(a, segment), b: bodyLeadSummary(b, segment) },
+    { label: "Product lead", a: productLeadSummary(a), b: productLeadSummary(b) },
+    { label: "QA", a: qualitySummary(a, aCounts), b: qualitySummary(b, bCounts) },
+  ];
+
   return (
-    <div className="section-panel p-3">
+    <div className="section-panel p-3 ab-contrast-panel">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <div>
-          <h3 className="text-sm font-semibold">A/B contrast snapshot</h3>
-          <p className="text-xs text-[var(--muted)]">Checks whether the test is a real challenger, not a synonym swap.</p>
+          <h3 className="text-sm font-semibold">A/B decision matrix</h3>
+          <p className="text-xs text-[var(--muted)]">
+            {segment ? `Current segment: ${segment}. ` : ""}Rows line up the same decision fields so differences are easy to scan.
+          </p>
         </div>
         <span className="status-pill" style={{ color: risk ? "var(--warn)" : "var(--ok)" }}>
           {risk ? "Review contrast" : "Distinct routes"}
         </span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <ContrastCard
-          label="Option A"
-          route={routeText(aCd) || "No route"}
-          angle={aCd.angle || "No angle"}
-          framework={aCd.framework || "No framework"}
-          technique={aCd.concept?.techniquePlan?.lead || "No technique"}
-          model={[a._provider, a._model].filter(Boolean).join(" · ") || "AI"}
-          score={a._score}
-          techniqueScore={a._technique_score}
-          issues={`${aCounts.errors} err · ${aCounts.serious} serious · ${aCounts.structural} structural`}
-        />
-        <ContrastCard
-          label="Option B"
-          route={routeText(bCd) || "No route"}
-          angle={bCd.angle || "No angle"}
-          framework={bCd.framework || "No framework"}
-          technique={bCd.concept?.techniquePlan?.lead || "No technique"}
-          model={[b._provider, b._model].filter(Boolean).join(" · ") || "AI"}
-          score={b._score}
-          techniqueScore={b._technique_score}
-          issues={`${bCounts.errors} err · ${bCounts.serious} serious · ${bCounts.structural} structural`}
-        />
+
+      <div className="ab-table-wrap">
+        <table className="ab-compare-table">
+          <thead>
+            <tr>
+              <th scope="col">Field</th>
+              <th scope="col">
+                <ABOptionHeader option="a" brief={a} activeOption={activeOption} onSelectOption={onSelectOption} />
+              </th>
+              <th scope="col">
+                <ABOptionHeader option="b" brief={b} activeOption={activeOption} onSelectOption={onSelectOption} />
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label}>
+                <th scope="row">{row.label}</th>
+                <td title={row.a}>{row.a}</td>
+                <td title={row.b}>{row.b}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       {risk && (
         <div className="text-xs mt-2" style={{ color: "var(--warn)" }}>
@@ -588,8 +736,79 @@ export function ABContrastPanel({ a, b }: { a: GenBrief; b: GenBrief }) {
   );
 }
 
+function ABOptionHeader({
+  option,
+  brief,
+  activeOption,
+  onSelectOption,
+}: {
+  option: OptKey;
+  brief: GenBrief;
+  activeOption?: OptKey;
+  onSelectOption?: (option: OptKey) => void;
+}) {
+  const label = `Option ${option.toUpperCase()}`;
+  const content = (
+    <>
+      <span>{label}</span>
+      <strong style={{ color: scoreColor(brief._score) }}>{brief._score ?? "—"}/100</strong>
+    </>
+  );
+  if (!onSelectOption) return <span className="ab-option-head">{content}</span>;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelectOption(option)}
+      aria-pressed={activeOption === option}
+      className={`ab-option-head ab-option-head-button ${activeOption === option ? "ab-option-head-active" : ""}`}
+    >
+      {content}
+    </button>
+  );
+}
+
 export function routeText(cd: GenBrief["creative_direction"] | Record<string, unknown>): string {
   return [cd.branch, cd.brief_route].filter(Boolean).join(" · ");
+}
+
+function cleanCopyText(value?: string): string {
+  return String(value || "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/==([^=]+)==/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shortText(value?: string, max = 104): string {
+  const text = cleanCopyText(value);
+  if (!text) return "—";
+  return text.length > max ? `${text.slice(0, Math.max(0, max - 1)).trim()}…` : text;
+}
+
+function bannerSummary(brief: GenBrief): string {
+  const banner = brief.banner || {};
+  return shortText([banner.main_text_1, banner.main_text_2, banner.main_text_3, banner.main_text, banner.cta].filter(Boolean).join(" · "));
+}
+
+function bodyLeadSummary(brief: GenBrief, segment?: string): string {
+  const body = brief.body || {};
+  const key = segment ? segJsonKey(segment) : "";
+  return shortText((key && body[key]) || (segment && body[segment]) || body.base, 120);
+}
+
+function productLeadSummary(brief: GenBrief): string {
+  const first = brief.products?.[0];
+  if (!first) return "No product";
+  return shortText([first.name, first.template_style, first.main_text].filter(Boolean).join(" · "), 96);
+}
+
+function qualitySummary(brief: GenBrief, counts: ReturnType<typeof flagTierCounts>): string {
+  const issues = counts.errors || counts.serious || counts.structural
+    ? `${counts.errors} err · ${counts.serious} serious · ${counts.structural} structure`
+    : "no blocking issues";
+  return `${brief._score ?? "—"}/100 · ${issues}`;
 }
 
 export function ContrastCard({

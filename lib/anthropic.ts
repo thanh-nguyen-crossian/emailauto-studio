@@ -154,6 +154,7 @@ interface ModelCallOptions {
   timeoutMs?: number;
   deadlineAt?: number;
   stage?: string;
+  signal?: AbortSignal;
 }
 
 export type GenerationEvent =
@@ -171,6 +172,7 @@ interface GenerationRuntime {
   startedAt: number;
   softDeadlineAt: number;
   onEvent?: GenerationEventHandler;
+  signal?: AbortSignal;
 }
 
 const PROVIDER_ENV: Record<string, string> = {
@@ -187,9 +189,9 @@ function emit(runtime: GenerationRuntime | undefined, event: GenerationEvent): v
   runtime?.onEvent?.({ ...event, elapsedMs: event.elapsedMs ?? elapsedMs(runtime) });
 }
 
-function runtimeFrom(onEvent?: GenerationEventHandler): GenerationRuntime {
+function runtimeFrom(onEvent?: GenerationEventHandler, signal?: AbortSignal): GenerationRuntime {
   const startedAt = Date.now();
-  return { startedAt, softDeadlineAt: startedAt + AI_SOFT_DEADLINE_MS, onEvent };
+  return { startedAt, softDeadlineAt: startedAt + AI_SOFT_DEADLINE_MS, onEvent, signal };
 }
 
 /** @internal exported for unit testing only */
@@ -265,26 +267,58 @@ function isTruncationError(err: unknown): boolean {
   return /token limit|max_output|max tokens|MAX_TOKENS|before finishing|No complete JSON/i.test(errMessage(err));
 }
 
+function generationAbortError(): Error {
+  const err = new Error("Generation cancelled");
+  err.name = "AbortError";
+  return err;
+}
+
+function isGenerationAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw generationAbortError();
+}
+
+function throwIfAnyAbort(reasons: unknown[]): void {
+  if (reasons.some(isGenerationAbortError)) throw generationAbortError();
+}
+
+function runtimeCallOptions(runtime?: GenerationRuntime): Pick<ModelCallOptions, "deadlineAt" | "signal"> {
+  return { deadlineAt: runtime?.softDeadlineAt, signal: runtime?.signal };
+}
+
 async function fetchJsonWithTimeout<T>(
   provider: string,
   model: string,
   url: string,
   init: RequestInit,
-  timeoutMs = PROVIDER_TIMEOUT_MS
+  timeoutMs = PROVIDER_TIMEOUT_MS,
+  signal?: AbortSignal
 ): Promise<{ res: Response; data: T }> {
+  throwIfAborted(signal);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const onAbort = () => controller.abort();
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  signal?.addEventListener("abort", onAbort, { once: true });
   try {
     const res = await fetch(url, { ...init, signal: controller.signal });
     const data = (await res.json().catch(() => ({}))) as T;
     return { res, data };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
+      if (!timedOut) throw generationAbortError();
       throw new Error(timeoutMessage(provider, model, timeoutMs));
     }
     throw err;
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
   }
 }
 
@@ -295,8 +329,19 @@ async function createText(system: string, user: string, selection: AIModelSelect
   throw new Error(`Unsupported AI provider: ${selection.provider}`);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal);
+  let onAbort: (() => void) | undefined;
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    onAbort = () => {
+      clearTimeout(timer);
+      reject(generationAbortError());
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  }).finally(() => {
+    if (onAbort) signal?.removeEventListener("abort", onAbort);
+  });
 }
 
 function isTransientProviderError(err: unknown): boolean {
@@ -312,18 +357,20 @@ async function createTextWithProviderRetry(
 ): Promise<string> {
   let lastErr: unknown;
   for (let attempt = 0; attempt <= AI_PROVIDER_RETRIES; attempt++) {
+    throwIfAborted(options.signal);
     if (attempt > 0 && !hasDeadlineBudget(options, AI_PROVIDER_RETRY_BASE_MS * 2 ** attempt)) break;
     try {
       return await createText(system, user, selection, options);
     } catch (err) {
       lastErr = err;
+      if (isGenerationAbortError(err)) throw err;
       if (attempt >= AI_PROVIDER_RETRIES || !isTransientProviderError(err)) break;
       const backoff = AI_PROVIDER_RETRY_BASE_MS * 2 ** attempt;
       const jitter = Math.round(backoff * 0.2 * Math.random());
       if (Date.now() + backoff + jitter + (options.timeoutMs ?? PROVIDER_TIMEOUT_MS) > (options.deadlineAt ?? Number.POSITIVE_INFINITY)) {
         break;
       }
-      await sleep(backoff + jitter);
+      await sleep(backoff + jitter, options.signal);
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error("Provider request failed");
@@ -424,6 +471,7 @@ function textFromClaudeMessage(resp: Message): string {
 }
 
 async function callClaude(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
+  throwIfAborted(options.signal);
   const temperature = options.temperature ?? AI_TEMP_A;
   const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
   const timeoutMs = options.timeoutMs ?? PROVIDER_TIMEOUT_MS;
@@ -444,9 +492,10 @@ async function callClaude(system: string, user: string, model: string, options: 
   };
   let resp;
   try {
+    const requestOptions = { timeout: timeoutMs, signal: options.signal };
     resp = AI_CLAUDE_STREAMING
-      ? await getClient().messages.stream(payload, { timeout: timeoutMs }).finalMessage()
-      : await getClient().messages.create(payload, { timeout: timeoutMs });
+      ? await getClient().messages.stream(payload, requestOptions).finalMessage()
+      : await getClient().messages.create(payload, requestOptions);
   } catch (err) {
     if (err instanceof Error && isOutputBudgetParamError(err.message)) {
       const nextBudget = reducedOutputBudget(maxOutputTokens);
@@ -456,6 +505,7 @@ async function callClaude(system: string, user: string, model: string, options: 
       return callClaude(system, user, model, { ...options, schema: undefined });
     }
     if (err instanceof Error && /timeout|timed out|abort/i.test(err.message)) {
+      if (options.signal?.aborted || isGenerationAbortError(err)) throw generationAbortError();
       throw new Error(timeoutMessage("Claude", model, timeoutMs));
     }
     throw err;
@@ -465,6 +515,7 @@ async function callClaude(system: string, user: string, model: string, options: 
 }
 
 async function callGemini(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
+  throwIfAborted(options.signal);
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
   const temperature = options.temperature ?? AI_TEMP_A;
@@ -492,7 +543,7 @@ async function callGemini(system: string, user: string, model: string, options: 
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig,
     }),
-  }, timeoutMs);
+  }, timeoutMs, options.signal);
   if (!res.ok && isOutputBudgetParamError(data.error?.message)) {
     const nextBudget = reducedOutputBudget(maxOutputTokens);
     if (nextBudget) return callGemini(system, user, model, { ...options, maxOutputTokens: nextBudget });
@@ -522,6 +573,7 @@ function isSamplingParamError(message = ""): boolean {
 }
 
 async function callOpenAI(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
+  throwIfAborted(options.signal);
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
   const topP = options.topP ?? AI_TOP_P;
@@ -558,7 +610,7 @@ async function callOpenAI(system: string, user: string, model: string, options: 
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(payload),
-    }, timeoutMs);
+    }, timeoutMs, options.signal);
 
   // Newer OpenAI reasoning/frontier models reject `temperature`; some also reject
   // specifying both temperature and top_p. Use top_p as the single creative-control
@@ -1195,6 +1247,7 @@ async function createSegmentPatch(
   runtime?: GenerationRuntime,
   overrides?: PromptOverrides
 ): Promise<SegmentCopyPatch> {
+  throwIfAborted(runtime?.signal);
   const promptCampaign = anchor.body_variety
     ? { ...campaign, bodyVariety: anchor.body_variety }
     : campaign;
@@ -1203,7 +1256,7 @@ async function createSegmentPatch(
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
     maxOutputTokens: SEGMENT_PATCH_OUTPUT_TOKENS,
     timeoutMs: PATCH_PROVIDER_TIMEOUT_MS,
-    deadlineAt: runtime?.softDeadlineAt,
+    ...runtimeCallOptions(runtime),
     stage: `segment_patch_${optionLabel.toLowerCase()}`,
     schema: segmentPatchJsonSchema(promptCampaign.segments),
   });
@@ -1219,6 +1272,7 @@ async function generateSegmentCopyBatch(
   runtime?: GenerationRuntime,
   overrides?: PromptOverrides
 ): Promise<SegmentCopyResult> {
+  throwIfAborted(runtime?.signal);
   const tasks: Promise<SegmentCopyPatch>[] = [];
   const labels: ("A" | "B")[] = [];
 
@@ -1234,6 +1288,7 @@ async function generateSegmentCopyBatch(
   if (!tasks.length) return { error: "No anchor option available for segment-only batch" };
 
   const settled = await Promise.allSettled(tasks);
+  throwIfAnyAbort(settled.filter((item): item is PromiseRejectedResult => item.status === "rejected").map((item) => item.reason));
   const result: SegmentCopyResult = {};
   const warnings: string[] = [];
   settled.forEach((item, index) => {
@@ -1273,12 +1328,14 @@ Return a complete JSON object for this batch. Do not mention omitted segments. T
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
-  fn: (item: T, index: number) => Promise<R>
+  fn: (item: T, index: number) => Promise<R>,
+  signal?: AbortSignal
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let next = 0;
   const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
     while (next < items.length) {
+      throwIfAborted(signal);
       const index = next++;
       results[index] = await fn(items[index], index);
     }
@@ -1422,8 +1479,10 @@ async function repairCreativityIfNeeded(
   brief: GenBrief,
   campaign: Campaign,
   products: Product[],
-  selection: AIModelSelection
+  selection: AIModelSelection,
+  runtime?: GenerationRuntime
 ): Promise<GenBrief> {
+  throwIfAborted(runtime?.signal);
   if (!creativeRepairEnabled()) return brief;
   if ((brief._creative_score ?? 100) >= CREATIVE_REPAIR_THRESHOLD) return brief;
   if ((brief._flags || []).some((f) => f.type === "error")) return brief;
@@ -1432,6 +1491,7 @@ async function repairCreativityIfNeeded(
     const repaired = sanitizeAndValidateBrief(
       (await createAndParseWithModel(REPAIR_SYSTEM, buildCreativeRepairPrompt(optionLabel, brief), selection, {
         temperature: Math.max(AI_REPAIR_TEMP, 0.7),
+        ...runtimeCallOptions(runtime),
         schema: genBriefJsonSchema(campaign.segments, true),
       })) as unknown as GenBrief,
       campaign,
@@ -1444,6 +1504,7 @@ async function repairCreativityIfNeeded(
     console.info(`[generate-copy] creative repair discarded for option ${optionLabel}: ${brief._creative_score ?? "?"} -> ${repaired._creative_score ?? "?"}`);
     return brief;
   } catch (err) {
+    if (isGenerationAbortError(err)) throw err;
     console.warn(`[generate-copy] creative repair failed for option ${optionLabel}: ${err instanceof Error ? err.message : "unknown error"}`);
     return brief;
   }
@@ -1455,16 +1516,19 @@ async function repairBriefIfNeeded(
   campaign: Campaign,
   products: Product[],
   system: string,
-  selection: AIModelSelection
+  selection: AIModelSelection,
+  runtime?: GenerationRuntime
 ): Promise<GenBrief> {
+  throwIfAborted(runtime?.signal);
   if (!qualityRepairEnabled()) return brief;
   const flags = repairFlagsFor(brief);
-  if (!flags.length) return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection);
+  if (!flags.length) return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime);
 
   try {
     const repaired = sanitizeAndValidateBrief(
       (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, {
         temperature: AI_REPAIR_TEMP,
+        ...runtimeCallOptions(runtime),
         schema: genBriefJsonSchema(campaign.segments, true),
       })) as unknown as GenBrief,
       campaign,
@@ -1472,13 +1536,14 @@ async function repairBriefIfNeeded(
     );
     if (shouldKeepRepair(brief, repaired)) {
       console.info(`[generate-copy] quality repair kept for option ${optionLabel}: ${brief._score ?? "?"} -> ${repaired._score ?? "?"}`);
-      return repairCreativityIfNeeded(optionLabel, repaired, campaign, products, selection);
+      return repairCreativityIfNeeded(optionLabel, repaired, campaign, products, selection, runtime);
     }
     console.info(`[generate-copy] quality repair discarded for option ${optionLabel}: ${brief._score ?? "?"} -> ${repaired._score ?? "?"}`);
-    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection);
+    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime);
   } catch (err) {
+    if (isGenerationAbortError(err)) throw err;
     console.warn(`[generate-copy] quality repair failed for option ${optionLabel}: ${err instanceof Error ? err.message : "unknown error"}`);
-    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection);
+    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime);
   }
 }
 
@@ -1492,6 +1557,7 @@ async function generateOptionsSingle(
   runtime?: GenerationRuntime
 ): Promise<GenerationResult> {
   try {
+    throwIfAborted(runtime?.signal);
     emit(runtime, { type: "stage", stage: "single_start", message: "Generating full A/B briefs in legacy single-call mode" });
     const models = normalizeModelPair(modelInput);
     telemetry("start", {
@@ -1541,27 +1607,29 @@ async function generateOptionsSingle(
       usrB = bMessages.user;
       // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa).
       const [aSettled, bSettled] = await Promise.allSettled([
-        createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A, deadlineAt: runtime?.softDeadlineAt, stage: "single_a" }),
-        createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B, deadlineAt: runtime?.softDeadlineAt, stage: "single_b" }),
+        createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A, ...runtimeCallOptions(runtime), stage: "single_a" }),
+        createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B, ...runtimeCallOptions(runtime), stage: "single_b" }),
       ]);
+      throwIfAnyAbort([aSettled, bSettled].filter((item): item is PromiseRejectedResult => item.status === "rejected").map((item) => item.reason));
       aFailure = aSettled.status === "rejected" ? aSettled.reason : undefined;
       bFailure = bSettled.status === "rejected" ? bSettled.reason : undefined;
       a = aSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(aSettled.value as unknown as GenBrief, concepts.a), campaignA, products) : undefined;
       b = bSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(bSettled.value as unknown as GenBrief, concepts.b), campaignB, products) : undefined;
       [a, b] = await Promise.all([
-        a ? repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a) : Promise.resolve(undefined),
-        b ? repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b) : Promise.resolve(undefined),
+        a ? repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a, runtime) : Promise.resolve(undefined),
+        b ? repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b, runtime) : Promise.resolve(undefined),
       ]);
       if (a) emit(runtime, { type: "partial", option: "a", brief: a });
       if (b) emit(runtime, { type: "partial", option: "b", brief: b });
     } else {
       try {
         emit(runtime, { type: "stage", stage: "single_a", option: "a", message: "Generating Option A" });
-        a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A, deadlineAt: runtime?.softDeadlineAt, stage: "single_a" })) as unknown as GenBrief, concepts.a), campaignA, products);
-        a = await repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a);
+        a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A, ...runtimeCallOptions(runtime), stage: "single_a" })) as unknown as GenBrief, concepts.a), campaignA, products);
+        a = await repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a, runtime);
         stampBrief(a, models.a, campaignA.bodyVariety);
         emit(runtime, { type: "partial", option: "a", brief: a });
       } catch (err) {
+        if (isGenerationAbortError(err)) throw err;
         aFailure = err;
       }
 
@@ -1570,10 +1638,11 @@ async function generateOptionsSingle(
       usrB = bMessages.user;
       try {
         emit(runtime, { type: "stage", stage: "single_b", option: "b", message: "Generating Option B" });
-        b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B, deadlineAt: runtime?.softDeadlineAt, stage: "single_b" })) as unknown as GenBrief, concepts.b), campaignB, products);
-        b = await repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b);
+        b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B, ...runtimeCallOptions(runtime), stage: "single_b" })) as unknown as GenBrief, concepts.b), campaignB, products);
+        b = await repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b, runtime);
         if (b) emit(runtime, { type: "partial", option: "b", brief: b });
       } catch (err) {
+        if (isGenerationAbortError(err)) throw err;
         bFailure = err;
       }
     }
@@ -1609,8 +1678,8 @@ ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
       emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Retrying Option B for stronger contrast" });
-      b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, retryCampaignB, { temperature: AI_TEMP_B_RETRY, deadlineAt: runtime?.softDeadlineAt, stage: "contrast_retry" })) as unknown as GenBrief, concepts.b), retryCampaignB, products);
-      b = await repairBriefIfNeeded("B", b, retryCampaignB, products, sysB, models.b);
+      b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, retryCampaignB, { temperature: AI_TEMP_B_RETRY, ...runtimeCallOptions(runtime), stage: "contrast_retry" })) as unknown as GenBrief, concepts.b), retryCampaignB, products);
+      b = await repairBriefIfNeeded("B", b, retryCampaignB, products, sysB, models.b, runtime);
       stampBrief(b, models.b, retryCampaignB.bodyVariety);
     }
 
@@ -1622,6 +1691,7 @@ Regenerate Option B with a different production branch/brief_route, subject fami
     telemetry("complete", { path: "single", elapsedMs: Date.now() - startedAt, hasA: !!a, hasB: !!b, scoreA: a?._score, scoreB: b?._score });
     return { a, b };
   } catch (err) {
+    if (isGenerationAbortError(err)) throw err;
     telemetry("error", { path: "single", message: errMessage(err) });
     return { error: err instanceof Error ? err.message : "Generation failed" };
   }
@@ -1639,10 +1709,11 @@ async function createOptionFoundation(
   runtime?: GenerationRuntime,
   overrides?: PromptOverrides
 ): Promise<GenBrief> {
+  throwIfAborted(runtime?.signal);
   const { system, user } = buildFoundationPrompt(campaign, products, optionLabel, selection, concept, revision, optionAAnchor, overrides);
   const parsed = await createFoundationBriefWithModel(system, user, selection, {
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
-    deadlineAt: runtime?.softDeadlineAt,
+    ...runtimeCallOptions(runtime),
     stage: `foundation_${optionLabel.toLowerCase()}`,
   });
   const brief = normalizeFoundationBrief(parsed, campaign);
@@ -1674,6 +1745,7 @@ async function generateOptionSegmentParts(
   runtime: GenerationRuntime | undefined,
   overrides?: PromptOverrides
 ): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; completed: number; total: number }> {
+  throwIfAborted(runtime?.signal);
   const optionLabel = option.toUpperCase() as "A" | "B";
   const warnings: string[] = [];
   const total = chunks.length;
@@ -1682,6 +1754,7 @@ async function generateOptionSegmentParts(
     chunks,
     concurrency,
     async (segments, index) => {
+      throwIfAborted(runtime?.signal);
       const deadlineWarning = runtime ? softDeadlineWarning(runtime, `Option ${optionLabel} segment patches`) : null;
       if (deadlineWarning) {
         warnings.push(`batch ${index + 1}/${total}: ${deadlineWarning}`);
@@ -1720,7 +1793,8 @@ async function generateOptionSegmentParts(
       const patch = option === "a" ? result.a : result.b;
       if (!patch) warnings.push(`${label}: missing Option ${optionLabel}`);
       return patch;
-    }
+    },
+    runtime?.signal
   );
   return {
     parts: [anchor, ...parts.filter((part): part is SegmentBatchPart => !!part)],
@@ -1739,6 +1813,7 @@ async function generateOptionsBatched(
   runtime?: GenerationRuntime
 ): Promise<GenerationResult> {
   try {
+    throwIfAborted(runtime?.signal);
     const models = normalizeModelPair(modelInput);
     const batchSettings = adaptiveBatchSettings(models);
     const chunks = segmentChunks(campaign.segments, batchSettings.batchSize);
@@ -1777,6 +1852,7 @@ async function generateOptionsBatched(
       optionAAnchor = await createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, concepts.a, revision, undefined, runtime, overrides);
       emit(runtime, { type: "progress", stage: "foundations", done: 1, total: 2, message: "Option A foundation ready" });
     } catch (err) {
+      if (isGenerationAbortError(err)) throw err;
       aFailure = err;
       warnings.push(`foundation A: ${errMessage(err)}`);
       emit(runtime, { type: "warning", message: `Option A foundation failed: ${errMessage(err)}` });
@@ -1787,6 +1863,7 @@ async function generateOptionsBatched(
       optionBAnchor = await createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, concepts.b, revision, optionAAnchor, runtime, overrides);
       emit(runtime, { type: "progress", stage: "foundations", done: 2, total: 2, message: "Option B foundation ready" });
     } catch (err) {
+      if (isGenerationAbortError(err)) throw err;
       bFailure = err;
       warnings.push(`foundation B: ${errMessage(err)}`);
       emit(runtime, { type: "warning", message: `Option B foundation failed: ${errMessage(err)}` });
@@ -1804,6 +1881,7 @@ async function generateOptionsBatched(
             return a;
           })
           .catch((err) => {
+            if (isGenerationAbortError(err)) throw err;
             aFailure = err;
             warnings.push(`Option A segments: ${errMessage(err)}`);
             emit(runtime, { type: "warning", message: `Option A segments failed: ${errMessage(err)}` });
@@ -1821,6 +1899,7 @@ async function generateOptionsBatched(
             return b;
           })
           .catch((err) => {
+            if (isGenerationAbortError(err)) throw err;
             bFailure = err;
             warnings.push(`Option B segments: ${errMessage(err)}`);
             emit(runtime, { type: "warning", message: `Option B segments failed: ${errMessage(err)}` });
@@ -1849,6 +1928,7 @@ async function generateOptionsBatched(
           b = mergeOptionBatches(campaign, products, retryRun.parts, retryAnchor._provider, retryAnchor._model);
           emit(runtime, { type: "partial", option: "b", brief: b, warning: retryRun.warnings.length ? retryRun.warnings.join(" · ") : undefined });
         } catch (err) {
+          if (isGenerationAbortError(err)) throw err;
           warnings.push(`contrast retry failed: ${errMessage(err)}`);
           emit(runtime, { type: "warning", message: `Contrast retry failed: ${errMessage(err)}` });
         }
@@ -1873,6 +1953,7 @@ async function generateOptionsBatched(
     });
     return { a, b, warning };
   } catch (err) {
+    if (isGenerationAbortError(err)) throw err;
     telemetry("error", { path: "layered", message: errMessage(err) });
     return { error: err instanceof Error ? err.message : "Batched generation failed" };
   }
@@ -1885,18 +1966,28 @@ export async function generateOptions(
   overrides?: PromptOverrides,
   modelInput?: Partial<AIModelPair>,
   revision?: RevisionFeedback,
-  onEvent?: GenerationEventHandler
+  onEvent?: GenerationEventHandler,
+  signal?: AbortSignal
 ): Promise<GenerationResult> {
-  const runtime = runtimeFrom(onEvent);
+  const runtime = runtimeFrom(onEvent, signal);
+  throwIfAborted(signal);
   const promptEdits = hasPromptOverrides(overrides);
-  const useLayered = campaign.segments.length >= SEGMENT_BATCH_THRESHOLD && !(promptEdits && campaign.segments.length === 1);
-  const result = useLayered
-    ? await generateOptionsBatched(campaign, products, overrides, modelInput, revision, runtime)
-    : await generateOptionsSingle(campaign, products, overrides, modelInput, revision, undefined, runtime);
-  if (result.error) {
-    emit(runtime, { type: "error", message: result.error });
-  } else {
-    emit(runtime, { type: "done", a: result.a, b: result.b, warning: result.warning });
+  try {
+    const useLayered = campaign.segments.length >= SEGMENT_BATCH_THRESHOLD && !(promptEdits && campaign.segments.length === 1);
+    const result = useLayered
+      ? await generateOptionsBatched(campaign, products, overrides, modelInput, revision, runtime)
+      : await generateOptionsSingle(campaign, products, overrides, modelInput, revision, undefined, runtime);
+    if (result.error) {
+      emit(runtime, { type: "error", message: result.error });
+    } else {
+      emit(runtime, { type: "done", a: result.a, b: result.b, warning: result.warning });
+    }
+    return result;
+  } catch (err) {
+    if (isGenerationAbortError(err)) {
+      emit(runtime, { type: "warning", message: "Generation cancelled." });
+      throw err;
+    }
+    throw err;
   }
-  return result;
 }

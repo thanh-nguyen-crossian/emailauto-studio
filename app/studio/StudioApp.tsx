@@ -77,6 +77,8 @@ import {
   LayoutPicker,
   ModelSelector,
   OpsReadinessPanel,
+  OutputOptionCards,
+  OutputSegmentNavigator,
   PerfPanel,
   PlaybookChecklist,
   ProductSlotCard,
@@ -87,7 +89,6 @@ import {
   StepCard,
   SubjectOptionsPanel,
   Summary,
-  VariantTabs,
   WinTemplateRhythm,
   WorkflowSnapshot,
   preheaderLenColor,
@@ -845,8 +846,11 @@ export function StudioApp() {
     }
   }
 
-  // Clear any running generation timer if the component unmounts mid-flight.
-  useEffect(() => () => stopGenTimer(), []);
+  // Stop in-flight streaming generation and timers if the user navigates away mid-run.
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    stopGenTimer();
+  }, []);
 
   // ---- draft persistence (so a refresh / crash / accidental nav never loses a multi-minute run) ----
   function clearDraft() {
@@ -1833,31 +1837,21 @@ export function StudioApp() {
             <Banner level="warn">Nothing generated yet — go to Review & generate.</Banner>
           ) : (
             <>
-              {/* Option A/B selector */}
-              <div className="flex flex-wrap items-center gap-3">
-                {(["a", "b"] as OptKey[]).map((opt) => {
-                  const b = options[opt];
-                  if (!b) return null;
-                  const cd = b.creative_direction || {};
-                  const active = activeOption === opt;
-                  return (
-                    <button key={opt} onClick={() => setActiveOption(opt)}
-                      className={`choice-card ${active ? "choice-card-active" : ""}`}>
-                      <div className="text-sm font-semibold">Option {opt.toUpperCase()} <span className="ml-1 text-xs" style={{ color: scoreColor(b._score) }}>{b._score ?? "—"}/100</span></div>
-                      <div className="text-xs text-[var(--muted)]">{cd.angle || "?"} · {cd.framework || "?"}</div>
-                      {b._model && <div className="text-[10px] mono text-[var(--muted)]">{b._provider || "AI"} · {b._model}</div>}
-                      {b._prompt_version && <div className="text-[10px] mono text-[var(--muted)] truncate" title={b._prompt_version}>{b._prompt_version}</div>}
-                    </button>
-                  );
-                })}
-                <div className="flex-1" />
-                {options.a && options.b && (
-                  <button onClick={() => setCompareMode((v) => !v)} className={`choice-pill ${compareMode ? "choice-pill-active" : ""}`} title="View A and B side by side for the current segment">
-                    {compareMode ? "Exit compare" : "Compare A · B"}
-                  </button>
-                )}
-                <button onClick={() => generate()} disabled={generating} className="btn-ghost">{generating ? "Regenerating…" : "Regenerate A + B"}</button>
+              <div className="section-panel output-top-panel">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">Step 3 · A/B output</div>
+                  <h2 className="text-xl font-bold mt-1">Review, compare, and ship</h2>
+                  <p className="text-sm text-[var(--muted)] mt-1">
+                    Pick an option, scan the current segment, then jump into preview, brief editing, or export.
+                  </p>
+                </div>
+                <div className="output-top-actions">
+                  <button onClick={() => setView("build")} className="btn-ghost">Back to brief</button>
+                  <button onClick={() => generate()} disabled={generating} className="btn-primary">{generating ? "Regenerating…" : "Regenerate A + B"}</button>
+                </div>
               </div>
+
+              <OutputOptionCards options={options} activeOption={activeOption} onSelect={setActiveOption} />
 
               <div className="output-action-dock">
                 <div className="min-w-0">
@@ -1867,6 +1861,21 @@ export function StudioApp() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {!compareMode && (
+                    <div className="output-view-toggle" role="group" aria-label="Output view">
+                      {(["preview", "brief"] as const).map((t) => (
+                        <button key={t} onClick={() => setOutputTab(t)}
+                          className={`choice-pill ${outputTab === t ? "choice-pill-active" : ""}`}>
+                          {t === "preview" ? "Preview" : "Design brief"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {options.a && options.b && (
+                    <button onClick={() => setCompareMode((v) => !v)} className={`choice-pill ${compareMode ? "choice-pill-active" : ""}`} title="View A and B side by side for the current segment">
+                      {compareMode ? "Exit compare" : "Compare A · B"}
+                    </button>
+                  )}
                   <button onClick={downloadAll} className="btn-primary">Download zip</button>
                   <button onClick={exportExcel} className="btn-ghost">Excel brief</button>
                   {authState === "in" && (
@@ -1891,74 +1900,110 @@ export function StudioApp() {
               )}
               {generating && <GenerationProgress elapsedSec={elapsedSec} progress={progress} onCancel={cancelGenerate} />}
 
-              {activeBrief && <FormatCoverage brief={activeBrief} />}
-              {activeBrief && <FreshnessPanel result={activeFreshness} historyCount={recentSendHistory.length} />}
-              {options.a && options.b && <ABContrastPanel a={options.a} b={options.b} />}
+              <OutputSegmentNavigator
+                segments={segments}
+                active={activeSegment}
+                onSelect={setActiveSegment}
+                labelFor={(s) => `${s} · ${segLabel(s)}`}
+                incompleteForOption={(opt, seg) => !options[opt] || segmentIncomplete(opt, seg)}
+              />
 
-              <div className="section-panel">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div>
-                    <h3 className="text-sm font-semibold">Regenerate from feedback</h3>
-                    <p className="text-xs text-[var(--muted)]">Uses the current A/B output as context, then regenerates complete playbook-checked options.</p>
-                  </div>
-                  <button onClick={useQaFlagsAsFeedback} disabled={!activeBrief?._flags?.length} className="btn-ghost">Use QA flags</button>
-                </div>
-                <textarea
-                  value={revisionFeedback}
-                  onChange={(e) => setRevisionFeedback(e.target.value)}
-                  rows={3}
-                  className="input"
-                  placeholder="Example: Make Option B less discount-first, tighten the banner bullets, keep Daisy as hero, and add the shipping threshold in paragraph 1."
+              {options.a && options.b && (
+                <ABContrastPanel
+                  a={options.a}
+                  b={options.b}
+                  segment={activeSegment}
+                  subjectA={subjectFor("a", activeSegment)}
+                  preheaderA={preheaderFor("a", activeSegment)}
+                  subjectB={subjectFor("b", activeSegment)}
+                  preheaderB={preheaderFor("b", activeSegment)}
+                  activeOption={activeOption}
+                  onSelectOption={setActiveOption}
                 />
-                <div className="flex items-center gap-2 mt-2">
-                  <button onClick={regenerateFromFeedback} disabled={generating || !revisionFeedback.trim()} className="btn-primary">
-                    {generating ? "Regenerating…" : "Apply feedback · regenerate A + B"}
-                  </button>
-                  <button onClick={() => setRevisionFeedback("")} disabled={!revisionFeedback.trim()} className="btn-ghost">Clear</button>
-                </div>
-              </div>
+              )}
 
-              {/* segment tabs */}
-              <VariantTabs variants={segments} active={activeSegment} onSelect={setActiveSegment} labelFor={(s) => `${s} · ${segLabel(s)}`} incompleteFor={(s) => segmentIncomplete(activeOption, s)} />
+              <details className="section-panel output-feedback-panel">
+                <summary className="output-summary-toggle">
+                  <span>
+                    <span className="text-sm font-semibold">Regenerate from feedback</span>
+                    <span className="block text-xs text-[var(--muted)]">Use this when the current A/B routes are close, too salesy, or missing a campaign requirement.</span>
+                  </span>
+                  <span className="text-xs font-semibold text-[var(--accent)]">Open</span>
+                </summary>
+                <div className="mt-3">
+                  <div className="flex justify-end mb-2">
+                    <button onClick={useQaFlagsAsFeedback} disabled={!activeBrief?._flags?.length} className="btn-ghost">Use QA flags</button>
+                  </div>
+                  <textarea
+                    value={revisionFeedback}
+                    onChange={(e) => setRevisionFeedback(e.target.value)}
+                    rows={3}
+                    className="input"
+                    placeholder="Example: Make Option B less discount-first, tighten the banner bullets, keep Daisy as hero, and add the shipping threshold in paragraph 1."
+                  />
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <button onClick={regenerateFromFeedback} disabled={generating || !revisionFeedback.trim()} className="btn-primary">
+                      {generating ? "Regenerating…" : "Apply feedback · regenerate A + B"}
+                    </button>
+                    <button onClick={() => setRevisionFeedback("")} disabled={!revisionFeedback.trim()} className="btn-ghost">Clear</button>
+                  </div>
+                </div>
+              </details>
+
+              {activeBrief && (
+                <details className="section-panel output-quality-drawer">
+                  <summary className="output-summary-toggle">
+                    <span>
+                      <span className="text-sm font-semibold">Quality and freshness checks</span>
+                      <span className="block text-xs text-[var(--muted)]">Formatting coverage, freshness memory, and any deeper QA stay here until needed.</span>
+                    </span>
+                    <span className="text-xs font-semibold text-[var(--accent)]">Open</span>
+                  </summary>
+                  <div className="output-quality-grid mt-3">
+                    <FormatCoverage brief={activeBrief} />
+                    <FreshnessPanel result={activeFreshness} historyCount={recentSendHistory.length} />
+                  </div>
+                </details>
+              )}
 
               {/* side-by-side A | B compare (read-only) for the active segment */}
               {compareMode && options.a && options.b && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="compare-preview-grid">
                   {(["a", "b"] as OptKey[]).map((opt) => {
                     const br = options[opt]!;
                     const cd = br.creative_direction || {};
                     const subj = subjectFor(opt, activeSegment);
                     const pre = preheaderFor(opt, activeSegment);
                     return (
-                      <div key={opt} className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold">
-                            Option {opt.toUpperCase()}
-                            <span className="ml-1 text-xs" style={{ color: scoreColor(br._score) }}>{br._score ?? "—"}/100</span>
-                          </span>
-                          <span className="text-xs text-[var(--muted)] truncate">{cd.angle || "?"} · {cd.framework || "?"}</span>
+                      <div key={opt} className="compare-preview-card">
+                        <div className="compare-preview-head">
+                          <div className="min-w-0">
+                            <span className="text-sm font-semibold">
+                              Option {opt.toUpperCase()}
+                              <span className="ml-1 text-xs" style={{ color: scoreColor(br._score) }}>{br._score ?? "—"}/100</span>
+                            </span>
+                            <div className="text-xs text-[var(--muted)] truncate">{cd.angle || "?"} · {cd.framework || "?"}</div>
+                          </div>
+                          <button type="button" onClick={() => { setActiveOption(opt); setCompareMode(false); }} className="btn-ghost">Edit this</button>
                         </div>
-                        <div className="text-xs">
-                          <span className="text-[var(--muted)]">Subject: </span><strong>{subj}</strong>
-                          <span className="ml-1 font-semibold" style={{ color: subjectLenColor(subj.length) }}>{subj.length}c</span>
-                          {pre && <div className="text-[var(--muted)] mt-0.5 truncate">{pre}</div>}
+                        <div className="active-copy-strip">
+                          <div>
+                            <span className="copy-strip-label">Subject</span>
+                            <strong>{subj}</strong>
+                            <span className="copy-strip-count" style={{ color: subjectLenColor(subj.length) }}>{subj.length}c</span>
+                          </div>
+                          {pre && (
+                            <div>
+                              <span className="copy-strip-label">Preheader</span>
+                              <span>{pre}</span>
+                              <span className="copy-strip-count" style={{ color: preheaderLenColor(pre.length) }}>{pre.length}c</span>
+                            </div>
+                          )}
                         </div>
                         <Preview html={htmlFor(opt, activeSegment)} />
                       </div>
                     );
                   })}
-                </div>
-              )}
-
-              {/* output sub-tabs */}
-              {!compareMode && (
-                <div className="flex gap-2">
-                  {(["preview", "brief"] as const).map((t) => (
-                    <button key={t} onClick={() => setOutputTab(t)}
-                      className={`choice-pill ${outputTab === t ? "choice-pill-active" : ""}`}>
-                      {t === "preview" ? "Preview" : "Design brief"}
-                    </button>
-                  ))}
                 </div>
               )}
 
@@ -1971,16 +2016,19 @@ export function StudioApp() {
               {!compareMode && activeBrief && outputTab === "preview" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
-                    <div className="mb-2 text-sm">
-                      <span className="text-[var(--muted)]">Subject: </span>
-                      <strong>{subjectFor(activeOption, activeSegment)}</strong>
-                      <span className="ml-2 font-semibold" style={{ color: subjectLenColor(subjectFor(activeOption, activeSegment).length) }} title="Playbook target 42–58 (hard cap 60)">
-                        {subjectFor(activeOption, activeSegment).length}c
-                      </span>
+                    <div className="active-copy-strip mb-3">
+                      <div>
+                        <span className="copy-strip-label">Subject</span>
+                        <strong>{subjectFor(activeOption, activeSegment)}</strong>
+                        <span className="copy-strip-count" style={{ color: subjectLenColor(subjectFor(activeOption, activeSegment).length) }} title="Playbook target 42–58 (hard cap 60)">
+                          {subjectFor(activeOption, activeSegment).length}c
+                        </span>
+                      </div>
                       {preheaderFor(activeOption, activeSegment) && (
-                        <div className="text-xs text-[var(--muted)] mt-1">
-                          Preheader: {preheaderFor(activeOption, activeSegment)}
-                          <span className="ml-2 font-semibold" style={{ color: preheaderLenColor(preheaderFor(activeOption, activeSegment).length) }} title="Playbook target 60–90">
+                        <div>
+                          <span className="copy-strip-label">Preheader</span>
+                          <span>{preheaderFor(activeOption, activeSegment)}</span>
+                          <span className="copy-strip-count" style={{ color: preheaderLenColor(preheaderFor(activeOption, activeSegment).length) }} title="Playbook target 60–90">
                             {preheaderFor(activeOption, activeSegment).length}c
                           </span>
                         </div>
@@ -2049,10 +2097,17 @@ export function StudioApp() {
               )}
 
               {/* export */}
-              <div className="section-panel flex flex-col gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="text-sm font-semibold">Export</h3>
+              <details className="section-panel output-export-details">
+                <summary className="output-summary-toggle">
+                  <span>
+                    <span className="text-sm font-semibold">Export and SendGrid handoff</span>
+                    <span className="block text-xs text-[var(--muted)]">Per-segment HTML, design sync, template creation, saved versions, and send memory.</span>
+                  </span>
+                  <span className="text-xs font-semibold text-[var(--accent)]">Open</span>
+                </summary>
+                <div className="flex flex-wrap items-center gap-3 mt-3">
                   <button onClick={downloadAll} className="btn-primary">Download all (.zip)</button>
+                  <button onClick={exportExcel} className="btn-ghost">Excel brief</button>
                   {authState === "in" && (
                     <>
                       <button onClick={saveCurrent} disabled={saveState === "saving"} className="btn-ghost">
@@ -2106,7 +2161,7 @@ export function StudioApp() {
                     }) : []
                   )}
                 </div>
-              </div>
+              </details>
             </>
           )}
         </OutputView>
