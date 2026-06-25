@@ -145,6 +145,74 @@ describe("brief validation", () => {
     const validated = validateBrief(brief, campaign, products);
     expect((validated._flags || []).some((flag) => /invented proof|review looks invented/i.test(flag.msg))).toBe(true);
   });
+
+  it("enforces configured required products", () => {
+    const validated = validateBrief(baseBrief(), campaign, products);
+    expect((validated._flags || []).some((flag) => /required product missing from campaign selection/i.test(flag.msg))).toBe(true);
+  });
+
+  it("forbids BraGoddess homepage links in body copy", () => {
+    const brief = baseBrief();
+    const key = segJsonKey("21");
+    brief.body[key] = "The [Daisy Bra](slug:daisybra) keeps comfort simple today. See [our homepage](home) for more ideas.\n\nSandra";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /forbidden homepage link/i.test(flag.msg))).toBe(true);
+  });
+
+  it("requires homepage links for GentsLux body copy", () => {
+    const key = segJsonKey("71");
+    const gentsCampaign: Campaign = {
+      ...campaign,
+      brandId: "gents_lux",
+      segments: ["71"],
+      layout: "simple",
+      offer: "JettJeans for 💲32.99",
+      offerValue: "💲32.99",
+    };
+    const gentsProducts: Product[] = [
+      { name: "JettJeans", slug: "jettjeans", price: "32.99", url: "https://gentslux.com/jettjeans", usps: ["4-way stretch"], review: "" },
+      { name: "IcyShorts", slug: "icyshorts", price: "18.98", url: "https://gentslux.com/icyshorts", usps: ["cooling fabric"], review: "" },
+      { name: "AirFlexion", slug: "airflexion", price: "29.99", url: "https://gentslux.com/airflexion", usps: ["elastic waist"], review: "" },
+    ];
+    const brief = baseBrief();
+    brief.subject_lines = {
+      [key]: {
+        subject: "{{first_name}}, these jeans move differently",
+        preheader: "JettJeans bring stretch, easy movement, and today’s 💲32.99 price.",
+        style: "direct",
+        model_hint: "direct",
+        shared_thread: "JettJeans movement",
+        options: [],
+      },
+    };
+    brief.body = {
+      base: "Layout summary.",
+      [key]: "A stiff pair of jeans can make every chair feel like a negotiation. [JettJeans](slug:jettjeans) keep the look clean and the movement easy at ==💲32.99== today.\n\nJordan",
+    };
+    brief.body_options = {
+      [key]: [
+        { label: "Primary", model_hint: "direct", body: "Primary with [JettJeans](slug:jettjeans) and stretch proof. Jordan", ps: "JettJeans move cleanly today; this price will not sit around.", placement_note: "continuous" },
+        { label: "Alternate", model_hint: "tip", body: "Alternate with [JettJeans](slug:jettjeans) and a fit tip. Jordan", ps: "Try the waistband test; good jeans should move before they argue.", placement_note: "text-product-text" },
+      ],
+    };
+    brief.products = gentsProducts.map((product, index) => ({
+      slot: index + 1,
+      name: product.name,
+      template_style: "mechanism",
+      main_text: product.name,
+      sub_text: "Moves clean",
+      popup_badge: "Stretch",
+      usps: product.usps || [],
+      review: "",
+      cta: "Try This Fit",
+      main_image: product.name,
+      sub_image: "detail",
+      alt_text: product.name,
+      image_notes: "Clean navy product crop",
+    }));
+    const validated = validateBrief(brief, gentsCampaign, gentsProducts);
+    expect((validated._flags || []).some((flag) => /missing required homepage link/i.test(flag.msg))).toBe(true);
+  });
 });
 
 describe("validateBriefPair", () => {

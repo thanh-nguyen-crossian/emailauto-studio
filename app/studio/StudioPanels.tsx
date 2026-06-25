@@ -115,16 +115,18 @@ export function GenerationBudgetPanel({
   modelB: AIModelSelection;
 }) {
   const inputTokens = estimateTokens(systemPrompt.length + userPrompt.length);
+  const batchPlan = estimateLayeredBatchPlan(segments, modelA, modelB);
   const foundationOutput = 1400 + products * 260;
   const segmentOutput = segments * 720;
   const outputPerOption = autoBatching ? foundationOutput + segmentOutput : 1800 + segments * 850 + products * 220;
-  const batchCount = autoBatching ? Math.max(1, segments) : 1;
+  const batchCount = autoBatching ? batchPlan.batches : 1;
   const baseCalls = autoBatching ? 2 + batchCount * 2 : batchCount * 2;
   const totalOutputBudget = outputPerOption * 2;
   const highRisk =
     promptOverridesActive && segments > 2 ||
     inputTokens > 9000 ||
     totalOutputBudget > 14000 ||
+    baseCalls > 12 ||
     [modelA, modelB].some((m) => modelOpsProfile(m).tier === "premium");
   return (
     <div className="section-panel">
@@ -141,7 +143,7 @@ export function GenerationBudgetPanel({
         <Summary k="Input estimate" v={`${inputTokens.toLocaleString()} tokens`} />
         <Summary k="Output estimate" v={`~${Math.round(totalOutputBudget / 1000)}k tokens`} />
         <Summary k="Base calls" v={`${baseCalls} call${baseCalls === 1 ? "" : "s"}`} />
-        <Summary k="Batching" v={autoBatching ? `foundation + ${batchCount} segment patch${batchCount === 1 ? "" : "es"}` : promptOverridesActive && segments > 2 ? "Off: prompt edited" : "Single batch"} />
+        <Summary k="Batching" v={autoBatching ? `foundation + ${batchCount} patch${batchCount === 1 ? "" : "es"} (${batchPlan.batchSize}/batch)` : promptOverridesActive && segments > 2 ? "Off: prompt edited" : "Single batch"} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
         <ModelBudgetCard label="Option A" selection={modelA} />
@@ -165,6 +167,16 @@ export function modelOpsProfile(selection: AIModelSelection): { tier: "fast" | "
   if (/opus|pro/.test(id) && !/mini|nano|flash-lite|lite/.test(id)) return { tier: "premium", label: "Premium quality, slower/costlier" };
   if (/haiku|flash|lite|mini|nano/.test(id)) return { tier: "fast", label: "Fast/economical" };
   return { tier: "balanced", label: "Balanced quality/speed" };
+}
+
+function estimateLayeredBatchPlan(segments: number, modelA: AIModelSelection, modelB: AIModelSelection): { batches: number; batchSize: number } {
+  const count = Math.max(1, segments);
+  const tiers = [modelOpsProfile(modelA).tier, modelOpsProfile(modelB).tier];
+  const tier = tiers.includes("premium") ? "premium" : tiers.every((value) => value === "fast") ? "fast" : "balanced";
+  const targetBatches = tier === "fast" ? 4 : tier === "balanced" ? 3 : 2;
+  const maxBatchSize = tier === "fast" ? 8 : tier === "balanced" ? 6 : 4;
+  const batchSize = count <= 3 ? count : Math.min(maxBatchSize, Math.max(2, Math.ceil(count / targetBatches)));
+  return { batchSize, batches: Math.max(1, Math.ceil(count / batchSize)) };
 }
 
 export function ModelBudgetCard({ label, selection }: { label: string; selection: AIModelSelection }) {
@@ -1347,7 +1359,7 @@ export function moduleLabel(key: EmailModuleKey): string {
 }
 
 export function ProductSlotCard({
-  index, slot, catalog, usedSlugs, recentSlugs, onPick, onUrl, onCustomChange, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove,
+  index, slot, catalog, usedSlugs, recentSlugs, required = false, onPick, onUrl, onCustomChange, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove,
 }: {
   index: number;
   slot: Slot;
@@ -1356,6 +1368,8 @@ export function ProductSlotCard({
   usedSlugs: string[];
   /** Slugs used in the last 3 sends — shown with a "recent" badge. */
   recentSlugs: string[];
+  /** Required brand products are locked into every generated email. */
+  required?: boolean;
   onPick: (slug: string) => void;
   onUrl: (url: string) => void;
   onCustomChange: (patch: Partial<Slot>) => void;
@@ -1417,7 +1431,12 @@ export function ProductSlotCard({
               recent
             </span>
           )}
-          {index > 0 && (
+          {required && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--ok-soft)] text-[var(--ok)]">
+              required
+            </span>
+          )}
+          {index > 0 && !required && (
             <button
               type="button"
               onClick={onRemove}
@@ -1429,7 +1448,14 @@ export function ProductSlotCard({
           )}
         </div>
       </div>
-      <select value={selectValue} aria-label={`${index === 0 ? "Hero" : `Support ${index + 1}`} product`} onChange={(e) => onPick(e.target.value)} className="input">
+      <select
+        value={selectValue}
+        aria-label={`${index === 0 ? "Hero" : `Support ${index + 1}`} product`}
+        onChange={(e) => onPick(e.target.value)}
+        className="input"
+        disabled={required}
+        title={required ? "Required for every email for this brand" : undefined}
+      >
         <option value="">— select product —</option>
         {catalog.map((p) => {
           const alreadyUsed = usedSlugs.includes(p.slug) && p.slug !== slot.slug;

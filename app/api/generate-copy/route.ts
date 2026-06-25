@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateOptions, providerConfigError, type GenerationEvent } from "@/lib/anthropic";
 import type { GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
-import { BRANDS } from "@/lib/config/brands";
+import { BRANDS, missingRequiredProducts } from "@/lib/config/brands";
 import { RECIPIENT_NAME_TOKEN, type BodyLayout, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type LastSend, type OfferType, type Product, type ProductCopyStyle, type RecentSendMemory, type Urgency } from "@/lib/config/types";
 import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
 
@@ -194,6 +194,13 @@ function validate(body: unknown): { ok: true; campaign: Campaign; products: Prod
   };
   const products = cleanProducts(c.products);
   if (typeof products === "string") return { ok: false, error: products };
+  const missingRequired = missingRequiredProducts(c.brandId, products.map((product) => product.slug));
+  if (missingRequired.length) {
+    return {
+      ok: false,
+      error: `${brand.name} emails must include: ${missingRequired.map((product) => product.name).join(", ")}`,
+    };
+  }
   return { ok: true, campaign, products };
 }
 

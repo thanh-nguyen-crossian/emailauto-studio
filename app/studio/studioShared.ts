@@ -1,5 +1,5 @@
 import { DEFAULT_AI_MODELS } from "@/lib/config/aiModels";
-import { BRAND_LIST, BRANDS } from "@/lib/config/brands";
+import { BRAND_LIST, BRANDS, requiredProducts } from "@/lib/config/brands";
 import {
   DEFAULT_MODULE_LAYOUT,
   RECIPIENT_NAME_TOKEN,
@@ -174,11 +174,17 @@ export interface StudioState {
   generation: StudioGenerationState;
 }
 
-/** Build the initial slots for a brand: slot 0 = hero (URL + all USPs preselected). */
+function slotFromCatalogProduct(product: { slug: string; url?: string; usps?: string[] }): Slot {
+  return { slug: product.slug, url: product.url || "", usps: [...(product.usps || [])] };
+}
+
+/** Build the initial slots for a brand: locked required products first, otherwise slot 0 = hero. */
 export function initSlots(brandId: string): Slot[] {
   const b = BRANDS[brandId];
+  const required = requiredProducts(brandId);
+  if (required.length) return required.map(slotFromCatalogProduct);
   const hero = b.catalog.find((p) => p.slug === b.heroSlug);
-  return [{ slug: b.heroSlug, url: hero?.url || "", usps: [...(hero?.usps || [])] }];
+  return hero ? [slotFromCatalogProduct(hero)] : [{ slug: b.heroSlug, url: "", usps: [] }];
 }
 
 export function createInitialStudioState(): StudioState {

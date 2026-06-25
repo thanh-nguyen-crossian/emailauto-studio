@@ -41,7 +41,7 @@ SendGrid is only needed for the sync-to-SendGrid step.
 | `AI_PROVIDER_RETRIES` | server | transient overload/rate-limit retries before partial salvage; default `2` |
 | `AI_PROVIDER_RETRY_BASE_MS` | server | first retry backoff delay in ms, doubles per retry; default `900` |
 | `AI_MAX_OUTPUT_TOKENS` | server | legacy full-brief output cap per provider call; default `18000`, bounded `4000-64000` |
-| `AI_FOUNDATION_OUTPUT_TOKENS` | server | shared foundation output cap; default `14000`, bounded `4000-32000` |
+| `AI_FOUNDATION_OUTPUT_TOKENS` | server | shared foundation output cap; default `9000`, bounded `4000-20000` |
 | `AI_GENERATE_RATE_LIMIT_PER_MIN` | server | per-user/IP generation limit; default `6`, set `0` to disable |
 | `AI_GENERATION_TELEMETRY` | server | optional structured per-stage generation logs; default `off` |
 | `AI_QUALITY_REPAIR` | server | optional targeted playbook repair pass; set `off` to disable |
@@ -67,9 +67,9 @@ Build brief (6-step wizard)  →  Review & generate  →  A/B output
 1. **Build** — an accordion wizard: ① Brand · Date · Theme ② Promo & Urgency ③ Products
    (8 slots: pick product, set a customer URL, tick/scrape USPs) ④ Segments ⑤ Last-send context
    ⑥ Winning reference.
-2. **Review & generate** — a pre-flight summary + the **exact,
-   editable** system/user prompts. One combined prompt → per-segment copy **and** design brief,
-   run twice for two contrasting options (**A/B**, forced to different angle + framework).
+2. **Review & generate** — a pre-flight summary + compact, editable prompt layers. The server
+   creates A/B foundations first, then smaller segment-copy patches, preserving contrast without
+   sending one oversized prompt.
 3. **A/B output** — switch Option A/B and segment; choose subject/preheader options, body
    placement (including drag/drop module flow), and product layout; live email **preview** with editable HTML, the editable
    **design brief**, and a **quality score + flags**. Large segment sets are split into smaller

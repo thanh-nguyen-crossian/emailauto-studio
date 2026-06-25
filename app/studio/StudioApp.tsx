@@ -7,7 +7,13 @@ import { accessToken, type Profile } from "@/lib/profile";
 import { briefToMarkdown } from "../components/BriefView";
 import { listVersions, saveVersion, type SavedVersion, type VersionPayload } from "@/lib/history";
 import { Auth } from "../components/Auth";
-import { BRAND_LIST, BRANDS } from "@/lib/config/brands";
+import {
+  BRAND_LIST,
+  BRANDS,
+  bodyHomepageLinkPolicy,
+  requiredProductSlugs,
+  requiredProducts as requiredCatalogProducts,
+} from "@/lib/config/brands";
 import { AI_PROVIDERS, normalizeModelPair } from "@/lib/config/aiModels";
 import {
   RECIPIENT_NAME_TOKEN,
@@ -26,8 +32,6 @@ import {
   type Urgency,
 } from "@/lib/config/types";
 import {
-  buildSystemPrompt,
-  buildUserPrompt,
   flagTier,
   segJsonKey,
   selectVarietyProfile,
@@ -108,6 +112,67 @@ const Preview = dynamic(() => import("../components/Preview").then((mod) => mod.
 const PreflightPanel = dynamic(() => import("../components/PreflightPanel").then((mod) => mod.PreflightPanel));
 const ImageEditor = dynamic(() => import("../components/ImageEditor").then((mod) => mod.ImageEditor));
 const HtmlFormatEditor = dynamic(() => import("../components/HtmlFormatEditor").then((mod) => mod.HtmlFormatEditor));
+
+function compactPreviewText(value: string, max = 180): string {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  return clean.length > max ? `${clean.slice(0, max - 1).trimEnd()}…` : clean;
+}
+
+function compactProductRows(products: Product[], brandId?: string): string {
+  const required = brandId ? new Set(requiredProductSlugs(brandId)) : new Set<string>();
+  return products
+    .map((product, index) => {
+      const usps = (product.usps || []).filter(Boolean).slice(0, 3).map((usp) => compactPreviewText(usp, 42)).join("; ") || "none";
+      return `${index + 1}${index === 0 ? " HERO" : ""}${required.has(product.slug) ? " REQUIRED" : ""}. ${product.name} slug:${product.slug} 💲${product.price || "TBD"} | ${usps}`;
+    })
+    .join("\n");
+}
+
+function bodyHomepagePolicyCopy(policy: ReturnType<typeof bodyHomepageLinkPolicy>): string {
+  if (policy === "forbidden") return "Body homepage links are disabled for this brand.";
+  if (policy === "required") return "Body copy must include one natural homepage link.";
+  return "Homepage links are optional in body copy.";
+}
+
+function compactSegmentRows(campaign: Campaign): string {
+  const brand = BRANDS[campaign.brandId];
+  return campaign.segments
+    .map((id) => {
+      const segment = brand.productSegments.find((item) => item.code === id);
+      const label = segment?.label || id;
+      const guidance = compactPreviewText(segment?.guidance || segment?.meta || "", 120);
+      return `${id}: ${label}${guidance ? ` | ${guidance}` : ""}`;
+    })
+    .join("\n");
+}
+
+function compactSystemPromptPreview(campaign: Campaign, varietyProfile?: BodyVarietyProfile): string {
+  const brand = BRANDS[campaign.brandId];
+  return [
+    `Layered generation steering for ${brand.name}. Persona: ${brand.persona}. Voice: ${compactPreviewText(brand.voice, 260)}`,
+    "Server injects compact playbook, brand rules, provider JSON schema, and A/B contrast rules at generation time.",
+    "One send = one promise: hero product + proof/price + reader situation shared across subject, preheader, banner, body, products, CTA, and P.S.",
+    "Keep proof safe: supplied facts only for labels/ratings/counts/dates/medical/stock/shipping/prices/guarantees; qualitative artificial review texture may be unlabeled.",
+    "Vary A/B structurally: opener, framework, banner layout, product-grid layout, proof path, CTA style, and subject devices.",
+    varietyProfile ? `Creative variety seed: ${varietyProfile.openerMechanicLabel}; ${varietyProfile.creativeLens}; ${varietyProfile.proofRole}; ${varietyProfile.visualDirection}.` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function compactUserPromptPreview(campaign: Campaign, products: Product[]): string {
+  const required = requiredCatalogProducts(campaign.brandId);
+  return [
+    `Brand: ${BRANDS[campaign.brandId].name}`,
+    `Send date: ${campaign.sendDate}`,
+    `Theme: ${campaign.theme || "(not set)"}`,
+    `Promo: ${campaign.offer}`,
+    `Hook input: ${campaign.hookContract?.trim() || "Build from segment, hero product, offer, urgency, proof, and avoid rules."}`,
+    `Body layout: ${campaign.bodyLayout || "continuous"}; focus: ${campaign.bodyFocus || "hero"}; product copy: ${campaign.productCopyStyle || "headline_winner"}`,
+    required.length ? `Required every email: ${required.map((product) => `${product.name} (${product.slug})`).join(", ")}` : "",
+    `Body homepage policy: ${bodyHomepagePolicyCopy(bodyHomepageLinkPolicy(campaign.brandId))}`,
+    `Products:\n${compactProductRows(products, campaign.brandId)}`,
+    `Segments:\n${compactSegmentRows(campaign)}`,
+  ].filter(Boolean).join("\n");
+}
 
 export function StudioApp() {
   const [studioState, dispatchStudio] = useStudioReducer();
@@ -363,6 +428,10 @@ export function StudioApp() {
 
   const brand = BRANDS[brandId];
   const layout = brand.layout;
+  const requiredSlugsForBrand = useMemo(() => requiredProductSlugs(brandId), [brandId]);
+  const requiredSlugSet = useMemo(() => new Set(requiredSlugsForBrand), [requiredSlugsForBrand]);
+  const requiredProductsForBrand = useMemo(() => requiredCatalogProducts(brandId), [brandId]);
+  const bodyHomePolicy = useMemo(() => bodyHomepageLinkPolicy(brandId), [brandId]);
 
   const offerParts = [offerValue, offerShipping].map((p) => p.trim()).filter(Boolean);
   const offer = offerParts.length ? offerParts.join(" + ") : "No promo this send";
@@ -433,6 +502,10 @@ export function StudioApp() {
       })
       .filter((p): p is Product => p !== null);
   }, [brand, slots]);
+  const missingRequiredProductsForSelection = useMemo(() => {
+    const selected = new Set(selectedProducts.map((product) => product.slug));
+    return requiredProductsForBrand.filter((product) => !selected.has(product.slug));
+  }, [requiredProductsForBrand, selectedProducts]);
   const productPriceWarnings = useMemo(() => analyzeProductPriceOutliers(selectedProducts), [selectedProducts]);
 
   function switchBrand(id: string) {
@@ -500,6 +573,7 @@ export function StudioApp() {
     )));
   }
   function pickProduct(i: number, slug: string) {
+    if (requiredSlugSet.has(slots[i]?.slug || "")) return;
     if (slug === CUSTOM_PRODUCT_VALUE) {
       updateSlot(i, {
         slug: `custom-product-${i + 1}`,
@@ -621,19 +695,24 @@ export function StudioApp() {
     if (slots.length < MAX_SLOTS) setSlots((prev) => [...prev, { slug: "", url: "", usps: [] }]);
   }
   function removeSlot(i: number) {
-    if (i > 0) setSlots((prev) => prev.filter((_, idx) => idx !== i));
+    if (i > 0 && !requiredSlugSet.has(slots[i]?.slug || "")) {
+      setSlots((prev) => prev.filter((_, idx) => idx !== i));
+    }
   }
 
   const maxProducts = 6;
   const canGenerate =
-    segments.length > 0 && selectedProducts.length >= 1 && selectedProducts.length <= maxProducts;
+    segments.length > 0 &&
+    selectedProducts.length >= 1 &&
+    selectedProducts.length <= maxProducts &&
+    missingRequiredProductsForSelection.length === 0;
 
-  // ---- prompt previews (for the Review step; what the server rebuilds and sends) ----
-  // Preview a stable variety profile so reviewers can see the Creative Variety / Segment Body /
-  // Tone layers. The server adds a fresh per-option nonce at generation time for real A/B diversity.
+  // ---- compact prompt steering previews (Review step) ----
+  // The server builds compact layered prompts at generation time. These fields are optional
+  // steering overrides, so keep the default preview short and editable.
   const campaignForPrompt = useMemo(() => ({ ...campaign, bodyVariety: varietyProfile }), [campaign, varietyProfile]);
-  const systemPromptA = useMemo(() => buildSystemPrompt(campaignForPrompt, selectedProducts, false), [campaignForPrompt, selectedProducts]);
-  const userPromptA = useMemo(() => buildUserPrompt(campaignForPrompt, false), [campaignForPrompt]);
+  const systemPromptA = useMemo(() => compactSystemPromptPreview(campaignForPrompt, varietyProfile), [campaignForPrompt, varietyProfile]);
+  const userPromptA = useMemo(() => compactUserPromptPreview(campaignForPrompt, selectedProducts), [campaignForPrompt, selectedProducts]);
   const perfContextDefault = useMemo(() => intelligencePromptBlock(brandId), [brandId]);
   const effectivePerfContext = customPerfContext ?? perfContextDefault;
   const effectiveSystem = systemOverride ?? systemPromptA;
@@ -1204,12 +1283,22 @@ export function StudioApp() {
   ].join(" · ");
 
   function autoFillProductSet() {
-    const desired = Math.min(maxProducts, brand.defaultProductCount || maxProducts, brand.catalog.length);
-    const hero = brand.catalog.filter((p) => p.slug === brand.heroSlug);
-    const support = brand.catalog.filter((p) => p.slug !== brand.heroSlug);
+    const required = requiredCatalogProducts(brandId);
+    const requiredSet = new Set(required.map((p) => p.slug));
+    const desired = Math.min(
+      maxProducts,
+      Math.max(required.length, brand.defaultProductCount || maxProducts),
+      brand.catalog.length
+    );
+    const hero = required.length ? [] : brand.catalog.filter((p) => p.slug === brand.heroSlug);
+    const support = brand.catalog.filter((p) => !requiredSet.has(p.slug) && p.slug !== brand.heroSlug);
     // Prefer support products not used in the last 3 sends; fall back to all if not enough fresh ones.
     const freshSupport = support.filter((p) => !recentProductSlugs.includes(p.slug));
-    const pool = [...hero, ...(freshSupport.length >= desired - hero.length ? freshSupport : support)].slice(0, desired);
+    const fixed = required.length ? required : hero;
+    const pool = [
+      ...fixed,
+      ...(freshSupport.length >= desired - fixed.length ? freshSupport : support),
+    ].slice(0, desired);
     setSlots(
       pool.map((p) => ({
         slug: p.slug,
@@ -1231,7 +1320,7 @@ export function StudioApp() {
     switch (i) {
       case 0: return `${brand.name} · ${dateToken(sendDate)} · ${theme || "no theme"}${strategyActive ? " · strategy enriched" : ""}`;
       case 1: return `${offerParts.length ? offerParts.join(" + ") : "No promo"} · ${urgency}`;
-      case 2: return `${selectedProducts.length} product${selectedProducts.length === 1 ? "" : "s"} (hero: ${brand.catalog.find((p) => p.slug === brand.heroSlug)?.name})`;
+      case 2: return `${selectedProducts.length} product${selectedProducts.length === 1 ? "" : "s"}${requiredProductsForBrand.length ? ` · ${requiredProductsForBrand.length} required` : ""} (hero: ${brand.catalog.find((p) => p.slug === brand.heroSlug)?.name})`;
       case 3: return segments.length ? segments.map((s) => `${s} ${segLabel(s)}`).join(" · ") : "none selected";
       case 4: return `${opsSummary}${lastHero || lastAngle || lastCtr ? ` · last: ${lastHero || "?"}/${lastAngle || "?"}/${lastCtr || "?"}%` : ""}`;
       case 5: return winningContent.trim() ? `${winningContent.trim().length} chars pasted` : "skipped";
@@ -1244,6 +1333,7 @@ export function StudioApp() {
       case 1: return offerParts.length || urgency !== "none" ? "ok" : "warn";
       case 2:
         if (selectedProducts.length < 1 || selectedProducts.length > maxProducts) return "bad";
+        if (missingRequiredProductsForSelection.length) return "bad";
         return selectedProducts.length >= 4 || brandId === "santa_fare" ? "ok" : "warn";
       case 3: return segments.length ? "ok" : "bad";
       case 4:
@@ -1532,6 +1622,13 @@ export function StudioApp() {
                   <p className="text-sm text-[var(--muted)]">
                     Slot 1 is the <strong className="text-[var(--text)]">Hero</strong> (featured in banner + body). Add up to {MAX_SLOTS} slots. Pick a catalog product or choose <strong className="text-[var(--text)]">Other product</strong> to paste a new page, then tick the USPs that should feed the copy + brief.
                   </p>
+                  {requiredProductsForBrand.length > 0 && (
+                    <div className="section-panel text-sm">
+                      <strong className="text-[var(--text)]">Required in every {brand.name} email:</strong>{" "}
+                      {requiredProductsForBrand.map((product) => product.name).join(", ")}. These slots are locked so A/B generation, export, and SendGrid stay aligned.{" "}
+                      <span className="text-[var(--muted)]">{bodyHomepagePolicyCopy(bodyHomePolicy)}</span>
+                    </div>
+                  )}
                   <Field label="Product block template">
                     <ProductStylePicker value={productCopyStyle} onChange={setProductCopyStyle} />
                   </Field>
@@ -1562,6 +1659,7 @@ export function StudioApp() {
                         catalog={brand.catalog}
                         usedSlugs={slots.map((s) => s.slug).filter(Boolean)}
                         recentSlugs={recentProductSlugs}
+                        required={requiredSlugSet.has(slot.slug)}
                         onPick={(slug) => pickProduct(si, slug)}
                         onUrl={(url) => updateSlotUrl(si, url)}
                         onCustomChange={(patch) => updateSlot(si, patch)}
@@ -1787,26 +1885,26 @@ export function StudioApp() {
             <div className="prompt-header">
               <button type="button" onClick={() => setAdvancedPromptsOpen((v) => !v)} className="prompt-toggle" aria-expanded={advancedPromptsOpen}>
                 <div className="text-sm font-semibold">
-                  Advanced prompts
+                  Compact prompt steering
                   {promptOverridesActive && <span className="ml-2 text-xs text-[var(--accent-2)]">· edited</span>}
                 </div>
-                <div className="text-xs text-[var(--muted)]">System/user prompt editors are available when you need exact control.</div>
+                <div className="text-xs text-[var(--muted)]">Short steering overrides; the server injects compact playbook/schema layers automatically.</div>
               </button>
               <span className="text-xs text-[var(--muted)]">{advancedPromptsOpen ? "Hide" : "Show"}</span>
             </div>
             {advancedPromptsOpen && (
               <div className="p-3 flex flex-col gap-3">
                 <PromptBlock
-                  title="System prompt (shared, cached)"
-                  subtitle={`${brand.name} · ${brand.persona} — B receives A-aware contrast when default prompts are used`}
+                  title="System steering"
+                  subtitle={`${brand.name} · ${brand.persona} — keep this compact; A/B contrast is added server-side`}
                   value={effectiveSystem}
                   edited={systemPromptEdited}
                   onChange={(v) => setSystemOverride(v)}
                   onReset={() => setSystemOverride(null)}
                 />
                 <PromptBlock
-                  title="User prompt (shared by A & B)"
-                  subtitle="lead creative direction, then all copy sections"
+                  title="Campaign steering"
+                  subtitle="Campaign facts and desired emphasis; detailed schemas stay server-side"
                   value={effectiveUser}
                   edited={userPromptEdited}
                   onChange={(v) => setUserOverride(v)}

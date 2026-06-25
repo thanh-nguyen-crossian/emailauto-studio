@@ -7,6 +7,7 @@ import { foundationBriefJsonSchema, genBriefJsonSchema, segmentPatchJsonSchema, 
 import { conceptPrompt, selectEmailConceptPair, type EmailConcept } from "./concept";
 import {
   brandPlaybookRuleBlock,
+  bodyHomepageLinkInstruction,
   briefContrastIssues,
   buildSystemPrompt,
   buildUserPrompt,
@@ -17,6 +18,7 @@ import {
   promoLine,
   PROMPT_REGISTRY_VERSION,
   renderPromptLayers,
+  requiredProductInstruction,
   segJsonKey,
   segmentBodyDirectionLines,
   segmentPromptContext,
@@ -25,7 +27,7 @@ import {
   validateBriefPair,
   type GenBrief,
 } from "./briefgen";
-import { BRANDS } from "./config/brands";
+import { BRANDS, requiredProductSlugs } from "./config/brands";
 import { applySanitizeCopy } from "./present/sanitizeCopy";
 
 // Generation engine wiring. Produces two contrasting options (A/B) — each a combined
@@ -143,8 +145,7 @@ const AB_FAST_PARALLEL = /^(1|true|on|yes)$/i.test(process.env.AI_AB_FAST_PARALL
 const AI_GENERATION_TELEMETRY = /^(1|true|on|yes)$/i.test(process.env.AI_GENERATION_TELEMETRY || process.env.AI_PROMPT_DEBUG || "");
 
 const MAX_OUTPUT_TOKENS = envInteger("AI_MAX_OUTPUT_TOKENS", 18000, 4000, 64000);
-const FOUNDATION_OUTPUT_TOKENS = envInteger("AI_FOUNDATION_OUTPUT_TOKENS", 14000, 4000, 32000);
-const SEGMENT_PATCH_OUTPUT_TOKENS = Math.min(MAX_OUTPUT_TOKENS, 8000);
+const FOUNDATION_OUTPUT_TOKENS = envInteger("AI_FOUNDATION_OUTPUT_TOKENS", 9000, 4000, 20000);
 
 interface ModelCallOptions {
   temperature?: number;
@@ -212,25 +213,35 @@ function pairSpeedTier(models: AIModelPair): AIModelSpeedTier {
   return "balanced";
 }
 
-function adaptiveBatchSettings(models: AIModelPair): { batchSize: number; concurrency: number; tier: AIModelSpeedTier } {
+export function adaptiveBatchSettings(models: AIModelPair, segmentCount: number): { batchSize: number; concurrency: number; tier: AIModelSpeedTier } {
   const tier = pairSpeedTier(models);
-  const fallback =
-    tier === "fast"
-      ? { batchSize: 2, concurrency: 3 }
-      : tier === "frontier"
-        ? { batchSize: 1, concurrency: 1 }
-        : { batchSize: 1, concurrency: 2 };
+  const count = Math.max(1, segmentCount);
+  const targetBatches = tier === "fast" ? 4 : tier === "balanced" ? 3 : 2;
+  const maxBatchSize = tier === "fast" ? 8 : tier === "balanced" ? 6 : 4;
+  const fallbackBatchSize = count <= 3
+    ? count
+    : Math.min(maxBatchSize, Math.max(2, Math.ceil(count / targetBatches)));
+  const fallbackConcurrency = tier === "frontier" ? 1 : Math.min(tier === "fast" ? 3 : 2, Math.ceil(count / fallbackBatchSize));
   return {
-    batchSize: SEGMENT_BATCH_SIZE_OVERRIDE || fallback.batchSize,
-    concurrency: SEGMENT_BATCH_CONCURRENCY_OVERRIDE || fallback.concurrency,
+    batchSize: SEGMENT_BATCH_SIZE_OVERRIDE || fallbackBatchSize,
+    concurrency: SEGMENT_BATCH_CONCURRENCY_OVERRIDE || fallbackConcurrency,
     tier,
   };
+}
+
+function segmentPatchOutputTokens(segmentCount: number): number {
+  return Math.min(MAX_OUTPUT_TOKENS, Math.min(16000, 4200 + Math.max(1, segmentCount) * 1700));
 }
 
 function softDeadlineWarning(runtime: GenerationRuntime, stage: string): string | null {
   const remaining = runtime.softDeadlineAt - Date.now();
   if (remaining > PATCH_PROVIDER_TIMEOUT_MS + 8_000) return null;
   return `${stage} stopped near the ${Math.round(AI_SOFT_DEADLINE_MS / 1000)}s soft deadline; generated partial copy is preserved.`;
+}
+
+function hasGenerationBudget(runtime: GenerationRuntime | undefined, timeoutMs = PROVIDER_TIMEOUT_MS, reserveMs = 5_000): boolean {
+  if (!runtime) return true;
+  return hasDeadlineBudget({ deadlineAt: runtime.softDeadlineAt, timeoutMs }, reserveMs);
 }
 
 function telemetry(event: string, data: Record<string, unknown>): void {
@@ -261,6 +272,16 @@ function timeoutMessage(provider: string, model: string, timeoutMs = PROVIDER_TI
 
 function truncatedMessage(provider: string, model: string, maxOutputTokens = MAX_OUTPUT_TOKENS): string {
   return `${provider} ${model} hit the ${Math.round(maxOutputTokens / 1000)}k output-token limit before finishing the JSON — reduce segments/products (or lower the subject-option count), or reset prompt edits so layered generation can split the work.`;
+}
+
+const PROMPT_OVERRIDE_MAX_CHARS = envInteger("AI_PROMPT_OVERRIDE_MAX_CHARS", 2200, 500, 8000);
+const PROMPT_ANCHOR_MAX_CHARS = envInteger("AI_PROMPT_ANCHOR_MAX_CHARS", 4400, 1500, 12000);
+
+/** @internal exported for unit testing only */
+export function compactPromptText(text: string, maxChars: number): string {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= maxChars) return clean;
+  return `${clean.slice(0, Math.max(0, maxChars - 14)).trimEnd()} [truncated]`;
 }
 
 function isTruncationError(err: unknown): boolean {
@@ -736,7 +757,7 @@ function optionAContrastContext(brief: GenBrief): string {
     } : undefined,
   };
   return `\nOPTION A CREATIVE MAP TO CONTRAST AGAINST:
-${JSON.stringify(anchor).slice(0, 2600)}
+${compactPromptText(JSON.stringify(anchor), 1800)}
 
 Use this only as an anti-collision fingerprint, not source copy. Generate Option B from its own concept and choose a different hook contract emphasis, reader entry point, proof path, banner headline family, and payoff. Do not mirror Option A phrasing or sentence architecture.`;
 }
@@ -747,14 +768,14 @@ function appendRevisionFeedback(user: string, revision?: RevisionFeedback): stri
   const current = JSON.stringify({
     a: summarizeBriefForContext(revision?.existingOptions?.a),
     b: summarizeBriefForContext(revision?.existingOptions?.b),
-  }).slice(0, 7000);
+  });
   return `${user}
 
 USER FEEDBACK FOR REGENERATION:
-${feedback}
+${compactPromptText(feedback, 1200)}
 
 CURRENT GENERATED OPTIONS CONTEXT:
-${current}
+${compactPromptText(current, 4000)}
 
 Regenerate complete updated briefs in the same JSON schema. Preserve what still works, fix the feedback directly, keep A/B angle + framework contrast, and re-check every email-campaign-playbook rule before returning JSON.`;
 }
@@ -762,31 +783,13 @@ Regenerate complete updated briefs in the same JSON schema. Preserve what still 
 function modelExecutionStyle(selection: AIModelSelection): string {
   const label = `${providerLabel(selection.provider)} ${selection.model}`;
   if (selection.provider === "claude") {
-    // Structural bias: proof-ladder routes, mechanism-first frameworks, restrained language.
-    return `${label} — STRUCTURAL ROLE: proof-ladder strategist.
-Framework bias: Proof Ladder or Feature-Benefit. Route bias: Proof-Led Announcement or high-evidence segment reward.
-Sentence architecture: short declarative → specific mechanism proof → single risk reducer → quiet CTA.
-Subject style: concrete fact or named mechanism (e.g. "The 3-second snap" not "Feel the difference").
-Body: one product reason per paragraph, evidence before emotion, no urgency stacking.
-Keep every claim tied to a supplied fact; if proof is absent, qualify ("designed to", not "proven to").`;
+    return `${label}: proof-ladder strategist. Prefer mechanism-first clarity, restrained language, evidence before emotion, one risk reducer, quiet CTA. Use supplied facts only; qualify unsupplied proof.`;
   }
   if (selection.provider === "gemini") {
-    // Structural bias: visual-scene openers, sensory language, suspended-loop subjects.
-    return `${label} — STRUCTURAL ROLE: visual-curiosity storyteller.
-Framework bias: Sensory-Scene or Mystery/Reveal. Route bias: Occasion Hook or sensory segment reward.
-Sentence architecture: scene-setting image detail → suspended-loop tension → product as resolution.
-Subject style: a moment or sensation (e.g. "The morning you didn't adjust once" not "Save 💲12").
-Body: open with a vivid sensory observation, product named mid-paragraph not sentence 1, richer image_guidance.
-Balance emotional scene with product-readability; no purely decorative visuals.`;
+    return `${label}: visual-curiosity storyteller. Prefer sensory scene, suspended-loop tension, occasion/use moment, product as resolution, richer image guidance. Keep visuals product-readable.`;
   }
   if (selection.provider === "openai") {
-    // Structural bias: direct-response clarity, offer-first subjects, tight CTA logic.
-    return `${label} — STRUCTURAL ROLE: direct-response editor.
-Framework bias: PAS or AIDA. Route bias: Direct Offer or Urgency Anchor.
-Sentence architecture: problem statement → product as named solution → price/deadline → single action word CTA.
-Subject style: offer-anchored (e.g. "Your Daisy Bra is 💲12.99, {{first_name}}" — price or % in subject).
-Body: offer in sentence 1, feature-benefit in sentence 2, transition word before CTA, no filler.
-Tighten product hierarchy: hero first, supporting products briefer, CTA copy ≤3 words.`;
+    return `${label}: direct-response editor. Prefer PAS/AIDA, offer clarity, named product solution, price/deadline once, tight hierarchy, CTA <=3 words, no filler.`;
   }
   return `${label}: use the provider's strengths while preserving the required route, playbook, proof, and JSON contracts.`;
 }
@@ -878,18 +881,6 @@ function withSegments(campaign: Campaign, segments: string[]): Campaign {
   return { ...campaign, segments };
 }
 
-function sharedAnchorSummary(brief?: GenBrief) {
-  if (!brief) return undefined;
-  return {
-    creative_direction: brief.creative_direction,
-    theme: brief.theme,
-    banner: brief.banner,
-    ps: brief.ps,
-    products: brief.products,
-    quality_checks: brief.quality_checks,
-  };
-}
-
 interface SegmentCopyPatch {
   subject_lines?: GenBrief["subject_lines"];
   body?: GenBrief["body"];
@@ -902,10 +893,20 @@ function isFullBrief(part: SegmentBatchPart): part is GenBrief {
   return !!(part as GenBrief).creative_direction && !!(part as GenBrief).banner && !!(part as GenBrief).products;
 }
 
-function compactAnchorSummary(brief: GenBrief) {
+function compactSegmentAnchorSummary(brief: GenBrief) {
+  const cd = brief.creative_direction || {};
   return {
-    creative_direction: brief.creative_direction,
-    theme: brief.theme,
+    creative_direction: {
+      angle: cd.angle,
+      framework: cd.framework,
+      branch: cd.branch,
+      brief_route: cd.brief_route,
+      source_pattern: cd.source_pattern,
+      hook_contract: cd.hook_contract,
+      flow: cd.flow,
+      differentiator: cd.differentiator,
+    },
+    theme: compactPromptText(brief.theme || "", 420),
     banner: {
       main_text_1: brief.banner?.main_text_1,
       main_text_2: brief.banner?.main_text_2,
@@ -917,48 +918,63 @@ function compactAnchorSummary(brief: GenBrief) {
       trust_booster: brief.banner?.trust_booster,
       emergency: brief.banner?.emergency,
     },
-    body_examples: brief.body,
+    body_base: compactPromptText(brief.body?.base || "", 360),
     ps: brief.ps,
     products: (brief.products || []).map((p) => ({
       slot: p.slot,
       name: p.name,
+      template_style: p.template_style,
       main_text: p.main_text,
       sub_text: p.sub_text,
       popup_badge: p.popup_badge,
       usps: (p.usps || []).slice(0, 2),
-      review: p.review,
       cta: p.cta,
     })),
-    body_variety: brief.body_variety,
+    body_variety: brief.body_variety ? cleanBodyVarietyProfile(brief.body_variety) : undefined,
   };
 }
 
-function productContextLines(products: Product[]): string {
+function compactProductContextLines(products: Product[], brandId?: string): string {
+  const required = brandId ? new Set(requiredProductSlugs(brandId)) : new Set<string>();
   return products
     .map((p, i) => {
-      const usps = (p.usps || []).filter(Boolean).slice(0, 4).join("; ") || "none";
-      return `${i + 1}${i === 0 ? " HERO" : ""}. ${p.name} | slug:${p.slug} | ${p.url || "no URL"} | 💲${p.price || "TBD"} | USP: ${usps} | review: ${p.review || "none"}`;
+      const usps = (p.usps || []).filter(Boolean).slice(0, 3).map((usp) => compactPromptText(usp, 44)).join("; ") || "none";
+      const review = p.review ? ` | review:${compactPromptText(p.review, 90)}` : "";
+      return `${i + 1}${i === 0 ? " HERO" : ""}${required.has(p.slug) ? " REQUIRED" : ""}. ${p.name} slug:${p.slug} 💲${p.price || "TBD"} | ${usps}${review}`;
+    })
+    .join("\n");
+}
+
+function compactSegmentPromptContext(campaign: Campaign, maxPerSegment = 140): string {
+  return segmentPromptContext(campaign)
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => compactPromptText(line, maxPerSegment))
+    .join("\n");
+}
+
+function compactSegmentBodyDirectionLines(campaign: Campaign): string {
+  return segmentBodyDirectionLines(campaign)
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const key = line.match(/body\.[\w_]+/)?.[0] || "body.segment";
+      const motive = line.match(/audience motive:\s*(.*?)(?: Entry point:|$)/)?.[1] || "";
+      const entry = line.match(/Entry point:\s*(.*?)(?: Do NOT| Soft-sell|$)/)?.[1] || "";
+      const soft = line.match(/Soft-sell mode:\s*(.*)$/)?.[1] || "";
+      return `• ${key}: motive=${compactPromptText(motive, 110)}; entry=${compactPromptText(entry, 90)}; soft=${compactPromptText(soft, 70)}; unique opener/proof/bridge/final line.`;
     })
     .join("\n");
 }
 
 function foundationOutputSchema(products: Product[]): string {
-  const productRows = products
-    .map(
-      (_, i) => `{"slot":${i + 1},"name":"","template_style":"","main_text":"","sub_text":"","popup_badge":"","usps":["",""],"review":"","cta":"","main_image":"","sub_image":"","alt_text":"","image_notes":""}`
-    )
-    .join(",\n    ");
-  return `{
-  "creative_direction":{"angle":"","framework":"","branch":"","brief_route":"","source_pattern":"","hook_contract":{"segment_insight":"","emotion":"","hero_product":"","proof_or_price":"","urgency":"","avoid_rule":""},"flow":"","differentiator":""},
-  "theme":"",
-  "banner":{"logo_stars":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet","review_quote":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","cta":"","options":[{"label":"${products.length ? "primary" : "A"}","model_hint":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","cta":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet"},{"label":"alternate","model_hint":"","main_text_1":"","main_text_2":"","main_text_3":"","sub_text_1":"","sub_text_2":"","sub_text_3":"","cta":"","review_texts":[""],"main_image":"","sub_image":"","trust_booster":"","emergency":"","image_guidance":"- bullet\\n- bullet\\n- bullet\\n- bullet"}]},
-  "body":{"base":"plain-English layout summary for designer/marketer; no internal generation terms"},
-  "ps":"",
-  "products":[
-    ${productRows}
-  ],
-  "quality_checks":{"click_reason":"specific|weak|missing","hook_alignment":"aligned|weak|missing","proof_safety":"supplied|needs_review|invented_risk","spam_risk":"low|medium|high","optout_risk":"low|medium|high","photo_watchout":"clear|needs_review|missing","first_200px":"cta_visible|cta_late|missing","inline_link_plan":"ready|weak|missing","layout_risk":"low|medium|high","playbook_dos_donts":"pass|review|fail","brand_rule_alignment":"aligned|review|off_brand","accessibility_layout":"ready|review|missing","opener_mechanic":"story|fact|question|sensory_snapshot|useful_tip|customer_quote|occasion_clock|direct_problem|occasion|re_engagement|insider_reveal","hook_coherence":"fresh|reused|unclear","cta_assessment":"clear|weak|missing"}
-}`;
+  return `Foundation JSON fields:
+- creative_direction: angle, framework, branch, brief_route, source_pattern, hook_contract{segment_insight, emotion, hero_product, proof_or_price, urgency, avoid_rule}, flow, differentiator.
+- banner: logo_stars, main_text_1/2/3, sub_text_1/2/3, image_guidance bullets, review_quote, review_texts, main_image, sub_image, trust_booster, emergency, cta, exactly 2 distinct options with same fields.
+- body.base: designer-facing layout summary only; no segment body copy.
+- ps: 10-15 words.
+- products: exactly ${products.length} rows, slot 1..${products.length}, name, template_style, main_text, sub_text, popup_badge, 2 short usps, review, cta, main_image, sub_image, alt_text, image_notes.
+- quality_checks: enum values from the provided schema.`;
 }
 
 function foundationRevisionPrompt(revision?: RevisionFeedback): string {
@@ -967,12 +983,12 @@ function foundationRevisionPrompt(revision?: RevisionFeedback): string {
   const current = JSON.stringify({
     a: summarizeBriefForContext(revision?.existingOptions?.a),
     b: summarizeBriefForContext(revision?.existingOptions?.b),
-  }).slice(0, 6000);
+  });
   return `User feedback:
-${feedback}
+${compactPromptText(feedback, 900)}
 
 Current options context:
-${current}
+${compactPromptText(current, 3000)}
 
 Apply feedback to the shared route, banner, product-image brief, P.S., and QA only. Segment subject/body patches will receive the same feedback later.`;
 }
@@ -982,8 +998,8 @@ function promptOverrideLayer(overrides?: PromptOverrides): string {
   const user = overrides?.user?.trim();
   if (!system && !user) return "";
   return `The marketer edited the review prompts. Treat the following as steering constraints, but keep this layered call bounded to its output contract and schema.
-${system ? `\nEdited system prompt:\n${system.slice(0, 6000)}` : ""}
-${user ? `\nEdited user prompt:\n${user.slice(0, 6000)}` : ""}
+${system ? `\nEdited system prompt:\n${compactPromptText(system, PROMPT_OVERRIDE_MAX_CHARS)}` : ""}
+${user ? `\nEdited user prompt:\n${compactPromptText(user, PROMPT_OVERRIDE_MAX_CHARS)}` : ""}
 
 If the edited text asks for full-email fields outside this call, adapt the relevant instruction to the foundation or segment patch being generated here. Do not abandon the JSON schema.`;
 }
@@ -1033,17 +1049,18 @@ function buildFoundationPrompt(
     },
     {
       title: "What To Generate",
-      body: `Generate only the shared strategy/design foundation: creative_direction, theme, banner, a plain-English body.base layout summary, P.S., product-image copy brief, and QA. Do NOT generate subject_lines or per-segment body copy; smaller segment calls handle those.`,
+      body: `Generate only shared foundation: creative_direction, theme, banner, body.base layout summary, P.S., product-image copy brief, and QA. No subject_lines or per-segment body copy.`,
     },
     {
       title: "Playbook Core",
       body: `One send = one promise. Every shared surface must connect one hero product + one proof/price + one reader situation.
-Verified labels, ratings, counts, ages, dates, medical/health outcomes, stock, shipping, prices, urgency, and guarantees must be supplied by product/campaign data or marked "needs verification" in brief notes — never invented as final recipient-facing facts. Artificial review/claim texture may be unlabeled qualitative customer language.
-Banner uses 3 beats: main_text_1 tension/hook, main_text_2 mechanism/proof, main_text_3 resolution/offer/CTA. Include two banner.options with different headline family and image composition.
-Product rows are image-overlay copy; main_text <=5 words, USPs <=5 words. Each product block needs a distinct role/use case/mechanism; template_style names that role.
+Verified labels/ratings/counts/ages/dates/medical outcomes/stock/shipping/prices/urgency/guarantees must be supplied or marked needs verification. Qualitative artificial review/claim texture is ok when unlabeled.
+Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + 2 distinct layout options. Products are image-overlay copy; main_text <=5w, USPs <=5w, distinct role/use case/mechanism per product.
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
+    { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
+    { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
     { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
     { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
     { title: "Model Lens", body: modelExecutionStyle(selection) },
@@ -1065,13 +1082,9 @@ Body layout: ${campaign.bodyLayout || "continuous"}
 Product template: ${campaign.productCopyStyle || "headline_winner"}
 Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, hero product, promo, proof, and avoid rules."}`,
     },
-    { title: "Products", body: productContextLines(products) },
-    { title: "Segments To Serve Later", body: segmentPromptContext(campaign) },
-    { title: "Segment Motivation Map", body: segmentBodyDirectionLines(campaign) },
-    { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
-    { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
+    { title: "Products", body: compactProductContextLines(products, campaign.brandId) },
+    { title: "Segments To Serve Later", body: compactSegmentPromptContext(campaign, 130) },
     { title: "Option Contrast", body: optionContrast },
-    { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
     { title: "User Feedback", body: foundationRevisionPrompt(revision) },
   ]);
 
@@ -1079,35 +1092,23 @@ Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, he
 }
 
 function subjectPatchSchema(campaign: Campaign): string {
-  const [dev0 = "open-loop", dev1 = "pattern-interrupt", dev2 = "playful-conceit"] =
-    BRANDS[campaign.brandId]?.subjectDevices ?? [];
-  return campaign.segments
-    .map((id) => `"${segJsonKey(id)}":{"subject":"","preheader":"","style":"","model_hint":"","shared_thread":"","options":[{"style":"${dev0}","model_hint":"${dev0}","subject":"","preheader":"","shared_thread":""},{"style":"${dev1}","model_hint":"${dev1}","subject":"","preheader":"","shared_thread":""},{"style":"${dev2}","model_hint":"${dev2}","subject":"","preheader":"","shared_thread":""}]}`)
-    .join(",\n    ");
+  const devices = (BRANDS[campaign.brandId]?.subjectDevices ?? ["open-loop", "pattern-interrupt", "playful-conceit"]).slice(0, 3);
+  return `subject_lines[seg_key]={subject, preheader, style, model_hint, shared_thread, options[3+] using styles: ${devices.join(", ")}}`;
 }
 
 function bodyPatchSchema(campaign: Campaign): string {
-  return campaign.segments.map((id) => `"${segJsonKey(id)}":""`).join(",\n    ");
+  return `body[seg_key]=120-150 word selected body copy for each key: ${campaign.segments.map(segJsonKey).join(", ")}`;
 }
 
-function bodyOptionsPatchSchema(campaign: Campaign): string {
-  return campaign.segments
-    .map((id) => `"${segJsonKey(id)}":[{"label":"Primary route","model_hint":"","body":"","ps":"","placement_note":""},{"label":"Alternate route","model_hint":"","body":"","ps":"","placement_note":""}]`)
-    .join(",\n    ");
+function bodyOptionsPatchSchema(): string {
+  return `body_options[seg_key]=2 items: {label, model_hint, body, ps, placement_note}. Routes must differ in opener/proof/placement.`;
 }
 
 function segmentPatchOutputSchema(campaign: Campaign): string {
-  return `{
-  "subject_lines": {
-    ${subjectPatchSchema(campaign)}
-  },
-  "body": {
-    ${bodyPatchSchema(campaign)}
-  },
-  "body_options": {
-    ${bodyOptionsPatchSchema(campaign)}
-  }
-}`;
+  return `Patch JSON only. Segment keys: ${campaign.segments.map(segJsonKey).join(", ")}.
+- ${subjectPatchSchema(campaign)}
+- ${bodyPatchSchema(campaign)}
+- ${bodyOptionsPatchSchema()}`;
 }
 
 function keyVariants(key: string): string[] {
@@ -1158,7 +1159,7 @@ function normalizeSegmentPatch(raw: Record<string, unknown>, campaign: Campaign)
 function feedbackForSegmentPatch(revision?: RevisionFeedback): string {
   const feedback = revision?.feedback?.trim();
   return feedback
-    ? `Apply this user feedback to this segment batch without rewriting shared banner/product sections:\n${feedback}`
+    ? `Apply this user feedback to this segment batch without rewriting shared banner/product sections:\n${compactPromptText(feedback, 900)}`
     : "";
 }
 
@@ -1173,7 +1174,7 @@ function buildSegmentPatchPrompt(
   overrides?: PromptOverrides
 ): { system: string; user: string } {
   const brand = BRANDS[campaign.brandId];
-  const anchorJson = JSON.stringify(compactAnchorSummary(anchor)).slice(0, 7000);
+  const anchorJson = compactPromptText(JSON.stringify(compactSegmentAnchorSummary(anchor)), PROMPT_ANCHOR_MAX_CHARS);
   const system = renderPromptLayers([
     {
       title: "Role",
@@ -1187,9 +1188,11 @@ function buildSegmentPatchPrompt(
       title: "Playbook Rules",
       body: `${brandPlaybookRuleBlock(campaign.brandId)}
 Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 60-90 char preheader, {{first_name}} in subject OR preheader only, offer signal required.
-Body: selected body plus body_options per segment. body_options must include a primary route and an alternate route with different opener/proof/placement, not paraphrases. Selected body 120-150 words per segment, no {{first_name}}, personal-note first, one calm urgency beat, product-name markdown link by paragraph 2, 2-4 formatting/link beats, no hard-sell command stack.
-Use renderer-safe tokens only: ==accent==, **bold**, [Product](slug:slug), [home text](home). Factual/verified proof must be supplied or marked "needs verification" in notes; artificial review/claim texture may be qualitative only, with no fake ratings/counts/dates/ages/medical outcomes/stock/shipping facts.`,
+Body: selected body + 2 body_options routes. 120-150w, no {{first_name}}, personal-note first, one calm urgency beat, product markdown link by para 2, 2-4 format/link beats, no hard-sell stack.
+Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Supplied/verified facts only; artificial proof can be qualitative only, no fake ratings/counts/dates/ages/medical outcomes/stock/shipping facts.`,
     },
+    { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
+    { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
     { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
   ]);
 
@@ -1205,24 +1208,23 @@ Theme: ${campaign.theme}
 Send date: ${campaign.sendDate}
 Promo: ${promoLine(campaign)}
 Products:
-${productContextLines(products)}
+${compactProductContextLines(products, campaign.brandId)}
 
 Segments:
-${segmentPromptContext(campaign)}`,
+${compactSegmentPromptContext(campaign, 150)}`,
     },
     {
       title: "Anchor Brief",
       body: `Preserve Option ${optionLabel}'s hook contract, branch, visual route, product strategy, and tone. Do not rewrite shared banner/product/P.S. fields.
 ${anchorJson}`,
     },
-    { title: "Segment Differentiation", body: segmentBodyDirectionLines(campaign) },
+    { title: "Segment Differentiation", body: compactSegmentBodyDirectionLines(campaign) },
     { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
     {
       title: "Model Lens",
       body: `${modelExecutionStyle(selection)}
 This lens should affect sentence architecture and proof path, not recipient-facing model names.`,
     },
-    { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
     { title: "User Feedback", body: feedbackForSegmentPatch(revision) },
   ]);
 
@@ -1254,7 +1256,7 @@ async function createSegmentPatch(
   const { system, user } = buildSegmentPatchPrompt(promptCampaign, products, optionLabel, anchor, ctx, selection, revision, overrides);
   const parsed = await createAndParseWithModel(system, user, selection, {
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
-    maxOutputTokens: SEGMENT_PATCH_OUTPUT_TOKENS,
+    maxOutputTokens: segmentPatchOutputTokens(promptCampaign.segments.length),
     timeoutMs: PATCH_PROVIDER_TIMEOUT_MS,
     ...runtimeCallOptions(runtime),
     stage: `segment_patch_${optionLabel.toLowerCase()}`,
@@ -1311,7 +1313,7 @@ async function generateSegmentCopyBatch(
 function appendSegmentBatchContext(user: string, optionLabel: "A" | "B", ctx?: SegmentBatchContext): string {
   if (!ctx) return user;
   const anchor = optionLabel === "A" ? ctx.optionAAnchor : ctx.optionBAnchor;
-  const anchorJson = anchor ? JSON.stringify(sharedAnchorSummary(anchor)).slice(0, 9000) : "";
+  const anchorJson = anchor ? compactPromptText(JSON.stringify(compactSegmentAnchorSummary(anchor)), PROMPT_ANCHOR_MAX_CHARS) : "";
   const anchorInstruction = anchorJson
     ? `\n\nANCHOR BRIEF TO PRESERVE FOR OPTION ${optionLabel}:\n${anchorJson}\n\nKeep the same creative_direction, banner, product block strategy, P.S., and QA stance. Generate fresh subject_lines/body only for this batch's segment keys, unless a shared field must be copied to satisfy the schema.`
     : "\n\nThis is the anchor batch: create the shared creative direction, banner, products, P.S., and QA that later segment batches will follow.";
@@ -1320,7 +1322,7 @@ function appendSegmentBatchContext(user: string, optionLabel: "A" | "B", ctx?: S
 
 MULTI-SEGMENT BATCH MODE:
 Batch ${ctx.index} of ${ctx.total}. Full selected segment list: ${ctx.allSegments.join(", ")}.
-${ctx.allSegmentContext ? `Full segment context:\n${ctx.allSegmentContext}\n` : ""}
+${ctx.allSegmentContext ? `Full segment context:\n${compactPromptText(ctx.allSegmentContext, 1200)}\n` : ""}
 The system schema already lists only the segment keys for this batch.
 Return a complete JSON object for this batch. Do not mention omitted segments. The server will merge batches into one final A/B brief.${anchorInstruction}`;
 }
@@ -1441,7 +1443,7 @@ function shouldKeepCreativeRepair(original: GenBrief, repaired: GenBrief): boole
 }
 
 function buildQualityRepairPrompt(optionLabel: "A" | "B", brief: GenBrief, flags: string[]): string {
-  const current = JSON.stringify(briefRevisionSummary(brief)).slice(0, 18000);
+  const current = compactPromptText(JSON.stringify(briefRevisionSummary(brief)), 11000);
   return `QUALITY REPAIR PASS FOR OPTION ${optionLabel}
 
 Fix only the compliance, proof-safety, deliverability, and hard length problems below. Preserve the current creative direction, route, hook, product order, and sentence architecture wherever they are valid.
@@ -1456,7 +1458,7 @@ Return the complete corrected brief JSON using the exact same schema. Do not add
 }
 
 function buildCreativeRepairPrompt(optionLabel: "A" | "B", brief: GenBrief): string {
-  const current = JSON.stringify(briefRevisionSummary(brief)).slice(0, 18000);
+  const current = compactPromptText(JSON.stringify(briefRevisionSummary(brief)), 11000);
   return `CREATIVE REPAIR PASS FOR OPTION ${optionLabel}
 
 The brief is compliant, but the copy is too formulaic or sales-led. Rewrite only customer-facing creative copy enough to raise the creative score while preserving all facts, products, prices, reviews, links, offer limits, and the current concept tuple.
@@ -1486,6 +1488,7 @@ async function repairCreativityIfNeeded(
   if (!creativeRepairEnabled()) return brief;
   if ((brief._creative_score ?? 100) >= CREATIVE_REPAIR_THRESHOLD) return brief;
   if ((brief._flags || []).some((f) => f.type === "error")) return brief;
+  if (!hasGenerationBudget(runtime, PROVIDER_TIMEOUT_MS, 12_000)) return brief;
 
   try {
     const repaired = sanitizeAndValidateBrief(
@@ -1523,6 +1526,7 @@ async function repairBriefIfNeeded(
   if (!qualityRepairEnabled()) return brief;
   const flags = repairFlagsFor(brief);
   if (!flags.length) return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime);
+  if (!hasGenerationBudget(runtime, PROVIDER_TIMEOUT_MS, 12_000)) return brief;
 
   try {
     const repaired = sanitizeAndValidateBrief(
@@ -1815,7 +1819,7 @@ async function generateOptionsBatched(
   try {
     throwIfAborted(runtime?.signal);
     const models = normalizeModelPair(modelInput);
-    const batchSettings = adaptiveBatchSettings(models);
+    const batchSettings = adaptiveBatchSettings(models, campaign.segments.length);
     const chunks = segmentChunks(campaign.segments, batchSettings.batchSize);
     const total = chunks.length;
     const startedAt = Date.now();
@@ -1847,26 +1851,31 @@ async function generateOptionsBatched(
       message: `Layered generation: ${campaign.segments.length} segment(s), ${total} batch(es), ${batchSettings.tier} model plan`,
     });
 
-    try {
-      emit(runtime, { type: "stage", stage: "foundation_a", option: "a", message: "Creating Option A foundation" });
-      optionAAnchor = await createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, concepts.a, revision, undefined, runtime, overrides);
-      emit(runtime, { type: "progress", stage: "foundations", done: 1, total: 2, message: "Option A foundation ready" });
-    } catch (err) {
-      if (isGenerationAbortError(err)) throw err;
-      aFailure = err;
-      warnings.push(`foundation A: ${errMessage(err)}`);
-      emit(runtime, { type: "warning", message: `Option A foundation failed: ${errMessage(err)}` });
+    emit(runtime, { type: "stage", stage: "foundation_a", option: "a", message: "Creating Option A foundation" });
+    emit(runtime, { type: "stage", stage: "foundation_b", option: "b", message: "Creating Option B foundation" });
+    let foundationsReady = 0;
+    const [aFoundation, bFoundation] = await Promise.allSettled([
+      createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, concepts.a, revision, undefined, runtime, overrides),
+      createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, concepts.b, revision, undefined, runtime, overrides),
+    ]);
+    throwIfAnyAbort([aFoundation, bFoundation].filter((item): item is PromiseRejectedResult => item.status === "rejected").map((item) => item.reason));
+    if (aFoundation.status === "fulfilled") {
+      optionAAnchor = aFoundation.value;
+      foundationsReady += 1;
+      emit(runtime, { type: "progress", stage: "foundations", done: foundationsReady, total: 2, message: "Option A foundation ready" });
+    } else {
+      aFailure = aFoundation.reason;
+      warnings.push(`foundation A: ${errMessage(aFoundation.reason)}`);
+      emit(runtime, { type: "warning", message: `Option A foundation failed: ${errMessage(aFoundation.reason)}` });
     }
-
-    try {
-      emit(runtime, { type: "stage", stage: "foundation_b", option: "b", message: "Creating Option B foundation with A contrast" });
-      optionBAnchor = await createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, concepts.b, revision, optionAAnchor, runtime, overrides);
-      emit(runtime, { type: "progress", stage: "foundations", done: 2, total: 2, message: "Option B foundation ready" });
-    } catch (err) {
-      if (isGenerationAbortError(err)) throw err;
-      bFailure = err;
-      warnings.push(`foundation B: ${errMessage(err)}`);
-      emit(runtime, { type: "warning", message: `Option B foundation failed: ${errMessage(err)}` });
+    if (bFoundation.status === "fulfilled") {
+      optionBAnchor = bFoundation.value;
+      foundationsReady += 1;
+      emit(runtime, { type: "progress", stage: "foundations", done: foundationsReady, total: 2, message: "Option B foundation ready" });
+    } else {
+      bFailure = bFoundation.reason;
+      warnings.push(`foundation B: ${errMessage(bFoundation.reason)}`);
+      emit(runtime, { type: "warning", message: `Option B foundation failed: ${errMessage(bFoundation.reason)}` });
     }
 
     if (!optionAAnchor && !optionBAnchor) return { error: bestFailureMessage([aFailure, bFailure]) };
@@ -1915,7 +1924,7 @@ async function generateOptionsBatched(
 
     if (a && b) {
       const hardContrast = briefContrastIssues(a, b).filter(isHardContrastIssue);
-      if (hardContrast.length && optionAAnchor) {
+      if (hardContrast.length && optionAAnchor && hasGenerationBudget(runtime, PROVIDER_TIMEOUT_MS + PATCH_PROVIDER_TIMEOUT_MS, 15_000)) {
         try {
           warnings.push(`contrast retry: ${hardContrast.slice(0, 3).join("; ")}`);
           emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Retrying Option B contrast" });
@@ -1932,6 +1941,8 @@ async function generateOptionsBatched(
           warnings.push(`contrast retry failed: ${errMessage(err)}`);
           emit(runtime, { type: "warning", message: `Contrast retry failed: ${errMessage(err)}` });
         }
+      } else if (hardContrast.length && optionAAnchor) {
+        warnings.push(`contrast retry skipped near deadline: ${hardContrast.slice(0, 2).join("; ")}`);
       }
     }
 

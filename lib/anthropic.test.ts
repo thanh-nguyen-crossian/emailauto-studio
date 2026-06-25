@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { hasDeadlineBudget, remainingDeadlineMs, segmentChunks } from "./anthropic";
+import { adaptiveBatchSettings, compactPromptText, hasDeadlineBudget, remainingDeadlineMs, segmentChunks } from "./anthropic";
+import type { AIModelPair } from "./config/types";
 
 describe("segmentChunks", () => {
   it("returns one chunk per segment when batchSize=1 (default)", () => {
@@ -20,6 +21,45 @@ describe("segmentChunks", () => {
 
   it("returns one chunk when batchSize exceeds segment count", () => {
     expect(segmentChunks(["21", "22"], 10)).toEqual([["21", "22"]]);
+  });
+});
+
+describe("adaptiveBatchSettings", () => {
+  const fastPair: AIModelPair = {
+    a: { provider: "claude", model: "claude-haiku-4-5" },
+    b: { provider: "gemini", model: "gemini-2.5-flash-lite" },
+  };
+  const balancedPair: AIModelPair = {
+    a: { provider: "claude", model: "claude-sonnet-4-6" },
+    b: { provider: "openai", model: "gpt-5.5" },
+  };
+  const frontierPair: AIModelPair = {
+    a: { provider: "claude", model: "claude-opus-4-8" },
+    b: { provider: "openai", model: "gpt-5.5-pro" },
+  };
+
+  it("groups three selected segments into one patch batch", () => {
+    expect(adaptiveBatchSettings(balancedPair, 3)).toMatchObject({ batchSize: 3, concurrency: 1, tier: "balanced" });
+  });
+
+  it("lets faster models run patch batches concurrently", () => {
+    expect(adaptiveBatchSettings(fastPair, 12)).toMatchObject({ batchSize: 3, concurrency: 3, tier: "fast" });
+  });
+
+  it("keeps frontier models conservative without falling back to one segment per batch", () => {
+    expect(adaptiveBatchSettings(frontierPair, 12)).toMatchObject({ batchSize: 4, concurrency: 1, tier: "frontier" });
+  });
+});
+
+describe("compactPromptText", () => {
+  it("normalizes pasted whitespace without changing short prompts", () => {
+    expect(compactPromptText("  Keep\n\nthis\tbrief   clear. ", 80)).toBe("Keep this brief clear.");
+  });
+
+  it("marks truncated prompt context explicitly", () => {
+    const compacted = compactPromptText("a ".repeat(100), 50);
+    expect(compacted.length).toBeLessThanOrEqual(50);
+    expect(compacted).toMatch(/\[truncated\]$/);
   });
 });
 

@@ -73,6 +73,10 @@ export interface Brand {
   productSegments: ProductSegment[];
   /** Default product count (4 for SantaFare's focused layout, else 6). Hard max 6. */
   defaultProductCount: number;
+  /** Catalog products that must be present in every generated email for this brand. */
+  requiredProductSlugs?: string[];
+  /** Whether segment body copy may, must, or must not include the renderer-safe homepage link token. */
+  bodyHomepageLinkPolicy?: "allowed" | "required" | "forbidden";
   /** Product catalog for this brand. */
   catalog: Product[];
   /** Emoji policy for subject lines: "yes" = 0–1 leading emoji on-brand; "sparing" = gifting/occasion only; "no" = never. */

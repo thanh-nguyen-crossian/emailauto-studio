@@ -1,7 +1,7 @@
 // Generation engine ported from email-brief-generator.html: one combined prompt produces the
 // per-segment copy AND the design brief, with A/B contrasting options and a validation pass.
 
-import { BRANDS } from "./config/brands";
+import { BRANDS, bodyHomepageLinkPolicy, missingRequiredProducts, requiredProducts as requiredCatalogProducts } from "./config/brands";
 import { intelligencePromptBlock, getBrandIntelligence } from "./config/intelligence";
 import { performanceFeedbackPromptBlock } from "./performance/feedback";
 import { promptRuleBlock } from "./config/playbook";
@@ -317,6 +317,7 @@ const WEAK_CTA = ["click here", "learn more", "shop now", "discover more", "see 
 const HOOK_STACK = ["birthday", "anniversary", "spring", "summer", "mother", "review", "thank", "countdown", "last chance", "ending", "comfort", "sale", "gift", "free shipping"];
 const BULLET_OPENER = /^\s*(?:[•*-]|✅|✓|✔|\d+\.)\s+/;
 const MARKDOWN_PRODUCT_LINK = /\[[^\]]+\]\(slug:[a-z0-9_-]+\)/i;
+const MARKDOWN_HOME_LINK = /\[[^\]]+\]\(home\)/gi;
 const MARKDOWN_ANY_LINK = /\[[^\]]+\]\((?:slug:[a-z0-9_-]+|home)\)/i;
 const ACCENT_MARKER = /==[^=]+==/g;
 const BOLD_MARKER = /\*\*[^*]+\*\*/g;
@@ -1418,22 +1419,7 @@ Write creative_direction.branch="${route.branch}", creative_direction.brief_rout
 export function creativeSurfaceVarietyPrompt(campaign: Campaign, optionLabel: "A" | "B"): string {
   const variety = campaign.bodyVariety as (BodyVarietyProfile & { _openerDirective?: string; _arcDirective?: string }) | undefined;
   if (!variety) return "";
-  return `Option ${optionLabel} surface variety contract:
-• Body opener: ${variety.openerMechanicLabel} — ${variety._openerDirective || "use this opener family intentionally"}
-• Emotional arc: ${variety.emotionalArcLabel} — ${variety._arcDirective || "carry this arc through the body"}
-• Creative lens: ${variety.creativeLens}
-• Proof role: ${variety.proofRole}
-• Subject style: ${variety.subjectStyle}
-• Banner pattern: ${variety.bannerPattern || variety.visualDirection}
-• Visual direction: ${variety.visualDirection}
-• Product grid pattern: ${variety.productGridPattern || "different overlay pattern per product"}
-• Product block role: ${variety.productBlockRole || "headline, proof, badge, USP, CTA each do different jobs"}
-• CTA style: ${variety.ctaStyle || "specific, calm, 2-4 words"}
-• Body placement: ${variety.bodyPlacement || bodyLayoutLabel(campaign)}
-• Copy tactic rotation: ${(variety.copyTactics || []).join("; ") || "concise/direct plus 2-4 relevant tactics from personalization, value, numbers, questions, education, UGC, pain/benefit, curiosity, FOMO, praise/honor, or smart-deal framing"}
-• Story seed: ${variety.namedCharacter} (${variety.characterRole}) — use only if the chosen opener benefits from a person.
-• Pain/sensory territory: ${variety.painPoint}; ${variety.sensoryPhrase}
-Required: banner, product blocks, subject options, preheaders, body copy, P.S., and QA must all reflect this surface contract. Use the copy tactics as a rotation menu, not a checklist to cram. Do not copy this as visible text; translate it into recipient-ready copy and designer-ready brief notes.`;
+  return `Option ${optionLabel} variety: opener=${variety.openerMechanicLabel} (${variety._openerDirective || "intentional"}); arc=${variety.emotionalArcLabel} (${variety._arcDirective || "carry through body"}); lens=${variety.creativeLens}; proof=${variety.proofRole}; subject=${variety.subjectStyle}; banner=${variety.bannerPattern || variety.visualDirection}; visual=${variety.visualDirection}; products=${variety.productGridPattern || "distinct overlay roles"}; product_role=${variety.productBlockRole || "headline/proof/badge/USP/CTA split jobs"}; cta=${variety.ctaStyle || "specific calm 2-4 words"}; placement=${variety.bodyPlacement || bodyLayoutLabel(campaign)}; tactics=${(variety.copyTactics || []).join(", ") || "concise/direct plus 2-4 relevant tactics"}; optional_story=${variety.namedCharacter} (${variety.characterRole}); pain/sensory=${variety.painPoint}; ${variety.sensoryPhrase}. Apply across subject, preheader, banner, body, products, P.S.; use as rotation menu, not visible text.`;
 }
 
 // ---- helpers ----
@@ -1682,6 +1668,9 @@ function matchesAnySuppliedReview(text: string, products: Product[]): boolean {
 function looksLikeSchemaPlaceholder(text?: string): boolean {
   return SCHEMA_PLACEHOLDER_PATTERN.test(String(text || ""));
 }
+function homeLinkCount(text: string): number {
+  return String(text || "").match(MARKDOWN_HOME_LINK)?.length || 0;
+}
 function truncateForPrompt(text: string, max = 1200): string {
   const clean = String(text || "").trim();
   return clean.length > max ? clean.slice(0, max).trimEnd() + "\n[truncated]" : clean;
@@ -1757,6 +1746,24 @@ function brandBriefPatternLayer(brandId: string): string {
 
 export function brandPlaybookRuleBlock(brandId: string): string {
   return BRAND_PLAYBOOK_RULES[brandId] || "";
+}
+
+export function requiredProductInstruction(brandId: string): string {
+  const required = requiredCatalogProducts(brandId);
+  if (!required.length) return "";
+  return `Required products in every email: ${required.map((p) => `${p.name} (slug:${p.slug})`).join(", ")}. Include all as product blocks and keep them eligible for body/banner references.`;
+}
+
+export function bodyHomepageLinkInstruction(brandId: string): string {
+  const brand = BRANDS[brandId];
+  const policy = bodyHomepageLinkPolicy(brandId);
+  if (policy === "forbidden") {
+    return `${brand?.name || "This brand"} body copy must NOT include homepage markdown links like [text](home). Use product links only; the renderer handles footer/homepage links.`;
+  }
+  if (policy === "required") {
+    return `${brand?.name || "This brand"} body copy must include exactly one natural homepage markdown link [short text](home) in every selected segment body and body option. Keep product markdown links too.`;
+  }
+  return "Homepage markdown links are optional in body copy; footer homepage links are handled by the renderer.";
 }
 
 // ---- prompt builders ----
@@ -1904,6 +1911,8 @@ export function buildSystemPrompt(
     { title: "Chosen Concept", body: concept ? conceptPrompt(concept, isOptionB ? "B" : "A") : "" },
     { title: "Technique Plan", body: techniquePlanPrompt(selectedTechniquePlan) },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
+    { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
+    { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
     ...(campaign.bodyFocus !== "grid" ? [{
       title: "Body Focus",
       body: `HERO MODE: body prose centres on ONE product story.
@@ -2019,7 +2028,9 @@ Hook input: ${campaign.hookContract?.trim() || "Construct one from segment, hero
 Promo: ${promoLine(campaign)}
 Body layout: ${bodyLayoutLabel(campaign)}
 Product template: ${productCopyStyleLabel(campaign)}
-Recipient token: ${campaign.recipientName}${lastSend}${recentAvoid}${fatigueAvoid}`,
+Recipient token: ${campaign.recipientName}
+${requiredProductInstruction(campaign.brandId)}
+${bodyHomepageLinkInstruction(campaign.brandId)}${lastSend}${recentAvoid}${fatigueAvoid}`,
     },
     { title: "Strategy Intake", body: strategyPromptLayer(campaign) },
     { title: "Campaign Operations", body: opsPromptLayer(campaign) },
@@ -2051,7 +2062,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|needs 2 editable|body options|banner options|product block roles|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -2070,14 +2081,14 @@ export function isHighImpactFlag(msg: string): boolean {
 // model rewrite helps; stylistic nudges (paragraph rhythm, P.S. length, banner beats, enums) stay
 // advisory so the repair pass does not average every creative route back to one template.
 const COMPLIANCE_REPAIR_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
 
 export function isComplianceRepairFlag(msg: string): boolean {
   return COMPLIANCE_REPAIR_FLAG.test(msg);
 }
 
 const COMPLIANCE_VALIDATION_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
 
 export function isComplianceValidationFlag(flag: Flag): boolean {
   return flag.type === "error" || COMPLIANCE_VALIDATION_FLAG.test(flag.msg);
@@ -2334,15 +2345,26 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const incomingAdvisory = Array.isArray(brief._advisory) ? brief._advisory : [];
   brief._flags = [];
   normalizePrimarySubjectSelections(brief);
-  const subjectMax = BRANDS[campaign.brandId]?.subjectMax || 58;
-  const subjectMin = BRANDS[campaign.brandId]?.subjectMin || 42;
+  const brand = BRANDS[campaign.brandId];
+  const subjectMax = brand?.subjectMax || 58;
+  const subjectMin = brand?.subjectMin || 42;
   const bodyBand = bodyWordBand(campaign.brandId);
+  const homepagePolicy = bodyHomepageLinkPolicy(campaign.brandId);
+  const requiredCatalog = requiredCatalogProducts(campaign.brandId);
 
   (["creative_direction", "subject_lines", "theme", "banner", "body", "products", "quality_checks"] as const).forEach(
     (f) => {
       if (!brief[f]) addFlag(brief, "error", "Missing required field: " + f);
     }
   );
+  const missingRequired = missingRequiredProducts(campaign.brandId, products.map((product) => product.slug));
+  if (missingRequired.length) {
+    addFlag(
+      brief,
+      "error",
+      `${brand?.name || "Brand"} required product missing from campaign selection: ${missingRequired.map((product) => product.name).join(", ")}`
+    );
+  }
   if (campaign.ops) {
     if (!campaign.ops.senderEmail?.trim()) addFlag(brief, "warn", "Ops sender email missing — confirm verified sender before ESP sync");
     if (!campaign.ops.audienceSource?.trim()) addFlag(brief, "warn", "Ops audience source missing — document list/import/source before send");
@@ -2575,6 +2597,16 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   Object.entries(body).forEach(([seg, text]) => {
     const paras = String(text || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
     const firstTwoParas = paras.slice(0, 2).join("\n\n");
+    const homeLinks = homeLinkCount(String(text || ""));
+    if (seg !== "base" && text && homepagePolicy === "forbidden" && homeLinks > 0) {
+      addFlag(brief, "error", `${seg} body includes forbidden homepage link; ${brand?.name || "this brand"} body copy must use product links only`);
+    }
+    if (seg !== "base" && text && homepagePolicy === "required" && homeLinks === 0) {
+      addFlag(brief, "error", `${seg} body missing required homepage link; add one natural [text](home) link`);
+    }
+    if (seg !== "base" && text && homepagePolicy === "required" && homeLinks > 1) {
+      addFlag(brief, "warn", `${seg} body has ${homeLinks} homepage links; keep exactly one natural homepage link`);
+    }
     if (text && /{{\s*first_name\s*}}/i.test(text)) {
       addFlag(brief, "warn", `${seg} body contains {{first_name}} — merge tags belong in subject/preheader only`);
     }
@@ -2676,10 +2708,20 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     }
     options.forEach((option, i) => {
       const optionFirstTwoParas = String(option.body || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).slice(0, 2).join("\n\n");
+      const optionHomeLinks = homeLinkCount(option.body || "");
       if (!option.label?.trim()) addFlag(brief, "warn", `${key} body option ${i + 1} missing label`);
       if (!option.model_hint?.trim()) addFlag(brief, "warn", `${key} body option ${i + 1} missing model_hint`);
       if (!option.body?.trim()) addFlag(brief, "warn", `${key} body option ${i + 1} missing body`);
       if (!option.placement_note?.trim()) addFlag(brief, "warn", `${key} body option ${i + 1} missing placement_note`);
+      if (option.body && homepagePolicy === "forbidden" && optionHomeLinks > 0) {
+        addFlag(brief, "error", `${key} body option ${i + 1} includes forbidden homepage link`);
+      }
+      if (option.body && homepagePolicy === "required" && optionHomeLinks === 0) {
+        addFlag(brief, "error", `${key} body option ${i + 1} missing required homepage link`);
+      }
+      if (option.body && homepagePolicy === "required" && optionHomeLinks > 1) {
+        addFlag(brief, "warn", `${key} body option ${i + 1} has ${optionHomeLinks} homepage links; keep exactly one`);
+      }
       if (option.body && i > 0 && body[key] && similarity(option.body, body[key]) > 0.78) {
         addFlag(brief, "warn", `${key} body option ${i + 1} is too similar to the selected body; make the alternate route structurally different`);
       }
@@ -2706,6 +2748,28 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
 
   const prods = brief.products || [];
   validateProductData(brief, products);
+  if (requiredCatalog.length) {
+    const generatedProductSurface = prods
+      .map((product) => [
+        product.name,
+        product.template_style,
+        product.main_text,
+        product.sub_text,
+        product.popup_badge,
+        product.cta,
+        ...(product.usps || []),
+        product.main_image,
+        product.sub_image,
+        product.alt_text,
+        product.image_notes,
+      ].filter(Boolean).join(" "))
+      .join("\n");
+    requiredCatalog.forEach((product) => {
+      if (!containsSignificantReference(generatedProductSurface, product.name)) {
+        addFlag(brief, "error", `${brand?.name || "Brand"} required product missing from generated product blocks: ${product.name}`);
+      }
+    });
+  }
   if (campaign.brandId !== "santa_fare" && prods.length > 6) addFlag(brief, "warn", "7+ product blocks (overcrowding risk)");
   if (campaign.brandId === "santa_fare" && prods.length > 4) addFlag(brief, "warn", "SantaFare should default to 4 products unless the brief gives a clear exception");
   if (campaign.brandId !== "santa_fare" && products.length >= 4 && prods.length > 0 && prods.length < 4) {
