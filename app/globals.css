@@ -14,7 +14,7 @@
   --accent: #155f53;
   --accent-2: #b8502d;
   --accent-soft: #d9ebe5;
-  --ring: rgba(21, 95, 83, 0.32);
+  --ring: rgba(21, 95, 83, 0.7);
   --shadow-soft: 0 18px 40px rgba(20, 36, 33, 0.14);
   --shadow-tiny: 0 1px 3px rgba(20, 36, 33, 0.13);
   /* semantic states (tuned for contrast on white) */
@@ -59,7 +59,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-  outline: 3px solid var(--ring);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -143,7 +143,7 @@ button:not(:disabled):hover {
 .nav-step-active { background: var(--accent); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,.18) inset; }
 .nav-step:disabled { opacity: .45; cursor: not-allowed; }
 /* nav-step is inside an overflow container — inset outline keeps it visible */
-.nav-step:focus-visible { outline: 3px solid var(--ring); outline-offset: -2px; }
+.nav-step:focus-visible { outline: 3px solid var(--accent); outline-offset: -2px; }
 
 /* ── Panels ─────────────────────────────────────────────────────────────────── */
 .section-panel { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 8px; padding: 16px; box-shadow: var(--shadow-tiny); }
@@ -151,7 +151,7 @@ button:not(:disabled):hover {
 
 /* ── Form elements ──────────────────────────────────────────────────────────── */
 .input { width: 100%; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 7px; padding: 9px 11px; color: var(--text); font-size: 14px; min-height: 38px; box-shadow: inset 0 1px 0 rgba(20,36,33,.04); }
-/* Custom focus style replaces the browser default — must be visible (3px ring = 3:1+ contrast) */
+/* Custom focus style: solid accent border-color is primary indicator (≥4.9:1); ring glow is supplementary */
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); outline: 3px solid transparent; }
 /* Placeholder text must meet 3:1 contrast — use full --muted instead of browser's 50% opacity default */
 .input::placeholder { color: var(--muted); opacity: 0.6; }
@@ -173,7 +173,7 @@ textarea.input { line-height: 1.55; }
 .step-card-open { border-color: var(--accent); box-shadow: var(--shadow-soft); }
 .step-button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-align: left; background: var(--surface); border: 0; }
 /* Focus visible on accordion step button — inset so it doesn't clip inside overflow:hidden */
-.step-button:focus-visible { outline: 3px solid var(--ring); outline-offset: -3px; }
+.step-button:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 .step-index { width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
 .step-index-open { background: var(--accent); color: #fff; }
 .step-index-done { background: var(--ok); color: #fff; }
@@ -185,12 +185,12 @@ textarea.input { line-height: 1.55; }
 /* ── Choice cards / pills ───────────────────────────────────────────────────── */
 .choice-card { text-align: left; border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; min-height: 44px; box-shadow: var(--shadow-tiny); }
 .choice-card-active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); box-shadow: 0 0 0 2px rgba(21,95,83,.16), var(--shadow-tiny); }
-/* Focus visible: 3px outline, 3:1+ contrast against adjacent background (--accent ring ≈ 6:1) */
-.choice-card:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+/* Focus visible: 3px solid accent outline — ≥4.9:1 contrast against white, WCAG 1.4.11 PASS */
+.choice-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 /* Touch target: pill height raised to 44px min via line-height to meet WCAG 2.5.8 */
 .choice-pill { border: 1px solid var(--border-strong); border-radius: 999px; padding: 10px 12px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 650; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; }
 .choice-pill-active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-.choice-pill:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+.choice-pill:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* ── Tiles / chips ──────────────────────────────────────────────────────────── */
 .snapshot-chip { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 8px; padding: 10px 12px; min-width: 0; box-shadow: var(--shadow-tiny); }
@@ -227,21 +227,21 @@ fieldset.usp-grid { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
 .usp-dot { width: 7px; height: 7px; border-radius: 999px; border: 1px solid currentColor; flex-shrink: 0; }
 .usp-pill-selected .usp-dot { background: currentColor; }
 /* USP pill is a <label> containing a hidden checkbox — focus-within shows the ring */
-.usp-pill:focus-within { outline: 3px solid var(--ring); outline-offset: 2px; }
+.usp-pill:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* ── Prompt blocks ──────────────────────────────────────────────────────────── */
 .prompt-block { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-tiny); }
 .prompt-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border-strong); background: var(--surface-2); }
 .prompt-toggle { flex: 1; border: 0; background: transparent; padding: 0; color: var(--text); text-align: left; cursor: pointer; }
-.prompt-toggle:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+.prompt-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 /* Prompt textarea: outline:none is set inline — override with accessible focus style */
 .prompt-body { width: 100%; background: #fbfcfc; color: var(--text); border: 0; border-top: 1px solid var(--border-strong); border-radius: 0; }
-.prompt-body:focus { outline: 3px solid var(--ring); outline-offset: -3px; }
+.prompt-body:focus { outline: 3px solid var(--accent); outline-offset: -3px; }
 
 /* ── Subject drawer ─────────────────────────────────────────────────────────── */
 .subject-drawer { margin-bottom: 12px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-tiny); }
 .subject-drawer-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 0; background: var(--surface-2); padding: 10px 12px; text-align: left; }
-.subject-drawer-head:focus-visible { outline: 3px solid var(--ring); outline-offset: -3px; }
+.subject-drawer-head:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 
 /* ── Option cards ───────────────────────────────────────────────────────────── */
 .option-card { border: 1px solid var(--border); border-radius: 7px; padding: 10px; background: var(--surface); }
@@ -266,7 +266,7 @@ fieldset.usp-grid { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
 /* Touch target: min 44px height for WCAG 2.5.8 on .fmt-btn (used as toolbar buttons in BriefView) */
 .fmt-btn { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 10px 10px; font-size: 11px; font-weight: 700; cursor: pointer; line-height: 1; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .fmt-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-.fmt-btn:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+.fmt-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .mini-badge { display: inline-flex; width: max-content; max-width: 100%; border: 1px solid var(--warn); border-radius: 4px; background: var(--warn-soft); color: var(--warn-text); padding: 0 4px; font-size: 9px; font-weight: 800; line-height: 1.35; }
 .mini-review { border-left: 2px solid var(--border); padding-left: 4px; color: var(--muted); font-size: 9px; font-style: italic; }
 
@@ -338,7 +338,8 @@ fieldset.usp-grid { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
  *    .badge-bad bg rgba(180,35,35,.08) is a surface tint only — text is #b42323 on near-white: PASS
  *
  * 2. FOCUS STATES — see rules below. All custom interactive elements get
- *    a 3px var(--ring) outline via :focus-visible, matching the global rule.
+ *    a 3px var(--accent) solid outline via :focus-visible (≥4.9:1 CR against white).
+ *    --ring raised to rgba(21,95,83,0.7) (≥3:1) for supplementary glow on .input:focus.
  *    outline:none on .input:focus replaced with explicit outline.
  *    outline:none on .prompt-body replaced with explicit outline.
  *
@@ -359,7 +360,7 @@ fieldset.usp-grid { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
  */
 
 .skip-link { position: absolute; left: 16px; top: 8px; z-index: 60; transform: translateY(-140%); background: var(--accent); color: #fff; border-radius: 7px; padding: 8px 12px; font-size: 13px; font-weight: 700; }
-.skip-link:focus { transform: translateY(0); outline: 3px solid var(--ring); outline-offset: 2px; }
+.skip-link:focus { transform: translateY(0); outline: 3px solid #fff; outline-offset: 2px; }
 
 @media (max-width: 720px) {
   .app-header { padding: 14px; }

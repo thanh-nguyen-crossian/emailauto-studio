@@ -660,11 +660,15 @@ export function StepCard({
         </span>
         <span className="step-action" aria-hidden>{open ? "Collapse" : done ? "Edit" : "Open"}</span>
       </button>
-      {open && (
-        <div id={panelId} role="region" aria-labelledby={btnId} className="px-4 pb-4 pt-1 border-t border-[var(--border)]">
-          {children}
-        </div>
-      )}
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={btnId}
+        hidden={!open}
+        className="px-4 pb-4 pt-1 border-t border-[var(--border)]"
+      >
+        {children}
+      </div>
     </div>
   );
 }
