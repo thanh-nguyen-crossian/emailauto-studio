@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Message, MessageCreateParamsNonStreaming, Tool } from "@anthropic-ai/sdk/resources/messages";
 import { randomUUID } from "crypto";
 import type { AIModelPair, AIModelSelection, BodyVarietyProfile, Campaign, Product } from "./config/types";
-import { normalizeModelPair, providerLabel } from "./config/aiModels";
+import { modelSpeedTier, normalizeModelPair, providerLabel, type AIModelSpeedTier } from "./config/aiModels";
 import { foundationBriefJsonSchema, genBriefJsonSchema, segmentPatchJsonSchema, type ProviderJsonSchema } from "./anthropic/schema";
 import { conceptPrompt, selectEmailConceptPair, type EmailConcept } from "./concept";
 import {
@@ -119,6 +119,13 @@ const AI_REPAIR_TEMP = envNumber("AI_REPAIR_TEMP", 0.6, 0, 1);
 const AI_PROVIDER_RETRIES = envInteger("AI_PROVIDER_RETRIES", 2, 0, 4);
 const AI_PROVIDER_RETRY_BASE_MS = envInteger("AI_PROVIDER_RETRY_BASE_MS", 900, 100, 10_000);
 const AI_CLAUDE_STREAMING = !/^(0|false|off|no)$/i.test(process.env.AI_CLAUDE_STREAMING || "");
+const AI_SOFT_DEADLINE_MS = envInteger("AI_SOFT_DEADLINE_MS", 240_000, 60_000, 295_000);
+const PATCH_PROVIDER_TIMEOUT_MS = envInteger(
+  "AI_PATCH_PROVIDER_TIMEOUT_MS",
+  Math.min(60_000, PROVIDER_TIMEOUT_MS),
+  20_000,
+  PROVIDER_TIMEOUT_MS
+);
 
 const OPTION_B_INITIAL_CONTRAST = `\nOPTION B CONTRAST REQUIREMENT:
 You are writing Option B in parallel with Option A. Deliberately avoid the obvious/default route.
@@ -127,12 +134,15 @@ Do not wait to see Option A; make Option B a clearly different usable challenger
 
 const REPAIR_SYSTEM = `You are an email copy repair specialist. Fix the listed playbook violations in the provided brief with minimal rewriting. Preserve all creative direction, product facts, prices, URLs, and supplied reviews. Return one complete JSON object in the same schema — no prose, no fences.`;
 
+// Layered generation starts at/above this segment count. Default 1 means "use the bounded
+// foundation + segment-patch path by default"; only 1-segment prompt overrides use legacy single.
 const SEGMENT_BATCH_THRESHOLD = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_THRESHOLD || 1));
-const SEGMENT_BATCH_SIZE = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE || 1));
-const SEGMENT_BATCH_CONCURRENCY = Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY || 2));
+const SEGMENT_BATCH_SIZE_OVERRIDE = process.env.AI_SEGMENT_BATCH_SIZE ? Math.max(1, Number(process.env.AI_SEGMENT_BATCH_SIZE)) : null;
+const SEGMENT_BATCH_CONCURRENCY_OVERRIDE = process.env.AI_SEGMENT_BATCH_CONCURRENCY ? Math.max(1, Number(process.env.AI_SEGMENT_BATCH_CONCURRENCY)) : null;
 const AB_FAST_PARALLEL = /^(1|true|on|yes)$/i.test(process.env.AI_AB_FAST_PARALLEL || "");
+const AI_GENERATION_TELEMETRY = /^(1|true|on|yes)$/i.test(process.env.AI_GENERATION_TELEMETRY || process.env.AI_PROMPT_DEBUG || "");
 
-const MAX_OUTPUT_TOKENS = envInteger("AI_MAX_OUTPUT_TOKENS", 32000, 4000, 64000);
+const MAX_OUTPUT_TOKENS = envInteger("AI_MAX_OUTPUT_TOKENS", 18000, 4000, 64000);
 const FOUNDATION_OUTPUT_TOKENS = envInteger("AI_FOUNDATION_OUTPUT_TOKENS", 14000, 4000, 32000);
 const SEGMENT_PATCH_OUTPUT_TOKENS = Math.min(MAX_OUTPUT_TOKENS, 8000);
 
@@ -141,6 +151,26 @@ interface ModelCallOptions {
   topP?: number;
   maxOutputTokens?: number;
   schema?: ProviderJsonSchema;
+  timeoutMs?: number;
+  deadlineAt?: number;
+  stage?: string;
+}
+
+export type GenerationEvent =
+  | { type: "stage"; stage: string; message?: string; option?: "a" | "b"; batch?: number; total?: number; elapsedMs?: number }
+  | { type: "progress"; stage: string; done: number; total: number; message?: string; elapsedMs?: number }
+  | { type: "partial"; option: "a" | "b"; brief: GenBrief; warning?: string; elapsedMs?: number }
+  | { type: "warning"; message: string; elapsedMs?: number }
+  | { type: "done"; a?: GenBrief; b?: GenBrief; warning?: string; elapsedMs?: number }
+  | { type: "error"; message: string; elapsedMs?: number }
+  | { type: "heartbeat"; elapsedMs?: number };
+
+export type GenerationEventHandler = (event: GenerationEvent) => void;
+
+interface GenerationRuntime {
+  startedAt: number;
+  softDeadlineAt: number;
+  onEvent?: GenerationEventHandler;
 }
 
 const PROVIDER_ENV: Record<string, string> = {
@@ -148,6 +178,63 @@ const PROVIDER_ENV: Record<string, string> = {
   gemini: "GEMINI_API_KEY",
   openai: "OPENAI_API_KEY",
 };
+
+function elapsedMs(runtime?: GenerationRuntime): number | undefined {
+  return runtime ? Date.now() - runtime.startedAt : undefined;
+}
+
+function emit(runtime: GenerationRuntime | undefined, event: GenerationEvent): void {
+  runtime?.onEvent?.({ ...event, elapsedMs: event.elapsedMs ?? elapsedMs(runtime) });
+}
+
+function runtimeFrom(onEvent?: GenerationEventHandler): GenerationRuntime {
+  const startedAt = Date.now();
+  return { startedAt, softDeadlineAt: startedAt + AI_SOFT_DEADLINE_MS, onEvent };
+}
+
+/** @internal exported for unit testing only */
+export function remainingDeadlineMs(options?: Pick<ModelCallOptions, "deadlineAt">): number {
+  if (!options?.deadlineAt) return Number.POSITIVE_INFINITY;
+  return options.deadlineAt - Date.now();
+}
+
+/** @internal exported for unit testing only */
+export function hasDeadlineBudget(options: Pick<ModelCallOptions, "deadlineAt" | "timeoutMs">, reserveMs = 2_500): boolean {
+  return remainingDeadlineMs(options) > (options.timeoutMs ?? PROVIDER_TIMEOUT_MS) + reserveMs;
+}
+
+function pairSpeedTier(models: AIModelPair): AIModelSpeedTier {
+  const tiers = [modelSpeedTier(models.a), modelSpeedTier(models.b)];
+  if (tiers.includes("frontier")) return "frontier";
+  if (tiers.every((tier) => tier === "fast")) return "fast";
+  return "balanced";
+}
+
+function adaptiveBatchSettings(models: AIModelPair): { batchSize: number; concurrency: number; tier: AIModelSpeedTier } {
+  const tier = pairSpeedTier(models);
+  const fallback =
+    tier === "fast"
+      ? { batchSize: 2, concurrency: 3 }
+      : tier === "frontier"
+        ? { batchSize: 1, concurrency: 1 }
+        : { batchSize: 1, concurrency: 2 };
+  return {
+    batchSize: SEGMENT_BATCH_SIZE_OVERRIDE || fallback.batchSize,
+    concurrency: SEGMENT_BATCH_CONCURRENCY_OVERRIDE || fallback.concurrency,
+    tier,
+  };
+}
+
+function softDeadlineWarning(runtime: GenerationRuntime, stage: string): string | null {
+  const remaining = runtime.softDeadlineAt - Date.now();
+  if (remaining > PATCH_PROVIDER_TIMEOUT_MS + 8_000) return null;
+  return `${stage} stopped near the ${Math.round(AI_SOFT_DEADLINE_MS / 1000)}s soft deadline; generated partial copy is preserved.`;
+}
+
+function telemetry(event: string, data: Record<string, unknown>): void {
+  if (!AI_GENERATION_TELEMETRY) return;
+  console.info(`[generation-telemetry] ${event} ${JSON.stringify(data)}`);
+}
 
 /**
  * Fail-fast check: if a selected provider's key isn't configured on this server, return a
@@ -166,8 +253,8 @@ export function providerConfigError(models: AIModelPair): string | null {
   return `The ${names} provider${plural ? "s aren't" : " isn't"} configured on this server. Switch the affected option to a configured provider in the model picker, then generate again.`;
 }
 
-function timeoutMessage(provider: string, model: string): string {
-  return `${provider} ${model} timed out after ${Math.round(PROVIDER_TIMEOUT_MS / 1000)} seconds. Try a faster model such as Claude Haiku, Gemini Flash/Lite, or a GPT mini/nano model, or reduce segments/products.`;
+function timeoutMessage(provider: string, model: string, timeoutMs = PROVIDER_TIMEOUT_MS): string {
+  return `${provider} ${model} timed out after ${Math.round(timeoutMs / 1000)} seconds. Try a faster model such as Claude Haiku, Gemini Flash/Lite, or a GPT mini/nano model, or reduce segments/products.`;
 }
 
 function truncatedMessage(provider: string, model: string, maxOutputTokens = MAX_OUTPUT_TOKENS): string {
@@ -182,17 +269,18 @@ async function fetchJsonWithTimeout<T>(
   provider: string,
   model: string,
   url: string,
-  init: RequestInit
+  init: RequestInit,
+  timeoutMs = PROVIDER_TIMEOUT_MS
 ): Promise<{ res: Response; data: T }> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { ...init, signal: controller.signal });
     const data = (await res.json().catch(() => ({}))) as T;
     return { res, data };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(timeoutMessage(provider, model));
+      throw new Error(timeoutMessage(provider, model, timeoutMs));
     }
     throw err;
   } finally {
@@ -224,6 +312,7 @@ async function createTextWithProviderRetry(
 ): Promise<string> {
   let lastErr: unknown;
   for (let attempt = 0; attempt <= AI_PROVIDER_RETRIES; attempt++) {
+    if (attempt > 0 && !hasDeadlineBudget(options, AI_PROVIDER_RETRY_BASE_MS * 2 ** attempt)) break;
     try {
       return await createText(system, user, selection, options);
     } catch (err) {
@@ -231,6 +320,9 @@ async function createTextWithProviderRetry(
       if (attempt >= AI_PROVIDER_RETRIES || !isTransientProviderError(err)) break;
       const backoff = AI_PROVIDER_RETRY_BASE_MS * 2 ** attempt;
       const jitter = Math.round(backoff * 0.2 * Math.random());
+      if (Date.now() + backoff + jitter + (options.timeoutMs ?? PROVIDER_TIMEOUT_MS) > (options.deadlineAt ?? Number.POSITIVE_INFINITY)) {
+        break;
+      }
       await sleep(backoff + jitter);
     }
   }
@@ -334,6 +426,7 @@ function textFromClaudeMessage(resp: Message): string {
 async function callClaude(system: string, user: string, model: string, options: ModelCallOptions = {}): Promise<string> {
   const temperature = options.temperature ?? AI_TEMP_A;
   const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
+  const timeoutMs = options.timeoutMs ?? PROVIDER_TIMEOUT_MS;
   const tool: Tool | undefined = options.schema
     ? {
         name: "emit_brief",
@@ -352,8 +445,8 @@ async function callClaude(system: string, user: string, model: string, options: 
   let resp;
   try {
     resp = AI_CLAUDE_STREAMING
-      ? await getClient().messages.stream(payload, { timeout: PROVIDER_TIMEOUT_MS }).finalMessage()
-      : await getClient().messages.create(payload, { timeout: PROVIDER_TIMEOUT_MS });
+      ? await getClient().messages.stream(payload, { timeout: timeoutMs }).finalMessage()
+      : await getClient().messages.create(payload, { timeout: timeoutMs });
   } catch (err) {
     if (err instanceof Error && isOutputBudgetParamError(err.message)) {
       const nextBudget = reducedOutputBudget(maxOutputTokens);
@@ -363,7 +456,7 @@ async function callClaude(system: string, user: string, model: string, options: 
       return callClaude(system, user, model, { ...options, schema: undefined });
     }
     if (err instanceof Error && /timeout|timed out|abort/i.test(err.message)) {
-      throw new Error(timeoutMessage("Claude", model));
+      throw new Error(timeoutMessage("Claude", model, timeoutMs));
     }
     throw err;
   }
@@ -377,6 +470,7 @@ async function callGemini(system: string, user: string, model: string, options: 
   const temperature = options.temperature ?? AI_TEMP_A;
   const topP = options.topP ?? AI_TOP_P;
   const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
+  const timeoutMs = options.timeoutMs ?? PROVIDER_TIMEOUT_MS;
   const generationConfig: Record<string, unknown> = {
     temperature,
     topP,
@@ -398,7 +492,7 @@ async function callGemini(system: string, user: string, model: string, options: 
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig,
     }),
-  });
+  }, timeoutMs);
   if (!res.ok && isOutputBudgetParamError(data.error?.message)) {
     const nextBudget = reducedOutputBudget(maxOutputTokens);
     if (nextBudget) return callGemini(system, user, model, { ...options, maxOutputTokens: nextBudget });
@@ -432,6 +526,7 @@ async function callOpenAI(system: string, user: string, model: string, options: 
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
   const topP = options.topP ?? AI_TOP_P;
   const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
+  const timeoutMs = options.timeoutMs ?? PROVIDER_TIMEOUT_MS;
   const basePayload: Record<string, unknown> = {
     model,
     store: true,
@@ -463,7 +558,7 @@ async function callOpenAI(system: string, user: string, model: string, options: 
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(payload),
-    });
+    }, timeoutMs);
 
   // Newer OpenAI reasoning/frontier models reject `temperature`; some also reject
   // specifying both temperature and top_p. Use top_p as the single creative-control
@@ -718,10 +813,11 @@ function hasPromptOverrides(overrides?: PromptOverrides): boolean {
   return !!(overrides?.system?.trim() || overrides?.user?.trim());
 }
 
-function segmentChunks(segments: string[]): string[][] {
+/** @internal exported for unit testing only */
+export function segmentChunks(segments: string[], batchSize = 1): string[][] {
   const chunks: string[][] = [];
-  for (let i = 0; i < segments.length; i += SEGMENT_BATCH_SIZE) {
-    chunks.push(segments.slice(i, i + SEGMENT_BATCH_SIZE));
+  for (let i = 0; i < segments.length; i += batchSize) {
+    chunks.push(segments.slice(i, i + batchSize));
   }
   return chunks;
 }
@@ -829,6 +925,17 @@ ${current}
 Apply feedback to the shared route, banner, product-image brief, P.S., and QA only. Segment subject/body patches will receive the same feedback later.`;
 }
 
+function promptOverrideLayer(overrides?: PromptOverrides): string {
+  const system = overrides?.system?.trim();
+  const user = overrides?.user?.trim();
+  if (!system && !user) return "";
+  return `The marketer edited the review prompts. Treat the following as steering constraints, but keep this layered call bounded to its output contract and schema.
+${system ? `\nEdited system prompt:\n${system.slice(0, 6000)}` : ""}
+${user ? `\nEdited user prompt:\n${user.slice(0, 6000)}` : ""}
+
+If the edited text asks for full-email fields outside this call, adapt the relevant instruction to the foundation or segment patch being generated here. Do not abandon the JSON schema.`;
+}
+
 function foundationBodyBase(campaign: Campaign): string {
   if (campaign.bodyLayout === "interspersed") {
     return "Layout summary: Open with the hero banner, place a short story paragraph before the first product images, add one bridge between product rows, then close with the P.S.";
@@ -858,7 +965,8 @@ function buildFoundationPrompt(
   selection: AIModelSelection,
   concept: EmailConcept,
   revision?: RevisionFeedback,
-  optionAAnchor?: GenBrief
+  optionAAnchor?: GenBrief,
+  overrides?: PromptOverrides
 ): { system: string; user: string } {
   const brand = BRANDS[campaign.brandId];
   const optionContrast = optionLabel === "B" && optionAAnchor
@@ -887,6 +995,7 @@ P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer co
     { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
     { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
     { title: "Model Lens", body: modelExecutionStyle(selection) },
+    { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
     {
       title: "Output Contract",
       body: `Return ONLY valid JSON. No markdown fence. No subject_lines. No segment body fields. Do not use internal terms such as ZONE, seg_*, QA flag, renderer, generated later, injected here, foundation, or patch call.\n${foundationOutputSchema(products)}`,
@@ -910,6 +1019,7 @@ Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, he
     { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
     { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, optionLabel) },
     { title: "Option Contrast", body: optionContrast },
+    { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
     { title: "User Feedback", body: foundationRevisionPrompt(revision) },
   ]);
 
@@ -1007,7 +1117,8 @@ function buildSegmentPatchPrompt(
   anchor: GenBrief,
   ctx: SegmentBatchContext,
   selection: AIModelSelection,
-  revision?: RevisionFeedback
+  revision?: RevisionFeedback,
+  overrides?: PromptOverrides
 ): { system: string; user: string } {
   const brand = BRANDS[campaign.brandId];
   const anchorJson = JSON.stringify(compactAnchorSummary(anchor)).slice(0, 7000);
@@ -1027,6 +1138,7 @@ Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 
 Body: selected body plus body_options per segment. body_options must include a primary route and an alternate route with different opener/proof/placement, not paraphrases. Selected body 120-150 words per segment, no {{first_name}}, personal-note first, one calm urgency beat, product-name markdown link by paragraph 2, 2-4 formatting/link beats, no hard-sell command stack.
 Use renderer-safe tokens only: ==accent==, **bold**, [Product](slug:slug), [home text](home). Factual/verified proof must be supplied or marked "needs verification" in notes; artificial review/claim texture may be qualitative only, with no fake ratings/counts/dates/ages/medical outcomes/stock/shipping facts.`,
     },
+    { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
   ]);
 
   const user = renderPromptLayers([
@@ -1058,6 +1170,7 @@ ${anchorJson}`,
       body: `${modelExecutionStyle(selection)}
 This lens should affect sentence architecture and proof path, not recipient-facing model names.`,
     },
+    { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
     { title: "User Feedback", body: feedbackForSegmentPatch(revision) },
   ]);
 
@@ -1078,15 +1191,20 @@ async function createSegmentPatch(
   anchor: GenBrief,
   ctx: SegmentBatchContext,
   selection: AIModelSelection,
-  revision?: RevisionFeedback
+  revision?: RevisionFeedback,
+  runtime?: GenerationRuntime,
+  overrides?: PromptOverrides
 ): Promise<SegmentCopyPatch> {
   const promptCampaign = anchor.body_variety
     ? { ...campaign, bodyVariety: anchor.body_variety }
     : campaign;
-  const { system, user } = buildSegmentPatchPrompt(promptCampaign, products, optionLabel, anchor, ctx, selection, revision);
+  const { system, user } = buildSegmentPatchPrompt(promptCampaign, products, optionLabel, anchor, ctx, selection, revision, overrides);
   const parsed = await createAndParseWithModel(system, user, selection, {
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
     maxOutputTokens: SEGMENT_PATCH_OUTPUT_TOKENS,
+    timeoutMs: PATCH_PROVIDER_TIMEOUT_MS,
+    deadlineAt: runtime?.softDeadlineAt,
+    stage: `segment_patch_${optionLabel.toLowerCase()}`,
     schema: segmentPatchJsonSchema(promptCampaign.segments),
   });
   return normalizeSegmentPatch(parsed, promptCampaign);
@@ -1097,18 +1215,20 @@ async function generateSegmentCopyBatch(
   products: Product[],
   models: AIModelPair,
   revision: RevisionFeedback | undefined,
-  batchContext: SegmentBatchContext
+  batchContext: SegmentBatchContext,
+  runtime?: GenerationRuntime,
+  overrides?: PromptOverrides
 ): Promise<SegmentCopyResult> {
   const tasks: Promise<SegmentCopyPatch>[] = [];
   const labels: ("A" | "B")[] = [];
 
   if (batchContext.optionAAnchor) {
     labels.push("A");
-    tasks.push(createSegmentPatch(campaign, products, "A", batchContext.optionAAnchor, batchContext, models.a, revision));
+    tasks.push(createSegmentPatch(campaign, products, "A", batchContext.optionAAnchor, batchContext, models.a, revision, runtime, overrides));
   }
   if (batchContext.optionBAnchor) {
     labels.push("B");
-    tasks.push(createSegmentPatch(campaign, products, "B", batchContext.optionBAnchor, batchContext, models.b, revision));
+    tasks.push(createSegmentPatch(campaign, products, "B", batchContext.optionBAnchor, batchContext, models.b, revision, runtime, overrides));
   }
 
   if (!tasks.length) return { error: "No anchor option available for segment-only batch" };
@@ -1368,10 +1488,19 @@ async function generateOptionsSingle(
   overrides?: PromptOverrides,
   modelInput?: Partial<AIModelPair>,
   revision?: RevisionFeedback,
-  batchContext?: SegmentBatchContext
+  batchContext?: SegmentBatchContext,
+  runtime?: GenerationRuntime
 ): Promise<GenerationResult> {
   try {
+    emit(runtime, { type: "stage", stage: "single_start", message: "Generating full A/B briefs in legacy single-call mode" });
     const models = normalizeModelPair(modelInput);
+    telemetry("start", {
+      path: "single",
+      segments: campaign.segments.length,
+      modelA: `${models.a.provider}:${models.a.model}`,
+      modelB: `${models.b.provider}:${models.b.model}`,
+      promptOverrides: hasPromptOverrides(overrides),
+    });
     const autoPrompts = !hasPromptOverrides(overrides);
     const nonceA = `${randomUUID()}:${models.a.provider}:${models.a.model}:A`;
     const nonceB = `${randomUUID()}:${models.b.provider}:${models.b.model}:B`;
@@ -1412,8 +1541,8 @@ async function generateOptionsSingle(
       usrB = bMessages.user;
       // allSettled so a slow/failed B doesn't discard a perfectly good A (and vice versa).
       const [aSettled, bSettled] = await Promise.allSettled([
-        createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A }),
-        createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B }),
+        createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A, deadlineAt: runtime?.softDeadlineAt, stage: "single_a" }),
+        createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B, deadlineAt: runtime?.softDeadlineAt, stage: "single_b" }),
       ]);
       aFailure = aSettled.status === "rejected" ? aSettled.reason : undefined;
       bFailure = bSettled.status === "rejected" ? bSettled.reason : undefined;
@@ -1423,11 +1552,15 @@ async function generateOptionsSingle(
         a ? repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a) : Promise.resolve(undefined),
         b ? repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b) : Promise.resolve(undefined),
       ]);
+      if (a) emit(runtime, { type: "partial", option: "a", brief: a });
+      if (b) emit(runtime, { type: "partial", option: "b", brief: b });
     } else {
       try {
-        a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A })) as unknown as GenBrief, concepts.a), campaignA, products);
+        emit(runtime, { type: "stage", stage: "single_a", option: "a", message: "Generating Option A" });
+        a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A, deadlineAt: runtime?.softDeadlineAt, stage: "single_a" })) as unknown as GenBrief, concepts.a), campaignA, products);
         a = await repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a);
         stampBrief(a, models.a, campaignA.bodyVariety);
+        emit(runtime, { type: "partial", option: "a", brief: a });
       } catch (err) {
         aFailure = err;
       }
@@ -1436,8 +1569,10 @@ async function generateOptionsSingle(
       sysBInitial = bMessages.system;
       usrB = bMessages.user;
       try {
-        b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B })) as unknown as GenBrief, concepts.b), campaignB, products);
+        emit(runtime, { type: "stage", stage: "single_b", option: "b", message: "Generating Option B" });
+        b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B, deadlineAt: runtime?.softDeadlineAt, stage: "single_b" })) as unknown as GenBrief, concepts.b), campaignB, products);
         b = await repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b);
+        if (b) emit(runtime, { type: "partial", option: "b", brief: b });
       } catch (err) {
         bFailure = err;
       }
@@ -1473,7 +1608,8 @@ WARNING: A/B contrast failed:
 ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
-      b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, retryCampaignB, { temperature: AI_TEMP_B_RETRY })) as unknown as GenBrief, concepts.b), retryCampaignB, products);
+      emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Retrying Option B for stronger contrast" });
+      b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, retryCampaignB, { temperature: AI_TEMP_B_RETRY, deadlineAt: runtime?.softDeadlineAt, stage: "contrast_retry" })) as unknown as GenBrief, concepts.b), retryCampaignB, products);
       b = await repairBriefIfNeeded("B", b, retryCampaignB, products, sysB, models.b);
       stampBrief(b, models.b, retryCampaignB.bodyVariety);
     }
@@ -1483,8 +1619,10 @@ Regenerate Option B with a different production branch/brief_route, subject fami
     [a, b] = validateBriefPair(a, b);
 
     console.info(`[generate-copy] completed A/B${batchContext ? ` batch ${batchContext.index}/${batchContext.total}` : ""} in ${Math.round((Date.now() - startedAt) / 1000)}s using ${models.a.provider}:${models.a.model} + ${models.b.provider}:${models.b.model}`);
+    telemetry("complete", { path: "single", elapsedMs: Date.now() - startedAt, hasA: !!a, hasB: !!b, scoreA: a?._score, scoreB: b?._score });
     return { a, b };
   } catch (err) {
+    telemetry("error", { path: "single", message: errMessage(err) });
     return { error: err instanceof Error ? err.message : "Generation failed" };
   }
 }
@@ -1497,11 +1635,15 @@ async function createOptionFoundation(
   variety: BodyVarietyProfile | undefined,
   concept: EmailConcept,
   revision?: RevisionFeedback,
-  optionAAnchor?: GenBrief
+  optionAAnchor?: GenBrief,
+  runtime?: GenerationRuntime,
+  overrides?: PromptOverrides
 ): Promise<GenBrief> {
-  const { system, user } = buildFoundationPrompt(campaign, products, optionLabel, selection, concept, revision, optionAAnchor);
+  const { system, user } = buildFoundationPrompt(campaign, products, optionLabel, selection, concept, revision, optionAAnchor, overrides);
   const parsed = await createFoundationBriefWithModel(system, user, selection, {
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
+    deadlineAt: runtime?.softDeadlineAt,
+    stage: `foundation_${optionLabel.toLowerCase()}`,
   });
   const brief = normalizeFoundationBrief(parsed, campaign);
   brief.creative_direction = {
@@ -1519,16 +1661,88 @@ async function createOptionFoundation(
   return stampBrief(brief, selection, variety) as GenBrief;
 }
 
+async function generateOptionSegmentParts(
+  option: "a" | "b",
+  campaign: Campaign,
+  products: Product[],
+  models: AIModelPair,
+  revision: RevisionFeedback | undefined,
+  chunks: string[][],
+  concurrency: number,
+  allSegmentContext: string,
+  anchor: GenBrief,
+  runtime: GenerationRuntime | undefined,
+  overrides?: PromptOverrides
+): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; completed: number; total: number }> {
+  const optionLabel = option.toUpperCase() as "A" | "B";
+  const warnings: string[] = [];
+  const total = chunks.length;
+  let completed = 0;
+  const parts = await mapWithConcurrency(
+    chunks,
+    concurrency,
+    async (segments, index) => {
+      const deadlineWarning = runtime ? softDeadlineWarning(runtime, `Option ${optionLabel} segment patches`) : null;
+      if (deadlineWarning) {
+        warnings.push(`batch ${index + 1}/${total}: ${deadlineWarning}`);
+        emit(runtime, { type: "warning", message: deadlineWarning });
+        return undefined;
+      }
+      emit(runtime, {
+        type: "stage",
+        stage: "segment_patch",
+        option,
+        batch: index + 1,
+        total,
+        message: `Writing Option ${optionLabel} segment batch ${index + 1}/${total}`,
+      });
+      const result = await generateSegmentCopyBatch(
+        withSegments(campaign, segments),
+        products,
+        models,
+        revision,
+        {
+          index: index + 1,
+          total,
+          allSegments: campaign.segments,
+          allSegmentContext,
+          optionAAnchor: option === "a" ? anchor : undefined,
+          optionBAnchor: option === "b" ? anchor : undefined,
+        },
+        runtime,
+        overrides
+      );
+      completed += 1;
+      emit(runtime, { type: "progress", stage: `segments_${option}`, done: completed, total, message: `Option ${optionLabel} segments ${completed}/${total}` });
+      const label = `batch ${index + 1}/${total}`;
+      if (result.error) warnings.push(`${label}: ${result.error}`);
+      if (result.warning) warnings.push(`${label}: ${result.warning}`);
+      const patch = option === "a" ? result.a : result.b;
+      if (!patch) warnings.push(`${label}: missing Option ${optionLabel}`);
+      return patch;
+    }
+  );
+  return {
+    parts: [anchor, ...parts.filter((part): part is SegmentBatchPart => !!part)],
+    warnings,
+    completed,
+    total,
+  };
+}
+
 async function generateOptionsBatched(
   campaign: Campaign,
   products: Product[],
+  overrides?: PromptOverrides,
   modelInput?: Partial<AIModelPair>,
-  revision?: RevisionFeedback
+  revision?: RevisionFeedback,
+  runtime?: GenerationRuntime
 ): Promise<GenerationResult> {
   try {
-    const chunks = segmentChunks(campaign.segments);
-    const total = chunks.length;
     const models = normalizeModelPair(modelInput);
+    const batchSettings = adaptiveBatchSettings(models);
+    const chunks = segmentChunks(campaign.segments, batchSettings.batchSize);
+    const total = chunks.length;
     const startedAt = Date.now();
     const allSegmentContext = segmentPromptContext(campaign);
     const nonceA = `${randomUUID()}:${models.a.provider}:${models.a.model}:A:foundation`;
@@ -1542,109 +1756,101 @@ async function generateOptionsBatched(
     let aFailure: unknown;
     let bFailure: unknown;
 
-    console.info(`[generate-copy] layered generation for ${campaign.segments.length} segments: 2 foundations + ${total} segment batch(es)`);
+    console.info(`[generate-copy] layered generation for ${campaign.segments.length} segments: 2 foundations + ${total} segment batch(es), tier=${batchSettings.tier}, batchSize=${batchSettings.batchSize}, concurrency=${batchSettings.concurrency}`);
+    telemetry("start", {
+      path: "layered",
+      segments: campaign.segments.length,
+      batches: total,
+      modelA: `${models.a.provider}:${models.a.model}`,
+      modelB: `${models.b.provider}:${models.b.model}`,
+      speedTier: batchSettings.tier,
+      promptOverrides: hasPromptOverrides(overrides),
+    });
+    emit(runtime, {
+      type: "stage",
+      stage: "layered_start",
+      message: `Layered generation: ${campaign.segments.length} segment(s), ${total} batch(es), ${batchSettings.tier} model plan`,
+    });
 
     try {
-      optionAAnchor = await createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, concepts.a, revision);
+      emit(runtime, { type: "stage", stage: "foundation_a", option: "a", message: "Creating Option A foundation" });
+      optionAAnchor = await createOptionFoundation(campaignA, products, "A", models.a, campaignA.bodyVariety, concepts.a, revision, undefined, runtime, overrides);
+      emit(runtime, { type: "progress", stage: "foundations", done: 1, total: 2, message: "Option A foundation ready" });
     } catch (err) {
       aFailure = err;
       warnings.push(`foundation A: ${errMessage(err)}`);
+      emit(runtime, { type: "warning", message: `Option A foundation failed: ${errMessage(err)}` });
     }
 
     try {
-      optionBAnchor = await createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, concepts.b, revision, optionAAnchor);
+      emit(runtime, { type: "stage", stage: "foundation_b", option: "b", message: "Creating Option B foundation with A contrast" });
+      optionBAnchor = await createOptionFoundation(campaignB, products, "B", models.b, campaignB.bodyVariety, concepts.b, revision, optionAAnchor, runtime, overrides);
+      emit(runtime, { type: "progress", stage: "foundations", done: 2, total: 2, message: "Option B foundation ready" });
     } catch (err) {
       bFailure = err;
       warnings.push(`foundation B: ${errMessage(err)}`);
+      emit(runtime, { type: "warning", message: `Option B foundation failed: ${errMessage(err)}` });
     }
 
     if (!optionAAnchor && !optionBAnchor) return { error: bestFailureMessage([aFailure, bFailure]) };
 
-    const segmentResults = await mapWithConcurrency(
-      chunks,
-      SEGMENT_BATCH_CONCURRENCY,
-      (segments, index) =>
-        generateSegmentCopyBatch(
-          withSegments(campaign, segments),
-          products,
-          models,
-          revision,
-          {
-            index: index + 1,
-            total,
-            allSegments: campaign.segments,
-            allSegmentContext,
-            optionAAnchor,
-            optionBAnchor,
-          }
-        )
-    );
+    const aPromise = optionAAnchor
+      ? generateOptionSegmentParts("a", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, optionAAnchor, runtime, overrides)
+          .then((run) => {
+            warnings.push(...run.warnings.map((w) => `A ${w}`));
+            const a = mergeOptionBatches(campaign, products, run.parts, optionAAnchor?._provider, optionAAnchor?._model);
+            emit(runtime, { type: "stage", stage: "merge", option: "a", message: "Merged Option A" });
+            emit(runtime, { type: "partial", option: "a", brief: a, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
+            return a;
+          })
+          .catch((err) => {
+            aFailure = err;
+            warnings.push(`Option A segments: ${errMessage(err)}`);
+            emit(runtime, { type: "warning", message: `Option A segments failed: ${errMessage(err)}` });
+            return undefined;
+          })
+      : Promise.resolve(undefined);
 
-    segmentResults.forEach((result, index) => {
-      const label = `batch ${index + 1}/${total}`;
-      if (result.error) warnings.push(`${label}: ${result.error}`);
-      if (result.warning) warnings.push(`${label}: ${result.warning}`);
-      if (optionAAnchor && !result.a) warnings.push(`${label}: missing Option A`);
-      if (optionBAnchor && !result.b) warnings.push(`${label}: missing Option B`);
-    });
+    const bPromise = optionBAnchor
+      ? generateOptionSegmentParts("b", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, optionBAnchor, runtime, overrides)
+          .then((run) => {
+            warnings.push(...run.warnings.map((w) => `B ${w}`));
+            const b = mergeOptionBatches(campaign, products, run.parts, optionBAnchor?._provider, optionBAnchor?._model);
+            emit(runtime, { type: "stage", stage: "merge", option: "b", message: "Merged Option B" });
+            emit(runtime, { type: "partial", option: "b", brief: b, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
+            return b;
+          })
+          .catch((err) => {
+            bFailure = err;
+            warnings.push(`Option B segments: ${errMessage(err)}`);
+            emit(runtime, { type: "warning", message: `Option B segments failed: ${errMessage(err)}` });
+            return undefined;
+          })
+      : Promise.resolve(undefined);
 
-    const aBatches: SegmentBatchPart[] = optionAAnchor
-      ? [optionAAnchor, ...segmentResults.map((result) => result.a).filter((brief): brief is SegmentBatchPart => !!brief)]
-      : [];
-    const bBatches: SegmentBatchPart[] = optionBAnchor
-      ? [optionBAnchor, ...segmentResults.map((result) => result.b).filter((brief): brief is SegmentBatchPart => !!brief)]
-      : [];
-    if (!aBatches.length && !bBatches.length) {
-      return { error: warnings[0] || "No segment batch returned usable output" };
+    let [a, b] = await Promise.all([aPromise, bPromise]);
+
+    if (!a && !b) {
+      return { error: warnings[0] || bestFailureMessage([aFailure, bFailure]) || "No segment batch returned usable output" };
     }
-
-    let a = aBatches.length
-      ? mergeOptionBatches(campaign, products, aBatches, optionAAnchor?._provider, optionAAnchor?._model)
-      : undefined;
-    let b = bBatches.length
-      ? mergeOptionBatches(campaign, products, bBatches, optionBAnchor?._provider, optionBAnchor?._model)
-      : undefined;
 
     if (a && b) {
       const hardContrast = briefContrastIssues(a, b).filter(isHardContrastIssue);
       if (hardContrast.length && optionAAnchor) {
         try {
           warnings.push(`contrast retry: ${hardContrast.slice(0, 3).join("; ")}`);
+          emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Retrying Option B contrast" });
           const retrySeedCampaign = { ...campaign, theme: `${campaign.theme} contrast retry ${hardContrast.join(" ")}` };
           const retryConcept = selectEmailConceptPair(retrySeedCampaign, products).b;
           const retryCampaignB = withOptionVariety(campaign, `${nonceB}:retry:${hardContrast.length}`);
-          const retryAnchor = await createOptionFoundation(retryCampaignB, products, "B", models.b, retryCampaignB.bodyVariety, retryConcept, revision, optionAAnchor);
-          const retrySegments = await mapWithConcurrency(
-            chunks,
-            SEGMENT_BATCH_CONCURRENCY,
-            (segments, index) =>
-              generateSegmentCopyBatch(
-                withSegments(campaign, segments),
-                products,
-                models,
-                revision,
-                {
-                  index: index + 1,
-                  total,
-                  allSegments: campaign.segments,
-                  allSegmentContext,
-                  optionBAnchor: retryAnchor,
-                }
-              )
-          );
-          retrySegments.forEach((result, index) => {
-            const label = `contrast retry batch ${index + 1}/${total}`;
-            if (result.error) warnings.push(`${label}: ${result.error}`);
-            if (result.warning) warnings.push(`${label}: ${result.warning}`);
-            if (!result.b) warnings.push(`${label}: missing Option B`);
-          });
-          const retryBatches: SegmentBatchPart[] = [
-            retryAnchor,
-            ...retrySegments.map((result) => result.b).filter((brief): brief is SegmentBatchPart => !!brief),
-          ];
-          b = mergeOptionBatches(campaign, products, retryBatches, retryAnchor._provider, retryAnchor._model);
+          const retryAnchor = await createOptionFoundation(retryCampaignB, products, "B", models.b, retryCampaignB.bodyVariety, retryConcept, revision, optionAAnchor, runtime, overrides);
+          const retryRun = await generateOptionSegmentParts("b", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, retryAnchor, runtime, overrides);
+          warnings.push(...retryRun.warnings.map((w) => `contrast retry ${w}`));
+          b = mergeOptionBatches(campaign, products, retryRun.parts, retryAnchor._provider, retryAnchor._model);
+          emit(runtime, { type: "partial", option: "b", brief: b, warning: retryRun.warnings.length ? retryRun.warnings.join(" · ") : undefined });
         } catch (err) {
           warnings.push(`contrast retry failed: ${errMessage(err)}`);
+          emit(runtime, { type: "warning", message: `Contrast retry failed: ${errMessage(err)}` });
         }
       }
     }
@@ -1656,8 +1862,18 @@ async function generateOptionsBatched(
       : undefined;
 
     console.info(`[generate-copy] completed layered A/B in ${Math.round((Date.now() - startedAt) / 1000)}s across ${total} segment batch(es)`);
+    telemetry("complete", {
+      path: "layered",
+      elapsedMs: Date.now() - startedAt,
+      hasA: !!a,
+      hasB: !!b,
+      warnings: warnings.length,
+      scoreA: a?._score,
+      scoreB: b?._score,
+    });
     return { a, b, warning };
   } catch (err) {
+    telemetry("error", { path: "layered", message: errMessage(err) });
     return { error: err instanceof Error ? err.message : "Batched generation failed" };
   }
 }
@@ -1668,10 +1884,19 @@ export async function generateOptions(
   products: Product[],
   overrides?: PromptOverrides,
   modelInput?: Partial<AIModelPair>,
-  revision?: RevisionFeedback
+  revision?: RevisionFeedback,
+  onEvent?: GenerationEventHandler
 ): Promise<GenerationResult> {
-  if (!hasPromptOverrides(overrides) && campaign.segments.length >= SEGMENT_BATCH_THRESHOLD) {
-    return generateOptionsBatched(campaign, products, modelInput, revision);
+  const runtime = runtimeFrom(onEvent);
+  const promptEdits = hasPromptOverrides(overrides);
+  const useLayered = campaign.segments.length >= SEGMENT_BATCH_THRESHOLD && !(promptEdits && campaign.segments.length === 1);
+  const result = useLayered
+    ? await generateOptionsBatched(campaign, products, overrides, modelInput, revision, runtime)
+    : await generateOptionsSingle(campaign, products, overrides, modelInput, revision, undefined, runtime);
+  if (result.error) {
+    emit(runtime, { type: "error", message: result.error });
+  } else {
+    emit(runtime, { type: "done", a: result.a, b: result.b, warning: result.warning });
   }
-  return generateOptionsSingle(campaign, products, overrides, modelInput, revision);
+  return result;
 }
