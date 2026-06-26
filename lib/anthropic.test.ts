@@ -38,8 +38,8 @@ describe("adaptiveBatchSettings", () => {
     b: { provider: "openai", model: "gpt-5.5-pro" },
   };
 
-  it("groups three selected segments into one patch batch", () => {
-    expect(adaptiveBatchSettings(balancedPair, 3)).toMatchObject({ batchSize: 3, concurrency: 1, tier: "balanced" });
+  it("splits three segments into two concurrent patch batches for resilience", () => {
+    expect(adaptiveBatchSettings(balancedPair, 3)).toMatchObject({ batchSize: 2, concurrency: 2, tier: "balanced" });
   });
 
   it("lets faster models run patch batches concurrently", () => {

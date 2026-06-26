@@ -218,9 +218,7 @@ export function adaptiveBatchSettings(models: AIModelPair, segmentCount: number)
   const count = Math.max(1, segmentCount);
   const targetBatches = tier === "fast" ? 4 : tier === "balanced" ? 3 : 2;
   const maxBatchSize = tier === "fast" ? 8 : tier === "balanced" ? 6 : 4;
-  const fallbackBatchSize = count <= 3
-    ? count
-    : Math.min(maxBatchSize, Math.max(2, Math.ceil(count / targetBatches)));
+  const fallbackBatchSize = Math.min(maxBatchSize, Math.max(2, Math.ceil(count / targetBatches)));
   const fallbackConcurrency = tier === "frontier" ? 1 : Math.min(tier === "fast" ? 3 : 2, Math.ceil(count / fallbackBatchSize));
   return {
     batchSize: SEGMENT_BATCH_SIZE_OVERRIDE || fallbackBatchSize,
