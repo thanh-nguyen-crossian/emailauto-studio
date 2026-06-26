@@ -475,7 +475,8 @@ export function StudioApp() {
     ]
   );
 
-  // Filled slots → Product list, applying the per-slot URL + selected-USP overrides. Hero first.
+  // Filled slots -> Product list, applying the per-slot URL + selected-USP overrides.
+  // Slot order defines the campaign lead; required brand products can move order.
   const selectedProducts: Product[] = useMemo(() => {
     return slots
       .filter((s) => s.slug || s.isCustom)
@@ -698,6 +699,18 @@ export function StudioApp() {
     if (i > 0 && !requiredSlugSet.has(slots[i]?.slug || "")) {
       setSlots((prev) => prev.filter((_, idx) => idx !== i));
     }
+  }
+  function moveSlot(i: number, direction: -1 | 1) {
+    const nextIndex = i + direction;
+    if (nextIndex < 0 || nextIndex >= slots.length) return;
+    setSlots((prev) => {
+      const currentRequired = requiredSlugSet.has(prev[i]?.slug || "");
+      const targetRequired = requiredSlugSet.has(prev[nextIndex]?.slug || "");
+      if (currentRequired !== targetRequired) return prev;
+      const next = [...prev];
+      [next[i], next[nextIndex]] = [next[nextIndex], next[i]];
+      return next;
+    });
   }
 
   const maxProducts = 6;
@@ -1625,7 +1638,7 @@ export function StudioApp() {
                   {requiredProductsForBrand.length > 0 && (
                     <div className="section-panel text-sm">
                       <strong className="text-[var(--text)]">Required in every {brand.name} email:</strong>{" "}
-                      {requiredProductsForBrand.map((product) => product.name).join(", ")}. These slots are locked so A/B generation, export, and SendGrid stay aligned.{" "}
+                      {requiredProductsForBrand.map((product) => product.name).join(", ")}. Keep them as the top trio; move within the trio to change which product leads this campaign.{" "}
                       <span className="text-[var(--muted)]">{bodyHomepagePolicyCopy(bodyHomePolicy)}</span>
                     </div>
                   )}
@@ -1640,36 +1653,45 @@ export function StudioApp() {
                           onClick={() => setBodyFocus(mode)}
                           className={`choice-pill ${bodyFocus === mode ? "choice-pill-active" : ""}`}
                         >
-                          {mode === "hero" ? "Hero story" : "Full grid"}
+                          {mode === "hero" ? "Lead story" : "Full grid"}
                         </button>
                       ))}
                     </div>
                     <p className="text-xs text-[var(--muted)] mt-1">
                       {bodyFocus === "hero"
-                        ? "Body prose tells the hero product story; support products share one collective line."
+                        ? "Body prose tells the lead product story; support products share one collective line."
                         : "Body prose covers each featured product individually."}
                     </p>
                   </Field>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {slots.map((slot, si) => (
-                      <ProductSlotCard
-                        key={si}
-                        index={si}
-                        slot={slot}
-                        catalog={brand.catalog}
-                        usedSlugs={slots.map((s) => s.slug).filter(Boolean)}
-                        recentSlugs={recentProductSlugs}
-                        required={requiredSlugSet.has(slot.slug)}
-                        onPick={(slug) => pickProduct(si, slug)}
-                        onUrl={(url) => updateSlotUrl(si, url)}
-                        onCustomChange={(patch) => updateSlot(si, patch)}
-                        onScrape={(url) => scrapeSlot(si, url)}
-                        onToggleUsp={(usp) => toggleSlotUsp(si, usp)}
-                        onAddCustomUsp={() => addCustomUsp(si)}
-                        onSetCustomUsp={(j, v) => setCustomUsp(si, j, v)}
-                        onRemove={() => removeSlot(si)}
-                      />
-                    ))}
+                    {slots.map((slot, si) => {
+                      const currentRequired = requiredSlugSet.has(slot.slug);
+                      const prevRequired = requiredSlugSet.has(slots[si - 1]?.slug || "");
+                      const nextRequired = requiredSlugSet.has(slots[si + 1]?.slug || "");
+                      return (
+                        <ProductSlotCard
+                          key={si}
+                          index={si}
+                          slot={slot}
+                          catalog={brand.catalog}
+                          usedSlugs={slots.map((s) => s.slug).filter(Boolean)}
+                          recentSlugs={recentProductSlugs}
+                          required={currentRequired}
+                          canMoveUp={si > 0 && currentRequired === prevRequired}
+                          canMoveDown={si < slots.length - 1 && currentRequired === nextRequired}
+                          onPick={(slug) => pickProduct(si, slug)}
+                          onUrl={(url) => updateSlotUrl(si, url)}
+                          onCustomChange={(patch) => updateSlot(si, patch)}
+                          onScrape={(url) => scrapeSlot(si, url)}
+                          onToggleUsp={(usp) => toggleSlotUsp(si, usp)}
+                          onAddCustomUsp={() => addCustomUsp(si)}
+                          onSetCustomUsp={(j, v) => setCustomUsp(si, j, v)}
+                          onRemove={() => removeSlot(si)}
+                          onMoveUp={() => moveSlot(si, -1)}
+                          onMoveDown={() => moveSlot(si, 1)}
+                        />
+                      );
+                    })}
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={addSlot} disabled={slots.length >= MAX_SLOTS} className="btn-ghost">+ Add product slot</button>

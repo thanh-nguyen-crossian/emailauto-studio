@@ -45,7 +45,7 @@ export interface Brand {
   accent: string;
   /** Inclusive on-brand accent range [darkest, lightest] — pre-flight flags anything outside. */
   accentRange: [string, string];
-  /** Hero product slug locked into position 1. */
+  /** Default hero product slug. Required brand trios must be included, but their order may vary by send. */
   heroSlug: string;
   /** Banner / hero image URL. Must not contain "PLACEHOLDER" to pass pre-flight. */
   heroImage: string;

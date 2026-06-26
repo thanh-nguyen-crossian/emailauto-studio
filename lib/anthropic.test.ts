@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adaptiveBatchSettings, compactPromptText, hasDeadlineBudget, remainingDeadlineMs, segmentChunks } from "./anthropic";
+import { adaptiveBatchSettings, compactPromptText, hasDeadlineBudget, isHardContrastIssue, remainingDeadlineMs, segmentChunks } from "./anthropic";
 import type { AIModelPair } from "./config/types";
 
 describe("segmentChunks", () => {
@@ -100,5 +100,13 @@ describe("hasDeadlineBudget", () => {
   it("uses PROVIDER_TIMEOUT_MS fallback when timeoutMs is omitted", () => {
     // With no timeoutMs and no deadline, always returns true.
     expect(hasDeadlineBudget({})).toBe(true);
+  });
+});
+
+describe("isHardContrastIssue", () => {
+  it("keeps product-grid surface collisions advisory so they do not trigger deadline retries", () => {
+    expect(isHardContrastIssue("A/B product grid patterns are the same; choose a different surface route for Option B")).toBe(false);
+    expect(isHardContrastIssue("A/B product grid has identical product order; reorder or swap at least one support product in Option B")).toBe(false);
+    expect(isHardContrastIssue("A/B body copy shares too much structure; change opener family and proof path")).toBe(true);
   });
 });

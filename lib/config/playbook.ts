@@ -65,10 +65,10 @@ export const PLAYBOOK_RULES: PlaybookRule[] = [
   // ── B. Offer, Product & Design ────────────────────────────────────────
   {
     id: "R6",
-    name: "Hero lock",
+    name: "Required trio + flexible lead",
     scope: "ALL",
-    win: "Lead with proven hero: BG DaisyBra+PosyBra/ZoeShape; GL JettJeans+IcyShorts+AirFlexion (all required); LF StretchActive+IcyShorts+SoftyGrace; SF Pouchic+TimelessMark.",
-    fail: "Lower-converting items in position 1: BG Moona/UpLacy; GL SteelStitch/EaseMotions/FlexCamo as hero over JettJeans; LF StretchActive below fold; SF non-gifting in lead.",
+    win: "Keep required proven trio as top blocks: BG DaisyBra+PosyBra+ZoeShape; GL JettJeans+IcyShorts+AirFlexion; LF StretchActive+IcyShorts+SoftyGrace. Internal lead order may rotate.",
+    fail: "Required trio missing from top blocks, lower-converting item leads before the trio, or product order feels like a static catalog.",
     enforce: "validate",
   },
   {

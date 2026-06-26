@@ -230,15 +230,15 @@ const PRODUCT_IMAGE_BRIEF_RULES = `PRODUCT IMAGE BRIEF RULES (one product image 
 
 const BRAND_PLAYBOOK_RULES: Record<string, string> = {
   bra_goddess: `BRAND RULEBOOK - BraGoddess:
-DO: Sandra voice; emotion-first + offer second; DaisyBra first; PosyBra and ZoeShape as required support; ZipLacy/SonaShape for variety; comfort, support, lift, and fit relief; soft social urgency; deep rose/crimson #a02338-#d63268. No homepage markdown links in body copy — product links only.
+DO: Sandra voice; emotion-first + offer second; Daisy Bra, Posy Bra, and ZoeShape fixed as the top trio; rotate their internal lead order by theme/segment fit; comfort, support, lift, and fit relief; soft social urgency; deep rose/crimson #a02338-#d63268. No homepage markdown links in body copy — product links only.
 DON'T: generic empowerment, gratitude opener, bubblegum #f33e8a, muddy #953336, repeated name in subject+preheader, "don't let X go to waste".
 SUBJECT: 45-55 chars; name in subject OR preheader; use o.f.f / 💲; preheader adds tension or deadline.`,
   gents_lux: `BRAND RULEBOOK - GentsLux:
-DO: Jordan voice; curiosity + scarcity; JettJeans first (hero); IcyShorts and AirFlexion required in every send; mechanism copy around movement, waistband, cooling, durability; understated confidence; deep navy #002850-#1d3d56.
+DO: Jordan voice; curiosity + scarcity; JettJeans, Icy Shorts, and AirFlexion fixed as the top trio; rotate their internal lead order by theme/segment fit; mechanism copy around movement, waistband, cooling, durability; understated confidence; deep navy #002850-#1d3d56.
 DON'T: cute puns, over-luxury language, grammar errors, loud hype, weak navy #26508d/#013faa/#183647, over-specified subject discounts.
 SUBJECT: 48-58 chars; name mid-subject; imply offer in subject, reveal scale in preheader.`,
   lux_fitting: `BRAND RULEBOOK - LuxFitting:
-DO: Adele voice; price-anchored sensory promise; StretchActive first, Icy Shorts where relevant, then SoftyGrace/AiryGrace/LinenGlam support; outfit ease, comfort, one practical tip; #e7324a/#fe397b.
+DO: Adele voice; price-anchored sensory promise; StretchActive, Icy Shorts, and SoftyGrace fixed as the top trio; rotate their internal lead order by theme/segment fit; outfit ease, comfort, one practical tip; #e7324a/#fe397b.
 DON'T: mixed hooks, "Be hurry!", unsupported health claims, red #d51c18, dull pink #d5255c, birthday+spring+discount+countdown stacking.
 SUBJECT: 44-56 chars; specific price/% every time; 💲 or spaced O.F.F; preheader escalates.`,
   santa_fare: `BRAND RULEBOOK - SantaFare:
@@ -1620,6 +1620,43 @@ function containsSignificantReference(text: string, reference?: string): boolean
   const checks = compactReference.length >= 4 ? [...words, compactReference] : words;
   return !checks.length || checks.some((w) => target.includes(w) || compactTarget.includes(w));
 }
+function findProductByReference(products: Product[], reference?: string): Product | undefined {
+  const ref = String(reference || "").trim();
+  if (!ref) return undefined;
+  return products.find((product) =>
+    containsSignificantReference(ref, product.name) ||
+    containsSignificantReference(product.name, ref) ||
+    (product.slug && norm(ref).includes(norm(product.slug)))
+  );
+}
+function leadProductForBrief(brief: GenBrief, products: Product[]): Product | undefined {
+  const hc = brief.creative_direction?.hook_contract;
+  return findProductByReference(products, hc?.hero_product) ||
+    findProductByReference(products, brief.products?.[0]?.name) ||
+    products[0];
+}
+function sourceProductForBlock(block: GenProductBlock, products: Product[], fallbackIndex: number): Product | undefined {
+  return findProductByReference(products, block.name) || products[fallbackIndex];
+}
+function blockReferencesProduct(block: GenProductBlock | undefined, product: Product): boolean {
+  if (!block) return false;
+  const surface = [
+    block.name,
+    block.template_style,
+    block.main_text,
+    block.sub_text,
+    block.popup_badge,
+    block.cta,
+    ...(block.usps || []),
+    block.main_image,
+    block.sub_image,
+    block.alt_text,
+    block.image_notes,
+  ].filter(Boolean).join(" ");
+  return containsSignificantReference(surface, product.name) ||
+    containsSignificantReference(product.name, block.name) ||
+    Boolean(product.slug && norm(surface).includes(norm(product.slug)));
+}
 function sharesContentThread(subjectish: string, bodyish: string, products: Product[], campaign: Campaign): boolean {
   const left = norm(subjectish);
   const right = norm(bodyish);
@@ -1712,8 +1749,8 @@ const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
 - HTML expectations for QA: clicktracking off on links, descriptive alt text, max-width responsive images, role=module/table layout compatibility, light-background SendGrid design.`;
 
 const PERFORMANCE_PROMPT_LAYER = `Pages are generally converting; assume email intent is the leak unless supplied page/product data says otherwise.
-Access/Delivered drop -> improve hero/body/CTA path. PO/View drop -> improve product order, price clarity, fit proof, page-product match. Optout/spam risk -> softer urgency and narrower list.
-Prioritize proven heroes: BG DaisyBra/PosyBra/ZoeShape; GL JettJeans/IcyShorts/AirFlexion; LF StretchActive/IcyShorts/SoftyGrace; SF Pouchic/TimelessMark.`;
+Access/Delivered drop -> improve lead/body/CTA path. PO/View drop -> improve product order, price clarity, fit proof, page-product match. Optout/spam risk -> softer urgency and narrower list.
+Required proven trios must occupy the top product blocks, but internal lead order may rotate by campaign theme, segment motive, and A/B route: BG DaisyBra/PosyBra/ZoeShape; GL JettJeans/IcyShorts/AirFlexion; LF StretchActive/IcyShorts/SoftyGrace; SF Pouchic/TimelessMark.`;
 
 const EXCEL_BRIEF_REFERENCE_LAYER = `Email Content.xlsx production-brief shape:
 - Keep the output organized like the real brief rows: segment Subject/PreHeader, Theme, Banner, Body Part/Body, Products, Featured Product 1/3/5, and designer notes.
@@ -1751,7 +1788,7 @@ export function brandPlaybookRuleBlock(brandId: string): string {
 export function requiredProductInstruction(brandId: string): string {
   const required = requiredCatalogProducts(brandId);
   if (!required.length) return "";
-  return `Required products in every email: ${required.map((p) => `${p.name} (slug:${p.slug})`).join(", ")}. Include all as product blocks and keep them eligible for body/banner references.`;
+  return `Required top products in every email: ${required.map((p) => `${p.name} (slug:${p.slug})`).join(", ")}. They must occupy the first ${required.length} product blocks. Their internal order is flexible: choose the lead product by campaign theme, segment motive, and A/B route; explain the ordering in product roles/image notes.`;
 }
 
 export function bodyHomepageLinkInstruction(brandId: string): string {
@@ -1764,6 +1801,12 @@ export function bodyHomepageLinkInstruction(brandId: string): string {
     return `${brand?.name || "This brand"} body copy must include exactly one natural homepage markdown link [short text](home) in every selected segment body and body option. Keep product markdown links too.`;
   }
   return "Homepage markdown links are optional in body copy; footer homepage links are handled by the renderer.";
+}
+
+export function campaignThemeInstruction(campaign: Campaign): string {
+  const theme = campaign.theme?.trim();
+  if (!theme) return "";
+  return `Campaign theme anchor: "${theme}". Treat this as the send's reason-now, not metadata. Echo it concretely in creative_direction.hook_contract, at least one subject/preheader option per segment, the banner, each segment body opener, product-image notes, and P.S. If the theme is broad, translate it into a specific use moment tied to the send date, segment motive, or product lead.`;
 }
 
 // ---- prompt builders ----
@@ -1911,12 +1954,13 @@ export function buildSystemPrompt(
     { title: "Chosen Concept", body: concept ? conceptPrompt(concept, isOptionB ? "B" : "A") : "" },
     { title: "Technique Plan", body: techniquePlanPrompt(selectedTechniquePlan) },
     { title: "Component Rules", body: COMPONENT_PROMPT_LAYER },
+    { title: "Campaign Theme Anchor", body: campaignThemeInstruction(campaign) },
     { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
     { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
     ...(campaign.bodyFocus !== "grid" ? [{
       title: "Body Focus",
-      body: `HERO MODE: body prose centres on ONE product story.
-The hero product (slot 1, named first) earns the full narrative — micro-story, proof beat, emotional arc.
+      body: `HERO MODE: body prose centres on ONE lead product story.
+The lead product earns the full narrative — micro-story, proof beat, emotional arc. It may be any required/selected product when the theme and segment justify it.
 Each support product earns AT MOST one cumulative sentence in the body — not a per-product paragraph.
 Recommended collector line: "Plus: [Product A](slug:a), [Product B](slug:b), and more — starting at 💲X."
 Do NOT write individual offer lines or USP lists for support products in the body prose.
@@ -2030,6 +2074,7 @@ Body layout: ${bodyLayoutLabel(campaign)}
 Product template: ${productCopyStyleLabel(campaign)}
 Recipient token: ${campaign.recipientName}
 ${requiredProductInstruction(campaign.brandId)}
+${campaignThemeInstruction(campaign)}
 ${bodyHomepageLinkInstruction(campaign.brandId)}${lastSend}${recentAvoid}${fatigueAvoid}`,
     },
     { title: "Strategy Intake", body: strategyPromptLayer(campaign) },
@@ -2062,7 +2107,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|first product block should|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
+  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|needs 2 editable|body options|banner options|product block roles|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -2449,6 +2494,12 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   const richText = JSON.stringify({ ba: brief.banner, bo: brief.body, p: brief.products });
   const accentMarks = richText.match(ACCENT_MARKER)?.length || 0;
   const boldMarks = richText.match(BOLD_MARKER)?.length || 0;
+  const themeWords = significantWords(campaign.theme);
+  const themeSurface = JSON.stringify({ cd: brief.creative_direction, s: brief.subject_lines, ba: brief.banner, bo: brief.body, p: brief.products, ps: brief.ps });
+  const themeSurfaceHits = themeWords.filter((w) => norm(themeSurface).includes(w)).length;
+  if (themeWords.length && themeSurfaceHits === 0) {
+    addFlag(brief, "warn", `Brief may miss campaign theme anchor "${campaign.theme}" across hook, subject, banner, body, products, and P.S.`);
+  }
   const full = JSON.stringify({ s: brief.subject_lines, t: brief.theme, ba: brief.banner, bo: brief.body, p: brief.products }).toLowerCase();
   SPAM_WORDS.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Spam word: "${w}"`));
   WEAK_COPY.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Weak/generic copy: "${w}"`));
@@ -2474,16 +2525,14 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   (["segment_insight", "emotion", "hero_product", "proof_or_price", "urgency", "avoid_rule"] as const).forEach((f) => {
     if (!hc[f]) addFlag(brief, "warn", "Hook contract missing: " + f);
   });
-  if (products[0]?.name && hc.hero_product &&
-      !containsSignificantReference(hc.hero_product, products[0].name) &&
-      !containsSignificantReference(products[0].name, hc.hero_product)) {
-    addFlag(brief, "warn", `Hook contract hero_product "${hc.hero_product}" does not match slot-0 product "${products[0].name}"`);
+  if (hc.hero_product && products.length && !findProductByReference(products, hc.hero_product)) {
+    addFlag(brief, "warn", `Hook contract hero_product "${hc.hero_product}" does not match any selected product`);
   }
 
   const banner = brief.banner || ({} as GenBanner);
   const bannerMain = [banner.main_text_1, banner.main_text_2, banner.main_text_3, banner.main_text].filter(Boolean).join("\n");
   const bannerSub = [banner.sub_text_1, banner.sub_text_2, banner.sub_text_3, banner.sub_text].filter(Boolean).join("\n");
-  const heroProductName = products[0]?.name || hc.hero_product;
+  const heroProductName = leadProductForBrief(brief, products)?.name || hc.hero_product;
   const bannerSurface = [bannerMain, bannerSub, banner.main_image, banner.sub_image, banner.image_guidance].filter(Boolean).join("\n");
   if (heroProductName && !containsSignificantReference(bannerSurface, heroProductName)) {
     addFlag(brief, "warn", "Hero banner should visibly reference the hook/hero product");
@@ -2652,11 +2701,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     const subjectish = `${sl[seg]?.subject || ""} ${sl[seg]?.preheader || ""}`;
     const bodyish = `${bannerMain} ${bannerSub} ${text}`;
     const sharedThreadOk = !subjectish.trim() || !bodyish.trim() || sharesContentThread(subjectish, bodyish, products, campaign);
-    const themeWords = significantWords(campaign.theme);
-    const themeHits = themeWords.filter((w) => norm(text).includes(w)).length;
+    const segmentThemeHits = themeWords.filter((w) => norm(text).includes(w)).length;
     // Only flag off-theme when the body ALSO fails to share a thread with subject/hero/offer. A body
     // that connects via synonym/paraphrase shouldn't be forced to literally keyword-stuff the theme word.
-    if (themeWords.length && themeHits === 0 && !sharedThreadOk) addFlag(brief, "warn", `${seg} body may miss campaign theme cues`);
+    if (themeWords.length && segmentThemeHits === 0 && !sharedThreadOk) addFlag(brief, "warn", `${seg} body may miss campaign theme cues`);
     if (!sharedThreadOk) {
       addFlag(brief, "warn", `${seg} subject, hero, and body need a clearer shared thread`);
     }
@@ -2769,6 +2817,15 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
         addFlag(brief, "error", `${brand?.name || "Brand"} required product missing from generated product blocks: ${product.name}`);
       }
     });
+    const topBlocks = prods.slice(0, requiredCatalog.length);
+    const missingFromTop = requiredCatalog.filter((product) => !topBlocks.some((block) => blockReferencesProduct(block, product)));
+    if (missingFromTop.length) {
+      addFlag(
+        brief,
+        "error",
+        `${brand?.name || "Brand"} required top products must occupy the first ${requiredCatalog.length} product blocks: ${missingFromTop.map((product) => product.name).join(", ")}`
+      );
+    }
   }
   if (campaign.brandId !== "santa_fare" && prods.length > 6) addFlag(brief, "warn", "7+ product blocks (overcrowding risk)");
   if (campaign.brandId === "santa_fare" && prods.length > 4) addFlag(brief, "warn", "SantaFare should default to 4 products unless the brief gives a clear exception");
@@ -2780,9 +2837,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   }
   const offerNumbers = promoLine(campaign).match(/\d+(?:\.\d+)?/g) || [];
   prods.forEach((p, i) => {
-    const sourceReview = products[i]?.review;
-    if (i === 0 && products[0]?.name && p.name && !containsSignificantReference(p.name, products[0].name)) {
-      addFlag(brief, "warn", "First product block should remain the selected hero product");
+    const sourceProduct = sourceProductForBlock(p, products, i);
+    const sourceReview = sourceProduct?.review;
+    if (p.name && products.length && !findProductByReference(products, p.name)) {
+      addFlag(brief, "warn", `Product ${i + 1} name "${p.name}" does not match a selected product; keep product blocks tied to selected pages`);
     }
     if (wordCount(p.main_text) > 5) addFlag(brief, "warn", `Product ${i + 1} main text over 5 words`);
     if (!p.sub_text) addFlag(brief, "warn", `Product ${i + 1} missing sub_text`);

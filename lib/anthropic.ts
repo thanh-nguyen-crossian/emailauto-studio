@@ -11,6 +11,7 @@ import {
   briefContrastIssues,
   buildSystemPrompt,
   buildUserPrompt,
+  campaignThemeInstruction,
   contrastInstruction,
   creativeSurfaceVarietyPrompt,
   isComplianceRepairFlag,
@@ -27,7 +28,7 @@ import {
   validateBriefPair,
   type GenBrief,
 } from "./briefgen";
-import { BRANDS, requiredProductSlugs } from "./config/brands";
+import { BRANDS, bodyHomepageLinkPolicy, requiredProductSlugs } from "./config/brands";
 import { applySanitizeCopy } from "./present/sanitizeCopy";
 
 // Generation engine wiring. Produces two contrasting options (A/B) — each a combined
@@ -835,6 +836,48 @@ function withOptionVariety(campaign: Campaign, nonce: string): Campaign {
   return { ...campaign, bodyVariety: selectVarietyProfile(campaign, nonce) };
 }
 
+function varietyCollisionCount(a?: BodyVarietyProfile, b?: BodyVarietyProfile): number {
+  if (!a || !b) return 0;
+  const fields: (keyof BodyVarietyProfile)[] = [
+    "openerMechanic",
+    "emotionalArc",
+    "creativeLens",
+    "proofRole",
+    "subjectStyle",
+    "visualDirection",
+    "bannerPattern",
+    "productGridPattern",
+    "productBlockRole",
+    "ctaStyle",
+    "bodyPlacement",
+  ];
+  return fields.filter((field) => {
+    const left = a[field];
+    const right = b[field];
+    return String(Array.isArray(left) ? left.join("|") : left || "") === String(Array.isArray(right) ? right.join("|") : right || "");
+  }).length;
+}
+
+function withContrastingOptionVariety(campaign: Campaign, nonce: string, avoid?: BodyVarietyProfile): Campaign {
+  let best = selectVarietyProfile(campaign, nonce);
+  let bestScore = varietyCollisionCount(avoid, best);
+  for (let i = 1; avoid && i <= 12 && (best.productGridPattern === avoid.productGridPattern || best.bannerPattern === avoid.bannerPattern || best.openerMechanic === avoid.openerMechanic || bestScore > 2); i++) {
+    const candidate = selectVarietyProfile(campaign, `${nonce}:contrast:${i}`);
+    const score = varietyCollisionCount(avoid, candidate);
+    if (
+      score < bestScore ||
+      (candidate.productGridPattern !== avoid.productGridPattern &&
+        candidate.bannerPattern !== avoid.bannerPattern &&
+        candidate.openerMechanic !== avoid.openerMechanic)
+    ) {
+      best = candidate;
+      bestScore = score;
+    }
+    if (bestScore <= 2 && best.productGridPattern !== avoid.productGridPattern && best.bannerPattern !== avoid.bannerPattern) break;
+  }
+  return { ...campaign, bodyVariety: best };
+}
+
 function stampBrief(brief: GenBrief | undefined, selection: AIModelSelection, variety?: BodyVarietyProfile): GenBrief | undefined {
   if (!brief) return brief;
   brief._provider = providerLabel(selection.provider);
@@ -1064,6 +1107,7 @@ Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + 2 distinct la
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
+    { title: "Campaign Theme Anchor", body: campaignThemeInstruction(campaign) },
     { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
     { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
     { title: "Chosen Concept", body: conceptPrompt(concept, optionLabel) },
@@ -1161,6 +1205,140 @@ function normalizeSegmentPatch(raw: Record<string, unknown>, campaign: Campaign)
   };
 }
 
+function segmentDisplayLabel(campaign: Campaign, segment: string): string {
+  const item = BRANDS[campaign.brandId]?.productSegments.find((entry) => entry.code === segment);
+  return item ? `${segment} ${item.label}` : segment;
+}
+
+function segmentGuidanceLine(campaign: Campaign, segment: string): string {
+  const item = BRANDS[campaign.brandId]?.productSegments.find((entry) => entry.code === segment);
+  return item?.guidance || item?.meta || "the selected audience";
+}
+
+function compactWords(text: string, maxWords: number): string {
+  const words = String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  return words.length <= maxWords ? words.join(" ") : `${words.slice(0, maxWords).join(" ")}...`;
+}
+
+function productLink(product: Product): string {
+  return `[${product.name}](slug:${product.slug})`;
+}
+
+function anchorLeadProduct(anchor: GenBrief, products: Product[]): Product {
+  const hero = anchor.creative_direction?.hook_contract?.hero_product || anchor.products?.[0]?.name || "";
+  const cleanHero = hero.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return products.find((product) => {
+    const name = product.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    return name && (cleanHero.includes(name) || name.includes(cleanHero));
+  }) || products[0];
+}
+
+function fallbackSegmentBody(campaign: Campaign, products: Product[], anchor: GenBrief, segment: string, variant = 0): string {
+  const brand = BRANDS[campaign.brandId];
+  const lead = anchorLeadProduct(anchor, products);
+  const support = products.filter((product) => product.slug !== lead.slug).slice(0, 3).map((product) => product.name).join(", ");
+  const guidance = compactWords(segmentGuidanceLine(campaign, segment), 24);
+  const theme = campaign.theme || "today's send";
+  const usp = compactWords((lead.usps || [])[variant % Math.max(1, lead.usps?.length || 1)] || (lead.usps || [])[0] || "everyday comfort", 8);
+  const promo = promoLine(campaign);
+  const homepage = bodyHomepageLinkPolicy(campaign.brandId) === "required"
+    ? ` You can also [see the full ${brand.name} lineup](home) if you want the broader fit before choosing.`
+    : "";
+  const opener = variant === 0
+    ? `For ${segmentDisplayLabel(campaign, segment)}, ${theme} should feel like a useful next step, not another sale alert.`
+    : `${theme} gives this segment one practical reason to look again: ${guidance}.`;
+  const supportLine = support
+    ? ` ${support} stay in the grid too, so the email covers more than one use case without turning into a catalog.`
+    : "";
+  const tip = campaign.brandId === "gents_lux"
+    ? " #Tip: check the waistband seated and standing; the right pair should move before it pulls."
+    : campaign.brandId === "lux_fitting"
+      ? " Quick fit note: a clean drape matters most when the day moves from errands to plans."
+      : " Fit note: start with the closure and straps; comfort usually shows up there first.";
+  return `${opener} ${productLink(lead)} leads because ${usp} answers that need in one clear click.${homepage}
+
+The proof stays simple: ${promo}. The copy should make the product feel timed to the theme, with the offer acting as the useful reason to decide today.${supportLine}
+
+${tip}
+
+${brand.persona}`;
+}
+
+function fallbackSubjectLine(campaign: Campaign, products: Product[], anchor: GenBrief, segment: string, optionLabel: "A" | "B"): GenBrief["subject_lines"][string] {
+  const lead = anchorLeadProduct(anchor, products);
+  const themeWords = compactWords(campaign.theme || "today", 4);
+  const offer = compactWords(promoLine(campaign), 7);
+  const seg = segmentDisplayLabel(campaign, segment).replace(/^\S+\s+/, "");
+  const directSubject = `{{first_name}}, ${lead.name} fits ${themeWords}`;
+  const altSubject = `${lead.name}: ${offer}`;
+  const questionSubject = `Still need the right ${lead.name}?`;
+  return {
+    subject: directSubject.slice(0, 60),
+    preheader: `${offer} plus ${compactWords(seg, 4)} copy tied to ${lead.name}.`.slice(0, 90),
+    style: optionLabel === "A" ? "deadline-safe direct" : "deadline-safe contrast",
+    model_hint: "local deadline fallback",
+    shared_thread: `${lead.name} + ${themeWords} + ${offer}`,
+    options: [
+      {
+        style: "direct",
+        model_hint: "local deadline fallback",
+        subject: directSubject.slice(0, 60),
+        preheader: `${lead.name} leads the ${themeWords} angle with ${offer}.`.slice(0, 90),
+        shared_thread: `${lead.name} ${themeWords}`,
+      },
+      {
+        style: "value",
+        model_hint: "local deadline fallback",
+        subject: altSubject.slice(0, 60),
+        preheader: `A clearer ${seg.toLowerCase()} reason to click, with ${lead.name} up front.`.slice(0, 90),
+        shared_thread: `${lead.name} ${offer}`,
+      },
+      {
+        style: "question",
+        model_hint: "local deadline fallback",
+        subject: `{{first_name}}, ${questionSubject}`.slice(0, 60),
+        preheader: `${themeWords} becomes practical with ${lead.name}, ${offer}, and one clean path.`.slice(0, 90),
+        shared_thread: `${lead.name} ${themeWords}`,
+      },
+    ],
+  };
+}
+
+function fallbackSegmentPatch(
+  campaign: Campaign,
+  products: Product[],
+  optionLabel: "A" | "B",
+  anchor: GenBrief,
+  segments: string[]
+): SegmentCopyPatch {
+  const subject_lines: GenBrief["subject_lines"] = {};
+  const body: GenBrief["body"] = {};
+  const body_options: GenBrief["body_options"] = {};
+  segments.forEach((segment) => {
+    const key = segJsonKey(segment);
+    const primary = fallbackSegmentBody(campaign, products, anchor, segment, 0);
+    const alternate = fallbackSegmentBody(campaign, products, anchor, segment, 1);
+    subject_lines[key] = fallbackSubjectLine(campaign, products, anchor, segment, optionLabel);
+    body[key] = primary;
+    body_options[key] = [
+      { label: "Deadline-safe primary", model_hint: "local fallback", body: primary, ps: anchor.ps || "", placement_note: campaign.bodyLayout || "continuous" },
+      { label: "Deadline-safe alternate", model_hint: "local fallback contrast", body: alternate, ps: anchor.ps || "", placement_note: campaign.bodyLayout === "interspersed" ? "opener + short bridge" : "continuous" },
+    ];
+  });
+  return { subject_lines, body, body_options };
+}
+
+function missingPatchSegments(campaign: Campaign, parts: SegmentBatchPart[]): string[] {
+  return campaign.segments.filter((segment) => {
+    const key = segJsonKey(segment);
+    return !parts.some((part) => {
+      const subject = part.subject_lines?.[key]?.subject?.trim();
+      const body = part.body?.[key]?.trim();
+      return subject && body;
+    });
+  });
+}
+
 function feedbackForSegmentPatch(revision?: RevisionFeedback): string {
   const feedback = revision?.feedback?.trim();
   return feedback
@@ -1196,6 +1374,7 @@ Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 
 Body: selected body + 2 body_options routes. 120-150w, no {{first_name}}, personal-note first, one calm urgency beat, product markdown link by para 2, 2-4 format/link beats, no hard-sell stack.
 Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Supplied/verified facts only; artificial proof can be qualitative only, no fake ratings/counts/dates/ages/medical outcomes/stock/shipping facts.`,
     },
+    { title: "Campaign Theme Anchor", body: campaignThemeInstruction(campaign) },
     { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
     { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
     { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
@@ -1422,8 +1601,8 @@ function countComplianceImpact(brief: GenBrief): number {
   return (brief._flags || []).filter((f) => isComplianceRepairFlag(f.msg)).length;
 }
 
-function isHardContrastIssue(issue: string): boolean {
-  return !/product grid has identical product order/i.test(issue);
+export function isHardContrastIssue(issue: string): boolean {
+  return !/product grid (?:has identical product order|patterns? (?:are|is) the same)/i.test(issue);
 }
 
 // Lexicographic: prefer fewer errors, then fewer serious/structural warnings, then higher score.
@@ -1580,7 +1759,7 @@ async function generateOptionsSingle(
     const nonceA = `${randomUUID()}:${models.a.provider}:${models.a.model}:A`;
     const nonceB = `${randomUUID()}:${models.b.provider}:${models.b.model}:B`;
     const campaignA = autoPrompts ? withOptionVariety(campaign, nonceA) : { ...campaign, bodyVariety: campaign.bodyVariety || selectVarietyProfile(campaign, nonceA) };
-    const campaignB = autoPrompts ? withOptionVariety(campaign, nonceB) : { ...campaign, bodyVariety: campaign.bodyVariety || selectVarietyProfile(campaign, nonceB) };
+    const campaignB = autoPrompts ? withContrastingOptionVariety(campaign, nonceB, campaignA.bodyVariety) : { ...campaign, bodyVariety: campaign.bodyVariety || selectVarietyProfile(campaign, nonceB) };
     const concepts = selectEmailConceptPair(campaign, products);
     const sysA = overrides?.system?.trim() || buildSystemPrompt(campaignA, products, false, undefined, nonceA, concepts.a);
     const usrABase = appendRevisionFeedback(overrides?.user?.trim() || buildUserPrompt(campaignA, false), revision);
@@ -1676,7 +1855,7 @@ async function generateOptionsSingle(
     // Auto-retry once if B collapses into A's strategy, route, body, banner, or product-copy shape.
     const contrastProblems = briefContrastIssues(a, b).filter(isHardContrastIssue);
     if (contrastProblems.length > 0) {
-      const retryCampaignB = withOptionVariety(campaign, `${nonceB}:retry:${contrastProblems.length}`);
+      const retryCampaignB = withContrastingOptionVariety(campaign, `${nonceB}:retry:${contrastProblems.length}`, a.body_variety);
       const sysB = overrides?.system?.trim()
         ? overrides.system.trim() + "\n" + contrastInstruction(a.creative_direction)
         : buildSystemPrompt(retryCampaignB, products, true, a.creative_direction, `${nonceB}:retry`, concepts.b);
@@ -1753,10 +1932,11 @@ async function generateOptionSegmentParts(
   anchor: GenBrief,
   runtime: GenerationRuntime | undefined,
   overrides?: PromptOverrides
-): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; completed: number; total: number }> {
+): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; notices: string[]; completed: number; total: number }> {
   throwIfAborted(runtime?.signal);
   const optionLabel = option.toUpperCase() as "A" | "B";
   const warnings: string[] = [];
+  const notices: string[] = [];
   const total = chunks.length;
   let completed = 0;
   const parts = await mapWithConcurrency(
@@ -1805,9 +1985,16 @@ async function generateOptionSegmentParts(
     },
     runtime?.signal
   );
+  const usableParts = parts.filter((part): part is SegmentBatchPart => !!part);
+  const missing = missingPatchSegments(campaign, [anchor, ...usableParts]);
+  if (missing.length) {
+    usableParts.push(fallbackSegmentPatch(withSegments(campaign, missing), products, optionLabel, anchor, missing));
+    notices.push(`filled missing Option ${optionLabel} segment copy locally for ${missing.join(", ")} after provider/deadline gaps`);
+  }
   return {
-    parts: [anchor, ...parts.filter((part): part is SegmentBatchPart => !!part)],
+    parts: [anchor, ...usableParts],
     warnings,
+    notices,
     completed,
     total,
   };
@@ -1832,9 +2019,10 @@ async function generateOptionsBatched(
     const nonceA = `${randomUUID()}:${models.a.provider}:${models.a.model}:A:foundation`;
     const nonceB = `${randomUUID()}:${models.b.provider}:${models.b.model}:B:foundation`;
     const campaignA = withOptionVariety(campaign, nonceA);
-    const campaignB = withOptionVariety(campaign, nonceB);
+    const campaignB = withContrastingOptionVariety(campaign, nonceB, campaignA.bodyVariety);
     const concepts = selectEmailConceptPair(campaign, products);
     const warnings: string[] = [];
+    const notices: string[] = [];
     let optionAAnchor: GenBrief | undefined;
     let optionBAnchor: GenBrief | undefined;
     let aFailure: unknown;
@@ -1889,6 +2077,7 @@ async function generateOptionsBatched(
       ? generateOptionSegmentParts("a", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, optionAAnchor, runtime, overrides)
           .then((run) => {
             warnings.push(...run.warnings.map((w) => `A ${w}`));
+            notices.push(...run.notices.map((w) => `A ${w}`));
             const a = mergeOptionBatches(campaign, products, run.parts, optionAAnchor?._provider, optionAAnchor?._model);
             emit(runtime, { type: "stage", stage: "merge", option: "a", message: "Merged Option A" });
             emit(runtime, { type: "partial", option: "a", brief: a, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
@@ -1907,6 +2096,7 @@ async function generateOptionsBatched(
       ? generateOptionSegmentParts("b", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, optionBAnchor, runtime, overrides)
           .then((run) => {
             warnings.push(...run.warnings.map((w) => `B ${w}`));
+            notices.push(...run.notices.map((w) => `B ${w}`));
             const b = mergeOptionBatches(campaign, products, run.parts, optionBAnchor?._provider, optionBAnchor?._model);
             emit(runtime, { type: "stage", stage: "merge", option: "b", message: "Merged Option B" });
             emit(runtime, { type: "partial", option: "b", brief: b, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
@@ -1935,10 +2125,11 @@ async function generateOptionsBatched(
           emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Retrying Option B contrast" });
           const retrySeedCampaign = { ...campaign, theme: `${campaign.theme} contrast retry ${hardContrast.join(" ")}` };
           const retryConcept = selectEmailConceptPair(retrySeedCampaign, products).b;
-          const retryCampaignB = withOptionVariety(campaign, `${nonceB}:retry:${hardContrast.length}`);
+          const retryCampaignB = withContrastingOptionVariety(campaign, `${nonceB}:retry:${hardContrast.length}`, a.body_variety || optionAAnchor.body_variety);
           const retryAnchor = await createOptionFoundation(retryCampaignB, products, "B", models.b, retryCampaignB.bodyVariety, retryConcept, revision, optionAAnchor, runtime, overrides);
           const retryRun = await generateOptionSegmentParts("b", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, retryAnchor, runtime, overrides);
           warnings.push(...retryRun.warnings.map((w) => `contrast retry ${w}`));
+          notices.push(...retryRun.notices.map((w) => `contrast retry ${w}`));
           b = mergeOptionBatches(campaign, products, retryRun.parts, retryAnchor._provider, retryAnchor._model);
           emit(runtime, { type: "partial", option: "b", brief: b, warning: retryRun.warnings.length ? retryRun.warnings.join(" · ") : undefined });
         } catch (err) {
@@ -1947,15 +2138,27 @@ async function generateOptionsBatched(
           emit(runtime, { type: "warning", message: `Contrast retry failed: ${errMessage(err)}` });
         }
       } else if (hardContrast.length && optionAAnchor) {
-        warnings.push(`contrast retry skipped near deadline: ${hardContrast.slice(0, 2).join("; ")}`);
+        notices.push(`A/B contrast advisory not retried because the time budget was low: ${hardContrast.slice(0, 2).join("; ")}`);
       }
     }
 
     if (a && b) [a, b] = validateBriefPair(a, b);
 
-    const warning = warnings.length
-      ? `Some segment batches were incomplete: ${warnings.slice(0, 6).join(" · ")}${warnings.length > 6 ? ` · +${warnings.length - 6} more` : ""}. Generated all usable copy; missing segments are flagged in Output.`
-      : undefined;
+    const coverageGaps = [
+      ...(a ? missingPatchSegments(campaign, [a]).map((segment) => `A ${segment}`) : []),
+      ...(b ? missingPatchSegments(campaign, [b]).map((segment) => `B ${segment}`) : []),
+    ];
+    const warningParts: string[] = [];
+    if (warnings.length) {
+      warningParts.push(`Some segment batches had provider/deadline issues: ${warnings.slice(0, 6).join(" · ")}${warnings.length > 6 ? ` · +${warnings.length - 6} more` : ""}.`);
+    }
+    if (notices.length) {
+      warningParts.push(`Review notes: ${notices.slice(0, 4).join(" · ")}${notices.length > 4 ? ` · +${notices.length - 4} more` : ""}.`);
+    }
+    if (coverageGaps.length) {
+      warningParts.push(`Incomplete generated coverage remains: ${coverageGaps.slice(0, 8).join(", ")}${coverageGaps.length > 8 ? `, +${coverageGaps.length - 8} more` : ""}.`);
+    }
+    const warning = warningParts.length ? warningParts.join(" ") : undefined;
 
     console.info(`[generate-copy] completed layered A/B in ${Math.round((Date.now() - startedAt) / 1000)}s across ${total} segment batch(es)`);
     telemetry("complete", {
@@ -1964,6 +2167,7 @@ async function generateOptionsBatched(
       hasA: !!a,
       hasB: !!b,
       warnings: warnings.length,
+      notices: notices.length,
       scoreA: a?._score,
       scoreB: b?._score,
     });

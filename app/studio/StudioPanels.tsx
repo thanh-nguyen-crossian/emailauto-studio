@@ -1189,7 +1189,7 @@ export function ProductStylePicker({ value, onChange }: { value: ProductCopyStyl
       when: "Low-stock or flash-sale sends",
       lines: [
         { text: "SELLING OUT", style: "badge" },
-        { text: "CLAIM YOURS", style: "headline" },
+        { text: "SEE YOUR FIT", style: "headline" },
         { text: "Only a few left at 💲12.99", style: "sub" },
         { text: "Ships in 24 hrs", style: "usp" },
       ],
@@ -1282,7 +1282,7 @@ export function BodyLayoutPicker({
   const presets: { label: string; value: EmailModuleKey[] }[] = [
     { label: "2 + 2 story", value: ["hero", "body_1", "products_1_2", "body_2", "products_3_4", "body_3", "products_5_6"] },
     { label: "Proof sandwich", value: ["hero", "body_1", "products_1_2", "products_3_4", "body_2", "products_5_6", "body_3"] },
-    { label: "Hero first grid", value: ["hero", "products_1_2", "body_1", "products_3_4", "body_2", "products_5_6", "body_3"] },
+    { label: "Product-first grid", value: ["hero", "products_1_2", "body_1", "products_3_4", "body_2", "products_5_6", "body_3"] },
   ];
   const move = (from: number, to: number) => {
     if (from === to) return;
@@ -1359,7 +1359,7 @@ export function moduleLabel(key: EmailModuleKey): string {
 }
 
 export function ProductSlotCard({
-  index, slot, catalog, usedSlugs, recentSlugs, required = false, onPick, onUrl, onCustomChange, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove,
+  index, slot, catalog, usedSlugs, recentSlugs, required = false, canMoveUp = false, canMoveDown = false, onPick, onUrl, onCustomChange, onScrape, onToggleUsp, onAddCustomUsp, onSetCustomUsp, onRemove, onMoveUp, onMoveDown,
 }: {
   index: number;
   slot: Slot;
@@ -1368,8 +1368,10 @@ export function ProductSlotCard({
   usedSlugs: string[];
   /** Slugs used in the last 3 sends — shown with a "recent" badge. */
   recentSlugs: string[];
-  /** Required brand products are locked into every generated email. */
+  /** Required brand products must stay selected, but can move order. */
   required?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   onPick: (slug: string) => void;
   onUrl: (url: string) => void;
   onCustomChange: (patch: Partial<Slot>) => void;
@@ -1378,6 +1380,8 @@ export function ProductSlotCard({
   onAddCustomUsp: () => void;
   onSetCustomUsp: (uspIndex: number, value: string) => void;
   onRemove: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const [showUrl, setShowUrl] = useState(!!slot.url);
   const [scrapeStatus, setScrapeStatus] = useState("");
@@ -1426,6 +1430,24 @@ export function ProductSlotCard({
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold">{index === 0 ? "Hero product" : `Support ${index + 1}`}</span>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            aria-label={`Move ${displayName} up`}
+            className="text-xs text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-30"
+          >
+            Up
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            aria-label={`Move ${displayName} down`}
+            className="text-xs text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-30"
+          >
+            Down
+          </button>
           {isRecent && (
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--warn-soft)] text-[var(--warn-text)]">
               recent
@@ -1454,7 +1476,7 @@ export function ProductSlotCard({
         onChange={(e) => onPick(e.target.value)}
         className="input"
         disabled={required}
-        title={required ? "Required for every email for this brand" : undefined}
+        title={required ? "Required for every email for this brand; move the slot to change order" : undefined}
       >
         <option value="">— select product —</option>
         {catalog.map((p) => {

@@ -178,7 +178,7 @@ function slotFromCatalogProduct(product: { slug: string; url?: string; usps?: st
   return { slug: product.slug, url: product.url || "", usps: [...(product.usps || [])] };
 }
 
-/** Build the initial slots for a brand: locked required products first, otherwise slot 0 = hero. */
+/** Build the initial slots for a brand: required products prefilled, otherwise slot 0 = default hero. */
 export function initSlots(brandId: string): Slot[] {
   const b = BRANDS[brandId];
   const required = requiredProducts(brandId);

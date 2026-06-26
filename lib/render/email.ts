@@ -135,6 +135,22 @@ function productHref(brand: Brand, product: Product | undefined): string {
   return `${raw}${raw.includes("?") ? "&" : "?"}{{paramurl}}`;
 }
 
+function normProductText(value: string): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function productForBlock(products: Product[], block: GenProductBlock | undefined, fallbackIndex: number): Product | undefined {
+  if (!block) return products[fallbackIndex];
+  const blockName = normProductText(block.name);
+  const blockText = normProductText([block.name, block.main_text, block.sub_text, block.alt_text].filter(Boolean).join(" "));
+  return products.find((product) => {
+    const name = normProductText(product.name);
+    const slug = normProductText(product.slug);
+    return (name && (blockName.includes(name) || name.includes(blockName) || blockText.includes(name))) ||
+      (slug && blockText.includes(slug));
+  }) || products[fallbackIndex];
+}
+
 function heroBlock(brand: Brand, images: ImageOverrides, muid: () => string): string {
   const src = attr(images.hero || ph(564, 280, "Hero banner"));
   return columnsSingle(
@@ -387,16 +403,15 @@ export function renderEmailHTML(
   const bodyText = (bodyKey ? brief.body?.[bodyKey] : undefined) || brief.body?.base || "";
   const bodyLayout = options.bodyLayout || campaign.bodyLayout || "continuous";
 
-  // Product copy blocks come from the brief; pair each to a catalog product by slot order.
-  const ordered = [...products].sort((a, b) =>
-    a.slug === brand.heroSlug ? -1 : b.slug === brand.heroSlug ? 1 : 0
-  );
+  // Product copy blocks come from the brief; pair links/images by generated product identity so
+  // A/B can rotate the required trio order without sending the wrong product URL.
+  const blocks = [...(brief.products || [])].sort((a, b) => (a.slot || 0) - (b.slot || 0));
+  const blockProduct = (idx: number) => productForBlock(products, blocks[idx], idx);
   const productLinks = Object.fromEntries(
     products
       .filter((product) => product.slug && product.url)
       .flatMap((product) => [[product.slug, product.url || ""], [product.slug.toLowerCase(), product.url || ""]])
   );
-  const blocks = [...(brief.products || [])].sort((a, b) => (a.slot || 0) - (b.slot || 0));
 
   const mods: string[] = [];
   mods.push(preheaderBlock(preheader));
@@ -424,7 +439,7 @@ export function renderEmailHTML(
   const layout = options.productLayout || "stack";
   const copyMode = options.productCopyFallback || "auto";
   const cell = (idx: number, imgW: number) =>
-    idx < blocks.length ? productCellInner(brand, ordered[idx], blocks[idx], images, muid, imgW, accent, copyMode) : "";
+    idx < blocks.length ? productCellInner(brand, blockProduct(idx), blocks[idx], images, muid, imgW, accent, copyMode) : "";
   const pushGridRows = (start: number, perRow: number, colW: number, imgW: number, gutter: number) => {
     for (let i = start; i < blocks.length; i += perRow) {
       const cells = Array.from({ length: perRow }, (_, j) => cell(i + j, imgW));
@@ -435,7 +450,7 @@ export function renderEmailHTML(
     const available = blocks.slice(start, Math.min(end, blocks.length));
     if (!available.length) return;
     if (available.length === 1 || layout === "stack") {
-      available.forEach((pb, j) => mods.push(productBlock(brand, ordered[start + j], pb, images, muid, accent, copyMode)));
+      available.forEach((pb, j) => mods.push(productBlock(brand, blockProduct(start + j), pb, images, muid, accent, copyMode)));
       return;
     }
     if (layout === "three") {
@@ -469,10 +484,10 @@ export function renderEmailHTML(
     } else if (layout === "three") {
       pushGridRows(0, 3, 176, 176, 12);
     } else if (layout === "hero_grid") {
-      if (blocks[0]) mods.push(productBlock(brand, ordered[0], blocks[0], images, muid, accent, copyMode));
+      if (blocks[0]) mods.push(productBlock(brand, blockProduct(0), blocks[0], images, muid, accent, copyMode));
       pushGridRows(1, 2, 282, 282, 18);
     } else {
-      blocks.forEach((pb, i) => mods.push(productBlock(brand, ordered[i], pb, images, muid, accent, copyMode)));
+      blocks.forEach((pb, i) => mods.push(productBlock(brand, blockProduct(i), pb, images, muid, accent, copyMode)));
     }
     const psText = brief.ps ? `P.S. ${brief.ps}` : "";
     const closingText = [afterProducts, psText].filter(Boolean).join("\n\n");

@@ -22,13 +22,33 @@ const campaign: Campaign = {
 
 const products: Product[] = [{
   name: "Daisy Bra",
-  slug: "daisy-bra",
+  slug: "daisybra",
   price: "12.99",
-  url: "https://bragoddess.com/daisy-bra",
+  url: "https://bragoddess.com/daisybra",
   review: "",
   usps: ["front snap", "wire-free support", "soft straps"],
   hero: true,
 }];
+
+const braRequiredProducts: Product[] = [
+  products[0],
+  {
+    name: "Posy Bra",
+    slug: "posybra",
+    price: "12.99",
+    url: "https://bragoddess.com/posy-bra",
+    review: "",
+    usps: ["smooth lift", "wire-free comfort"],
+  },
+  {
+    name: "ZoeShape",
+    slug: "zoeshape",
+    price: "14.99",
+    url: "https://bragoddess.com/zoeshape",
+    review: "",
+    usps: ["smooth waist", "soft shaping"],
+  },
+];
 
 function baseBrief(): GenBrief {
   const key = segJsonKey("21");
@@ -90,12 +110,12 @@ function baseBrief(): GenBrief {
     },
     body: {
       base: "Layout summary.",
-      [key]: "Some bras make the day feel longer before you even leave the room. [Daisy Bra](slug:daisy-bra) keeps the fix simple: a front snap, soft straps, and wire-free support at ==💲12.99== today.\n\nThat is the kind of comfort you notice when the band stays calm and the straps stop asking for attention. Free Shipping 💲35+ is active before midnight.\n\nTry Daisy today.\n\nSandra",
+      [key]: "Some bras make the day feel longer before you even leave the room. [Daisy Bra](slug:daisybra) keeps the fix simple: a front snap, soft straps, and wire-free support at ==💲12.99== today.\n\nThat is the kind of comfort you notice when the band stays calm and the straps stop asking for attention. Free Shipping 💲35+ is active before midnight.\n\nTry Daisy today.\n\nSandra",
     },
     body_options: {
       [key]: [
-        { label: "Primary", model_hint: "direct", body: "Primary body with [Daisy Bra](slug:daisy-bra) by paragraph two. Sandra", ps: "Daisy is 💲12.99 today; comfort should feel this easy.", placement_note: "continuous" },
-        { label: "Alternate", model_hint: "tip", body: "Alternate body with [Daisy Bra](slug:daisy-bra) and a fit tip. Sandra", ps: "Check the snap first; the comfort follows fast.", placement_note: "text-product-text" },
+        { label: "Primary", model_hint: "direct", body: "Primary body with [Daisy Bra](slug:daisybra) by paragraph two. Sandra", ps: "Daisy is 💲12.99 today; comfort should feel this easy.", placement_note: "continuous" },
+        { label: "Alternate", model_hint: "tip", body: "Alternate body with [Daisy Bra](slug:daisybra) and a fit tip. Sandra", ps: "Check the snap first; the comfort follows fast.", placement_note: "text-product-text" },
       ],
     },
     ps: "Daisy is 💲12.99 today; comfort should feel this easy.",
@@ -149,6 +169,111 @@ describe("brief validation", () => {
   it("enforces configured required products", () => {
     const validated = validateBrief(baseBrief(), campaign, products);
     expect((validated._flags || []).some((flag) => /required product missing from campaign selection/i.test(flag.msg))).toBe(true);
+  });
+
+  it("allows required BraGoddess products to rotate lead order when the generated blocks match selected products", () => {
+    const brief = baseBrief();
+    const key = segJsonKey("21");
+    brief.creative_direction!.hook_contract!.hero_product = "Posy Bra";
+    brief.subject_lines![key]!.subject = "{{first_name}}, Posy feels calm today";
+    brief.subject_lines![key]!.preheader = "Smooth lift, wire-free comfort, and 💲12.99 before midnight.";
+    brief.banner = {
+      ...brief.banner,
+      main_text_1: "Posy Smooths The Day",
+      main_text_2: "Wire-Free Lift",
+      main_image: "Posy Bra model crop",
+      sub_image: "Posy soft strap detail",
+      image_guidance: "- Lead with Posy Bra\n- Support with Daisy and ZoeShape\n- Keep rose accent\n- CTA above fold",
+    };
+    brief.body![key] = "Posy Bra is the right lead for comfort-focused buyers today. [Posy Bra](slug:posy-bra) keeps the promise simple: smooth lift, wire-free comfort, and ==💲12.99== before midnight.\n\nDaisy Bra and ZoeShape stay in the grid so the email still covers daily support and smoothing.\n\nTry Posy today.\n\nSandra";
+    brief.products = [
+      {
+        slot: 1,
+        name: "Posy Bra",
+        template_style: "smooth lead",
+        main_text: "Smooth Lift Today",
+        sub_text: "Wire-free comfort",
+        popup_badge: "Soft support",
+        usps: ["smooth lift", "wire-free"],
+        review: "",
+        cta: "Try Posy",
+        main_image: "Posy model",
+        sub_image: "Posy strap",
+        alt_text: "Posy Bra smooth lift",
+        image_notes: "Theme chooses Posy as lead; Daisy and ZoeShape support.",
+      },
+      {
+        slot: 2,
+        name: "Daisy Bra",
+        template_style: "support",
+        main_text: "Snap Into Comfort",
+        sub_text: "Front-snap ease",
+        popup_badge: "Daily pick",
+        usps: ["front snap", "soft straps"],
+        review: "",
+        cta: "Try Daisy",
+        main_image: "Daisy",
+        sub_image: "snap",
+        alt_text: "Daisy Bra",
+        image_notes: "Support product.",
+      },
+      {
+        slot: 3,
+        name: "ZoeShape",
+        template_style: "support",
+        main_text: "Smooth The Fit",
+        sub_text: "Soft shaping",
+        popup_badge: "Smooth pick",
+        usps: ["smooth waist", "soft shaping"],
+        review: "",
+        cta: "Try ZoeShape",
+        main_image: "ZoeShape",
+        sub_image: "shape detail",
+        alt_text: "ZoeShape",
+        image_notes: "Support product.",
+      },
+    ];
+
+    const validated = validateBrief(brief, campaign, braRequiredProducts);
+    const messages = (validated._flags || []).map((flag) => flag.msg).join("\n");
+    expect(messages).not.toMatch(/required product missing from campaign selection/i);
+    expect(messages).not.toMatch(/hero_product .* does not match any selected product/i);
+    expect(messages).not.toMatch(/First product block should remain/i);
+    expect(messages).not.toMatch(/Product 1 name .* does not match a selected product/i);
+  });
+
+  it("flags when a required brand product is present but pushed below the top product trio", () => {
+    const brief = baseBrief();
+    brief.products = ["Daisy Bra", "ZipLacy", "Posy Bra", "ZoeShape"].map((name, index) => ({
+      slot: index + 1,
+      name,
+      template_style: index === 1 ? "optional support" : "required top product",
+      main_text: `${name} Today`,
+      sub_text: "Comfort at 💲12.99",
+      popup_badge: "Soft fit",
+      usps: ["soft support", "easy wear"],
+      review: "",
+      cta: `Try ${name.split(" ")[0]}`,
+      main_image: name,
+      sub_image: `${name} detail`,
+      alt_text: name,
+      image_notes: "Product block image note.",
+    }));
+    const selectedProducts: Product[] = [
+      ...braRequiredProducts,
+      { name: "ZipLacy", slug: "ziplacy", price: "24.99", url: "https://bragoddess.com/ziplacy", usps: ["front zip", "soft support"], review: "" },
+    ];
+
+    const validated = validateBrief(brief, campaign, selectedProducts);
+    const messages = [...(validated._flags || []), ...(validated._advisory || [])].map((flag) => flag.msg).join("\n");
+    expect(messages).toMatch(/required top products must occupy the first 3 product blocks/i);
+  });
+
+  it("flags briefs that ignore the campaign theme across generated surfaces", () => {
+    const offThemeCampaign = { ...campaign, theme: "Birthday comeback" };
+    const validated = validateBrief(baseBrief(), offThemeCampaign, braRequiredProducts);
+    const messages = [...(validated._flags || []), ...(validated._advisory || [])].map((flag) => flag.msg).join("\n");
+    expect(messages).toMatch(/miss campaign theme anchor/i);
   });
 
   it("forbids BraGoddess homepage links in body copy", () => {
@@ -240,7 +365,7 @@ describe("validateBriefPair", () => {
     };
     briefB.body = {
       base: "Social-proof base: customers rave about the Daisy Bra every week.",
-      seg_21: "Thousands of women already discovered what you are about to find. The [Daisy Bra](slug:daisy-bra) is ==💲12.99== and the community cannot stop talking about it. This is the moment you join them. Free Shipping 💲35+ ends midnight. Sandra",
+      seg_21: "Thousands of women already discovered what you are about to find. The [Daisy Bra](slug:daisybra) is ==💲12.99== and the community cannot stop talking about it. This is the moment you join them. Free Shipping 💲35+ ends midnight. Sandra",
     };
     briefB.banner = {
       ...briefB.banner,
