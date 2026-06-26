@@ -264,6 +264,13 @@ export function providerConfigError(models: AIModelPair): string | null {
   return `The ${names} provider${plural ? "s aren't" : " isn't"} configured on this server. Switch the affected option to a configured provider in the model picker, then generate again.`;
 }
 
+function patchTimeoutForSelection(selection: AIModelSelection): number {
+  const tier = modelSpeedTier(selection);
+  if (tier === "balanced") return Math.min(Math.round(PATCH_PROVIDER_TIMEOUT_MS * 1.5), PROVIDER_TIMEOUT_MS);
+  if (tier === "frontier") return Math.min(PATCH_PROVIDER_TIMEOUT_MS * 2, PROVIDER_TIMEOUT_MS);
+  return PATCH_PROVIDER_TIMEOUT_MS;
+}
+
 function timeoutMessage(provider: string, model: string, timeoutMs = PROVIDER_TIMEOUT_MS): string {
   return `${provider} ${model} timed out after ${Math.round(timeoutMs / 1000)} seconds. Try a faster model such as Claude Haiku, Gemini Flash/Lite, or a GPT mini/nano model, or reduce segments/products.`;
 }
@@ -1255,7 +1262,7 @@ async function createSegmentPatch(
   const parsed = await createAndParseWithModel(system, user, selection, {
     temperature: optionLabel === "B" ? AI_TEMP_B : AI_TEMP_A,
     maxOutputTokens: segmentPatchOutputTokens(promptCampaign.segments.length),
-    timeoutMs: PATCH_PROVIDER_TIMEOUT_MS,
+    timeoutMs: patchTimeoutForSelection(selection),
     ...runtimeCallOptions(runtime),
     stage: `segment_patch_${optionLabel.toLowerCase()}`,
     schema: segmentPatchJsonSchema(promptCampaign.segments),

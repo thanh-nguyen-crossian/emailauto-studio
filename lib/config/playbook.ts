@@ -67,8 +67,8 @@ export const PLAYBOOK_RULES: PlaybookRule[] = [
     id: "R6",
     name: "Hero lock",
     scope: "ALL",
-    win: "Lead with proven hero: BG Daisy Bra/Daisy Bra 3+Posy; GL JettJeans/FlexCamo+IcyShorts; LF StretchActive first; SF Pouchic+TimelessMark.",
-    fail: "Lower-converting items in position 1: BG Moona/UpLacy; GL SteelStitch/EaseMotions; LF StretchActive below fold; SF non-gifting in lead.",
+    win: "Lead with proven hero: BG DaisyBra+PosyBra/ZoeShape; GL JettJeans+IcyShorts+AirFlexion (all required); LF StretchActive+IcyShorts+SoftyGrace; SF Pouchic+TimelessMark.",
+    fail: "Lower-converting items in position 1: BG Moona/UpLacy; GL SteelStitch/EaseMotions/FlexCamo as hero over JettJeans; LF StretchActive below fold; SF non-gifting in lead.",
     enforce: "validate",
   },
   {

@@ -58,11 +58,11 @@ export interface Draft {
 export const OFFER_PRESETS: Record<OfferType, string[]> = {
   sitewide_pct: ["50% O.F.F", "60% O.F.F", "70% O.F.F", "75% O.F.F", "80% O.F.F"],
   fixed_price: ["💲9.99", "💲12.99", "💲14.99", "💲19.99", "💲24.99"],
-  free_ship: ["Free Shipping 💲35+", "Free Shipping 💲45+", "Free Shipping 💲55+"],
+  free_ship: ["Free Shipping 💲35+", "Free Shipping 💲39+", "Free Shipping 💲40+", "Free Shipping 💲45+", "Free Shipping 💲55+"],
   none: [],
 };
 
-export const SHIPPING_PRESETS = ["Free Shipping 💲35+", "Free Shipping 💲45+", "Free Shipping 💲50+", "Free Shipping 💲55+"];
+export const SHIPPING_PRESETS = ["Free Shipping 💲35+", "Free Shipping 💲39+", "Free Shipping 💲40+", "Free Shipping 💲45+", "Free Shipping 💲50+", "Free Shipping 💲55+"];
 
 export const DEFAULT_OPS: CampaignOps = {
   provider: "sendgrid",

@@ -230,11 +230,11 @@ const PRODUCT_IMAGE_BRIEF_RULES = `PRODUCT IMAGE BRIEF RULES (one product image 
 
 const BRAND_PLAYBOOK_RULES: Record<string, string> = {
   bra_goddess: `BRAND RULEBOOK - BraGoddess:
-DO: Sandra voice; emotion-first + offer second; Daisy/Daisy 3 first, then Posy/ZipLacy/SonaShape support; comfort, support, lift, and fit relief; soft social urgency; deep rose/crimson #a02338-#d63268.
+DO: Sandra voice; emotion-first + offer second; DaisyBra first; PosyBra and ZoeShape as required support; ZipLacy/SonaShape for variety; comfort, support, lift, and fit relief; soft social urgency; deep rose/crimson #a02338-#d63268. No homepage markdown links in body copy — product links only.
 DON'T: generic empowerment, gratitude opener, bubblegum #f33e8a, muddy #953336, repeated name in subject+preheader, "don't let X go to waste".
 SUBJECT: 45-55 chars; name in subject OR preheader; use o.f.f / 💲; preheader adds tension or deadline.`,
   gents_lux: `BRAND RULEBOOK - GentsLux:
-DO: Jordan voice; curiosity + scarcity; JettJeans/FlexCamo first, IcyShorts where relevant; mechanism copy around movement, waistband, cooling, durability; understated confidence; deep navy #002850-#1d3d56.
+DO: Jordan voice; curiosity + scarcity; JettJeans first (hero); IcyShorts and AirFlexion required in every send; mechanism copy around movement, waistband, cooling, durability; understated confidence; deep navy #002850-#1d3d56.
 DON'T: cute puns, over-luxury language, grammar errors, loud hype, weak navy #26508d/#013faa/#183647, over-specified subject discounts.
 SUBJECT: 48-58 chars; name mid-subject; imply offer in subject, reveal scale in preheader.`,
   lux_fitting: `BRAND RULEBOOK - LuxFitting:
@@ -1713,7 +1713,7 @@ const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
 
 const PERFORMANCE_PROMPT_LAYER = `Pages are generally converting; assume email intent is the leak unless supplied page/product data says otherwise.
 Access/Delivered drop -> improve hero/body/CTA path. PO/View drop -> improve product order, price clarity, fit proof, page-product match. Optout/spam risk -> softer urgency and narrower list.
-Prioritize proven heroes: BG Daisy/Posy/ZipLacy; GL JettJeans/FlexCamo/Icy; LF StretchActive/Icy; SF Pouchic/TimelessMark.`;
+Prioritize proven heroes: BG DaisyBra/PosyBra/ZoeShape; GL JettJeans/IcyShorts/AirFlexion; LF StretchActive/IcyShorts/SoftyGrace; SF Pouchic/TimelessMark.`;
 
 const EXCEL_BRIEF_REFERENCE_LAYER = `Email Content.xlsx production-brief shape:
 - Keep the output organized like the real brief rows: segment Subject/PreHeader, Theme, Banner, Body Part/Body, Products, Featured Product 1/3/5, and designer notes.
