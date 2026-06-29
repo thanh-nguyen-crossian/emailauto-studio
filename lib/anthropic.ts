@@ -6,6 +6,7 @@ import { modelSpeedTier, normalizeModelPair, providerLabel, type AIModelSpeedTie
 import { foundationBriefJsonSchema, genBriefJsonSchema, segmentPatchJsonSchema, type ProviderJsonSchema } from "./anthropic/schema";
 import { conceptPrompt, selectEmailConceptPair, type EmailConcept } from "./concept";
 import {
+  artificialProofPromptLayer,
   brandPlaybookRuleBlock,
   bodyHomepageLinkInstruction,
   briefContrastIssues,
@@ -1122,11 +1123,12 @@ function buildFoundationPrompt(
     {
       title: "Playbook Core",
       body: `One send = one promise. Every shared surface must connect one hero product + one proof/price + one reader situation.
-Verified labels/ratings/counts/ages/dates/medical outcomes/stock/shipping/prices/urgency/guarantees must be supplied or marked needs verification. Qualitative artificial review/claim texture is ok when unlabeled.
+Supplied/verified facts may be final. Artificial proof may draft reviews, ratings, claim chips, badges, and trust boosters, but invented specifics must be marked synthetic/needs verification in notes unless supplied. Never label synthetic proof as verified, clinical, real customer, or guaranteed.
 Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + 2 distinct layout options. Products are image-overlay copy; main_text <=5w, USPs <=5w, distinct role/use case/mechanism per product.
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
+    { title: "Artificial Proof Mode", body: artificialProofPromptLayer() },
     { title: "Template Corpus Memory", body: templateCorpusPromptLayer() },
     { title: "Legacy Prompt Alignment", body: legacyPromptAlignmentLayer(campaign.brandId) },
     { title: "Campaign Theme Anchor", body: campaignThemeInstruction(campaign) },
@@ -1419,8 +1421,9 @@ function buildSegmentPatchPrompt(
       body: `${brandPlaybookRuleBlock(campaign.brandId)}
 Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 60-90 char preheader, {{first_name}} in subject OR preheader only, offer signal required.
 Body: selected body + 2 body_options routes. 120-150w, no {{first_name}}, personal-note first, one calm urgency beat, product markdown link by para 2, 2-4 format/link beats, no hard-sell stack.
-Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Supplied/verified facts only; artificial proof can be qualitative only, no fake ratings/counts/dates/ages/medical outcomes/stock/shipping facts.`,
+Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Supplied/verified facts may be final; synthetic review/rating/claim ideas are allowed only when marked needs verification in notes, never as verified or clinical final facts.`,
     },
+    { title: "Artificial Proof Mode", body: artificialProofPromptLayer() },
     { title: "Template Corpus Memory", body: templateCorpusPromptLayer() },
     { title: "Legacy Prompt Alignment", body: legacyPromptAlignmentLayer(campaign.brandId) },
     { title: "Campaign Theme Anchor", body: campaignThemeInstruction(campaign) },

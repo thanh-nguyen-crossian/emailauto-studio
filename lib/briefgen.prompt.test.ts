@@ -1,15 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { brandPlaybookRuleBlock, legacyPromptAlignmentLayer, templateCorpusPromptLayer } from "./briefgen";
+import { artificialProofPromptLayer, brandPlaybookRuleBlock, legacyPromptAlignmentLayer, templateCorpusPromptLayer } from "./briefgen";
 
 describe("playbook prompt alignment", () => {
   it("keeps win/fail template corpus lessons available to generation prompts", () => {
     const layer = templateCorpusPromptLayer();
 
     expect(layer).toContain("58 EMLs");
-    expect(layer).toContain("one promise");
-    expect(layer).toContain("actual product/model visible");
-    expect(layer).toContain("square product crop");
-    expect(layer).toContain("review-card overload");
+    expect(layer.toLowerCase()).toContain("one promise");
+    expect(layer).toContain("product/model clearly visible");
+    expect(layer).toContain("square crop");
+    expect(layer).toContain("synthetic/needs verification");
+  });
+
+  it("allows artificial proof as draft material without treating it as verified proof", () => {
+    const layer = artificialProofPromptLayer();
+
+    expect(layer).toContain("review");
+    expect(layer).toContain("rating");
+    expect(layer).toContain("synthetic");
+    expect(layer).toContain("needs verification");
+    expect(layer).toContain("verified");
   });
 
   it("keeps GentsLux legacy prompt habits available to the app", () => {
