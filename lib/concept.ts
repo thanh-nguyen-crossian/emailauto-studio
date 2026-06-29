@@ -45,6 +45,15 @@ function pick<T>(items: T[], seed: number, offset = 0): T {
   return items[(seed + offset) % items.length];
 }
 
+function pickDifferent<T>(items: T[], current: T, seed: number, offset = 0): T {
+  if (items.length <= 1) return current;
+  for (let i = 0; i < items.length; i++) {
+    const candidate = pick(items, seed, offset + i);
+    if (candidate !== current) return candidate;
+  }
+  return current;
+}
+
 function recentPenalty(campaign: Campaign, concept: Pick<EmailConcept, "angle" | "framework" | "creativeDevice" | "heroProductSlug" | "openerMechanic" | "techniquePlan">): number {
   return (campaign.recentSendHistory || []).reduce((score, row) => {
     const opener = row.openerMechanic?.toLowerCase() || "";
@@ -61,7 +70,8 @@ function recentPenalty(campaign: Campaign, concept: Pick<EmailConcept, "angle" |
 
 function buildConcept(campaign: Campaign, products: Product[], seed: number, offset: number, avoidLeadIds: string[] = []): EmailConcept {
   const brand = BRANDS[campaign.brandId];
-  const hero = products[0] || brand?.catalog[0];
+  const leadPool = products.slice(0, Math.min(3, Math.max(1, products.length)));
+  const hero = (offset > 0 && leadPool.length > 1 ? pick(leadPool, seed >> 2, offset) : leadPool[0]) || brand?.catalog[0];
   const devices = brand?.subjectDevices?.length ? brand.subjectDevices : ["open-loop", "pattern-interrupt", "playful-conceit"];
   let concept: EmailConcept = {
     angle: pick(ANGLES, seed, offset),
@@ -111,6 +121,31 @@ export function conceptDifferenceCount(a: EmailConcept, b: EmailConcept): number
   ].filter(Boolean).length;
 }
 
+export function conceptRouteDifferenceCount(a: EmailConcept, b: EmailConcept): number {
+  return [
+    a.angle !== b.angle,
+    a.framework !== b.framework,
+    a.creativeDevice !== b.creativeDevice,
+    a.format !== b.format,
+    a.proofPath !== b.proofPath,
+    a.openerMechanic !== b.openerMechanic,
+  ].filter(Boolean).length;
+}
+
+function forceCoreRouteContrast(campaign: Campaign, a: EmailConcept, b: EmailConcept, seed: number): EmailConcept {
+  let next = { ...b };
+  if (next.angle === a.angle) next.angle = pickDifferent(ANGLES, a.angle, seed, 1);
+  if (next.framework === a.framework) next.framework = pickDifferent(FRAMEWORKS, a.framework, seed >> 3, 2);
+  if (next.creativeDevice === a.creativeDevice) {
+    const devices = BRANDS[campaign.brandId]?.subjectDevices || [];
+    next.creativeDevice = pickDifferent(devices.length ? devices : ["open-loop", "pattern-interrupt", "playful-conceit"], a.creativeDevice, seed >> 5, 3);
+  }
+  if (next.format === a.format) next.format = pickDifferent(FORMATS, a.format, seed >> 7, 4);
+  if (next.proofPath === a.proofPath) next.proofPath = pickDifferent(PROOF_PATHS, a.proofPath, seed >> 11, 5);
+  if (next.openerMechanic === a.openerMechanic) next.openerMechanic = pickDifferent(OPENERS, a.openerMechanic, seed >> 13, 6);
+  return next;
+}
+
 export function selectEmailConceptPair(campaign: Campaign, products: Product[]): { a: EmailConcept; b: EmailConcept } {
   const seed = hashSeed([
     campaign.brandId,
@@ -123,9 +158,10 @@ export function selectEmailConceptPair(campaign: Campaign, products: Product[]):
   ].join("::"));
   const a = buildConcept(campaign, products, seed, 0);
   let b = buildConcept(campaign, products, seed, 3, a.techniquePlan?.lead ? [a.techniquePlan.lead] : []);
-  for (let guard = 0; guard < 8 && conceptDifferenceCount(a, b) < 3; guard++) {
+  for (let guard = 0; guard < 12 && (conceptRouteDifferenceCount(a, b) < 3 || conceptDifferenceCount(a, b) < 4); guard++) {
     b = buildConcept(campaign, products, seed, 4 + guard, a.techniquePlan?.lead ? [a.techniquePlan.lead] : []);
   }
+  if (conceptRouteDifferenceCount(a, b) < 3) b = forceCoreRouteContrast(campaign, a, b, seed);
   return { a, b };
 }
 

@@ -230,28 +230,34 @@ const PRODUCT_IMAGE_BRIEF_RULES = `PRODUCT IMAGE BRIEF RULES (one product image 
 
 const BRAND_PLAYBOOK_RULES: Record<string, string> = {
   bra_goddess: `BRAND RULEBOOK - BraGoddess:
-DO: Sandra voice; emotion-first + offer second; Daisy Bra, Posy Bra, and ZoeShape fixed as the top trio; rotate their internal lead order by theme/segment fit; comfort, support, lift, and fit relief; soft social urgency; deep rose/crimson #a02338-#d63268. No homepage markdown links in body copy — product links only.
-DON'T: generic empowerment, gratitude opener, bubblegum #f33e8a, muddy #953336, repeated name in subject+preheader, "don't let X go to waste".
-SUBJECT: 45-55 chars; name in subject OR preheader; use o.f.f / 💲; preheader adds tension or deadline.`,
+DO: Sandra voice (first-person singular "I/my/me" — Sandra is ALWAYS the grammatical subject); emotion-first + offer second; Daisy Bra, Posy Bra, and ZoeShape fixed as the top trio; rotate their internal lead order by theme/segment fit; comfort, support, lift, and fit relief; named-character anecdote (first name + relationship + specific outcome, no invented age/date/rating); soft social urgency with specific time anchor (midnight tonight, 24 hours); deep rose/crimson #a02338-#d63268. No homepage markdown links in body copy — product links only.
+DON'T: generic empowerment, gratitude opener ("We're so grateful", "BraGoddess is proud to present"), brand-as-announcer copy, bubblegum #f33e8a, muddy #953336, repeated name in subject+preheader, "don't let X go to waste", feature-list checkmark opener (✅ ✅ ✅ structure), invented promotion-tied counts ("X women grabbed this week"), anonymous star ratings (4.9/5, "5 stars for comfort"), clinical/study claims ("studies show", "scientifically proven"), passive urgency ("ending soon", "limited time", "while stocks last", "if you've been meaning to").
+PROOF: named friend/neighbor/customer + first name + relationship + comfort outcome ONLY — no invented age, date, count, rating, or verification label. Sensory qualitative language is fine ("felt like nothing", "wore it all day"); fabricated counts and ratings are not.
+SUBJECT: 38-58 chars (sweet spot 44-52); name AFTER emotional hook — never as first word; one emoji max; time anchor in at least one pair (midnight/24 hours/tonight); use o.f.f / 💲; preheader adds tension or deadline.`,
   gents_lux: `BRAND RULEBOOK - GentsLux:
-DO: Jordan voice; curiosity + scarcity; JettJeans, Icy Shorts, and AirFlexion fixed as the top trio; rotate their internal lead order by theme/segment fit; mechanism copy around movement, waistband, cooling, durability; understated confidence; deep navy #002850-#1d3d56.
-DON'T: cute puns, over-luxury language, grammar errors, loud hype, weak navy #26508d/#013faa/#183647, over-specified subject discounts.
-SUBJECT: 48-58 chars; name mid-subject; imply offer in subject, reveal scale in preheader.`,
+DO: Jordan voice (Jordan is ALWAYS grammatical subject — "I noticed", "I grabbed", never "GentsLux offers"); curiosity + scarcity; JettJeans, Icy Shorts, and AirFlexion fixed as the top trio; rotate their internal lead order by theme/segment fit; lifestyle scene-setting opener (coffee + remote, seasonal errand); mechanism copy around movement, waistband, cooling, durability; budget-aware senior/practical-buyer framing when the segment calls for it; one useful fit/cooling tip; understated confidence; deep navy #002850-#1d3d56.
+DON'T: brand-as-announcer ("GentsLux offers", "GentsLux is proud to present"), cute puns, over-luxury language, grammar errors, loud hype, weak navy #26508d/#013faa/#183647, over-specified subject discounts, invented promotion-tied counts ("X men switched this week"), anonymous star ratings, clinical claims, passive urgency ("ending soon", "limited time", "if you've been meaning to").
+OFFER: if supplied, state storewide/no code/no exclusions/no limit, free-shipping threshold, deadline, and price/% plainly; never invent any of them.
+PRODUCT BLOCKS: headline under 6w; two USP chips under 4w; compact review/proof texture using supplied proof or qualitative unlabeled sensory language ONLY — no invented ratings, counts, or verifications.
+SUBJECT: 33-55 chars (sweet spot 33-43); time anchor required in at least one pair (midnight/24 hours/tonight only — not "ending soon"); name mid-subject; imply offer in subject, reveal scale in preheader.`,
   lux_fitting: `BRAND RULEBOOK - LuxFitting:
-DO: Adele voice; price-anchored sensory promise; StretchActive, Icy Shorts, and SoftyGrace fixed as the top trio; rotate their internal lead order by theme/segment fit; outfit ease, comfort, one practical tip; #e7324a/#fe397b.
-DON'T: mixed hooks, "Be hurry!", unsupported health claims, red #d51c18, dull pink #d5255c, birthday+spring+discount+countdown stacking.
-SUBJECT: 44-56 chars; specific price/% every time; 💲 or spaced O.F.F; preheader escalates.`,
+DO: Adele voice (Adele is ALWAYS grammatical subject); price-anchored sensory promise; StretchActive, Icy Shorts, and SoftyGrace fixed as the top trio; rotate their internal lead order by theme/segment fit; outfit ease, comfort, budget-aware senior/practical-buyer framing when the segment calls for it; salutation "Dearest [first_name]," or "Hi [first_name]," (not "Hello"); seasonal styling/comfort tip in "My [Month] Tip:" format; #e7324a/#fe397b.
+DON'T: mixed hooks, "Be hurry!", external health statistics (CDC, clinical, "studies show"), ageist framing, red #d51c18, dull pink #d5255c, birthday+spring+discount+countdown stacking, anonymous star ratings, invented counts tied to the promotion ("X women this week"), passive urgency ("ending soon", "limited time").
+OFFER: if supplied, state storewide/no code/no exclusions/no limit, free-shipping threshold, deadline, and price/% plainly; never invent any of them.
+PRODUCT BLOCKS: headline under 6w; two USP chips under 4w; compact review/proof texture using supplied proof or qualitative sensory language ONLY — no invented ratings, counts, or verifications.
+SUBJECT: 44-56 chars (hard cap 58); specific price/% every time; 💲 or spaced O.F.F; time anchor in at least one pair; preheader escalates.`,
   santa_fare: `BRAND RULEBOOK - SantaFare:
-DO: Mary voice; suspended loop + gifting; Pouchic + TimelessMark first, BygoneMark support; named gifting micro-story; 4 products; reluctant calm urgency; deep scarlet #890106-#c00f28.
-DON'T: bright cheerfulness, pink #d43268, orange-red #d02c16, broad off-season sends, generic accessory grid, countdown-clock energy.
-SUBJECT: 42-56 chars; name often in preheader; use SAVING/O.F.F; reluctant deadline or revelation.`,
+DO: Mary voice (strict first-person singular "I/my/me" — never "we think", "our team"); suspended loop + gifting; Pouchic + TimelessMark first, BygoneMark support; named family member or close friend in gifting micro-story; 4 products; mystery gift in P.S.; deep scarlet #890106-#c00f28.
+DON'T: bright cheerfulness, pink #d43268, orange-red #d02c16, broad off-season sends, generic accessory grid, countdown-clock energy, invented promotion-tied counts ("X customers said yes this week"), anonymous star ratings (4.9/5, "customers rated"), passive urgency ("ending soon", "limited time", "while stocks last", "if you've been meaning to").
+PROOF: named family member or close friend + specific gifting moment — no invented ages, dates, ratings, or counts.
+SUBJECT: 42-54 chars (hard cap 58); urgency anchor = "midnight tonight" ONLY — never "ending soon" or "limited time"; name often in preheader; use SAVING/O.F.F; reluctant deadline or revelation.`,
 };
 
 const SUBJECT_DEVICE_DESCRIPTIONS: Record<string, string> = {
   "open-loop": "open a curiosity gap the email resolves — pose a question, name a tension, leave the outcome unstated",
   "pattern-interrupt": "break the scan pattern with an unexpected first word, number, or structure that stops the thumb",
   "playful-conceit": "commit to one unexpected metaphor, analogy, or character POV for the entire subject/preheader pair",
-  "social-proof-tease": "drop a specific social signal (review count, best-seller rank) without fully explaining it",
+  "social-proof-tease": "drop a supplied social signal (named customer outcome, supplied review fragment, or verified best-seller rank) without fully explaining it — never invent a count, rating, or verification label",
   "deadline-whisper": "imply scarcity or time constraint quietly — no hype words, no exclamation marks",
   "check-in": "speak directly to the reader's current state or unfinished action (\"Still thinking?\", \"You added X…\")",
 };
@@ -303,15 +309,20 @@ const BRAND_PERSONA_NAMES: Record<string, string> = {
   santa_fare: "Mary",
 };
 const OPTOUT_RISK = ["for older women", "hide your", "fix your body", "anti aging", "look younger", "flaws"];
-const UNSUPPLIED_PROOF = ["clinically proven", "doctor recommended", "medically proven", "guaranteed results", "thousands of customers", "rated #1", "scientifically proven"];
+const UNSUPPLIED_PROOF = ["clinically proven", "doctor recommended", "medically proven", "guaranteed results", "thousands of customers", "rated #1", "scientifically proven", "studies show", "research shows", "data shows", "as seen on", "award-winning", "9 out of 10"];
 const UNSUPPLIED_PROOF_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "unsupplied 5-star count", pattern: /\b(?:over\s+)?\d{2,}[\w+ -]*(?:5[- ]?star|five[- ]?star|ratings?|reviews?)\b/i },
+  { label: "unsupplied star rating score", pattern: /\b\d(?:\.\d)?\s*\/\s*5\s*stars?\b/i },
   { label: "unsupplied audience count", pattern: /\b(?:loved by|trusted by|chosen by|worn by)\s+(?:over\s+)?\d{2,}[\w+ -]*(?:women|men|customers|shoppers|buyers)\b/i },
   { label: "unsupplied sold/customer scale", pattern: /\b\d{3,}\+?\s+(?:sold|customers|shoppers|buyers|reviews|ratings)\b/i },
+  { label: "unsupplied promotion-tied count", pattern: /\b\d[\d,]*\s+(?:women|men|customers|shoppers|people)\s+(?:grabbed|bought|ordered|snagged|chose|switched|already)\b/i },
+  { label: "unsupplied mass social proof", pattern: /\bover\s+\d[\d,.]*\s*(?:million|thousand|M|k)?\s*(?:women|men|customers|shoppers|buyers)\b/i },
+  { label: "unsupplied percent claim", pattern: /\b\d+%\s+of\s+(?:women|men|customers|shoppers|buyers|people)\b/i },
   { label: "unsupplied verified label", pattern: /\bverified\s+(?:buyer|customer|review|purchase|rating)\b/i },
   { label: "unsupplied review age/date", pattern: /\b(?:age(?:d)?\s+\d{2}|\d{2}\s*(?:years?|yrs?)\s*old|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:,\s*20\d{2})?)\b/i },
   { label: "unsupplied stock/shipping fact", pattern: /\b(?:only\s+\d+\s+left|left\s+in\s+stock|ships?\s+(?:in|within)\s+\d+\s*(?:hours?|days?)|delivers?\s+(?:in|within)\s+\d+\s*(?:hours?|days?))\b/i },
   { label: "unsupplied medical outcome", pattern: /\b(?:clinically|doctor(?:-|\s)?recommended|medically|reduces?\s+swelling|improves?\s+circulation|treats?\s+(?:arthritis|sciatica)|cures?|heals?)\b/i },
+  { label: "unsupplied study/research claim", pattern: /\b(?:studies?\s+show|research\s+(?:shows?|finds?|suggests?)|data\s+shows?|scientists?\s+(?:say|found|recommend)|experts?\s+(?:say|recommend|agree))\b/i },
 ];
 const WEAK_CTA = ["click here", "learn more", "shop now", "discover more", "see more"];
 const HOOK_STACK = ["birthday", "anniversary", "spring", "summer", "mother", "review", "thank", "countdown", "last chance", "ending", "comfort", "sale", "gift", "free shipping"];
@@ -1722,7 +1733,7 @@ export function renderPromptLayers(layers: { title: string; body?: string }[]): 
 
 const CORE_PROMPT_LAYER = `Return JSON only. Build order: evidence → segment → hook contract → banner/body/products → subject/preheader → QA.
 1 send = 1 promise. All copy surfaces (subject, preheader, hero, body, grid, CTA, P.S.) share ONE thread: [hero product by name] + [specific proof or price] + [concrete reader situation]. Each surface references ≥2 of those 3 thread elements. A thread anchored only by brand name or discount % is NOT a shared thread.
-Proof policy: verified labels, ratings, counts, ages, dates, medical/health outcomes, stock, shipping, prices, urgency, and guarantees must be supplied by product/campaign data or marked "needs verification" in brief notes — never invented as final recipient-facing facts. Artificial review/claim texture is allowed only as unlabeled qualitative customer language.
+Proof policy — supplied only: ratings, counts (star scores, audience sizes, sold volumes), ages, dates, medical/health outcomes, study/research claims, stock quantities, shipping facts, prices, urgency, and guarantees must come from supplied product/campaign data or be marked "needs verification" — NEVER invented. Artificial review texture is permitted ONLY as: (a) unlabeled qualitative sensory language ("felt like wearing air"), or (b) a named-character anecdote with first name + relationship + specific outcome but NO invented age, date, rating, count, or verification label. PROHIBITED: anonymous star ratings (4.9/5, 5 stars), promotion-tied counts ("X women grabbed this week"), mass-audience claims ("over 1M women", "thousands"), study/research fabrications ("studies show", "research finds"), clinical claims not in product data, "award-winning", "best-selling", "verified purchase", "as seen on".
 Prohibit: fake Re/Fwd, "click here", "learn more", guilt opener, "meet your new favorite", "don't let X go to waste", generic gratitude, grammar errors, unsupported medical/age claims, body/age shaming.
 💲 instead of $; brand off-symbol rules; {{first_name}} in subj XOR prehdr only.`;
 
@@ -1733,12 +1744,35 @@ Style rotation menu: concise/direct is always required; then choose a few releva
 Segment versions keep one hook but adapt motivation: loyal = recognition/first access; at-risk = proof/friction removal; new = quick education/next product; lapsed = low-risk return reason; high-return-risk = fit/material clarity.
 Multi-segment body copy must not be cloned paragraph skeletons. Change the first sentence, proof/risk reducer, product bridge, and final line for every segment.`;
 
+const TEMPLATE_CORPUS_PROMPT_LAYER = `WinEmailTemps/FailedEmailTemps corpus memory (58 EMLs — 29 winners, 29 failures, all 4 brands):
+- Winners and failures share similar structure (~8 images, ~200 visible words). Quality = ONE promise paid off across every surface; length alone does not win.
+- Winner hero images: 650px wide vertical or animated GIF; product/model clearly visible; single price/discount prominent; one short CTA or trust strip; clean brand palette. Occasion or thank-you decor supports product — never replaces it.
+- Winner product tiles: square crop, 1-2 pain→relief callouts clipped short, price and CTA baked into the image. Decision aids, not miniature essays.
+- Winner proof pattern: named character (first name + relationship) + one specific comfort/use outcome — no invented age, date, rating, count, or verification label.
+- Winner urgency: "midnight tonight", "24 hours", or a specific time anchor. Passive phrases ("ending soon", "limited time", "while stocks last", "if you've been meaning to") appeared only in failures.
+- Winner CTA language: first-person claim framing ("Claim X% O.F.F →", "Get Your X% SAVING →") outperforms imperative ("Shop Now", "Buy Now").
+- Winner P.S.: always present; introduces net-new information (named product + color, supplied stock count, shipping threshold, mystery item, or styling tip) — never restates the body offer.
+- Failure traps: broad seasonal/gratitude takeover, feature-list checkmark opener, invented counts tied to the promotion ("X women grabbed this week"), anonymous star ratings (4.9/5, "5 stars for comfort"), clinical/study claims not from product data, promotion-specific mass counts ("2,300 women this week", "150,000 women"), dark/heavy hero hiding the product, vague deadline language, brand-as-announcer copy ("BrandName offers…", "BrandName is proud to present").`;
+
+const LEGACY_PROMPT_ALIGNMENT_BY_BRAND: Record<string, string> = {
+  gents_lux: `Legacy prompt alignment for GentsLux:
+- Use the old high-performing Jordan shape in compact form: senior/practical-buyer empathy, concise directness, useful fit/cooling advice, restrained humor, and smart-deal framing.
+- If supplied, weave in storewide/no-code/no-exclusions/no-limit offer terms, free-shipping threshold, visible price/% and deadline. If not supplied, do not invent them.
+- Product blocks need a desire headline (<6w), 2 clipped USP chips (<4w), one compact review/proof texture, one 2-word trust/urgency booster, and a visual mechanism note.
+- Subject/preheader/banner/body must share hero product + proof/price + reader situation; rotate devices across value, numbers, question, FOMO, wordplay, action, education, UGC/story, pain→relief, praise, and curiosity.`,
+  lux_fitting: `Legacy prompt alignment for LuxFitting:
+- Use the old high-performing Adele shape in compact form: senior/practical-buyer empathy, sensory price hook, seasonal styling/comfort tips, warm light humor, and savvy-deal framing.
+- If supplied, weave in storewide/no-code/no-exclusions/no-limit offer terms, free-shipping threshold, visible price/% and deadline. If not supplied, do not invent them.
+- Product blocks need a desire headline (<6w), 2 clipped pain→relief USP chips (<4w), one compact review/proof texture, one 2-word trust/urgency booster, and a visual styling/mechanism note.
+- Subject/preheader/banner/body must share hero product + proof/price + reader situation; rotate devices across personalization, emoji restraint, value, numbers, question, FOMO, wordplay, action, education, UGC/story, pain→relief, praise, and curiosity.`,
+};
+
 const COMPONENT_PROMPT_LAYER = `SUBJ: 42–58c (≤60 hard cap); 1 offer signal; {{first_name}} in subj XOR prehdr; 3 alt subjects with distinct devices.
 PREHDR: 60–90c; new beat (proof/deadline/price/tension). Gmail ¶1: hero product + 1 offer/proof beat in first 150c.
 BODY: 120–150w/seg; personal-note first; persona-signed; md product link by ¶2; 2–4 bold/accent/link beats; P.S. 10–15w; no hard-sell commands. Also emit body_options per segment: primary route + alternate route with different opener/proof/placement, not paraphrases.
 OFFER: price/discount once in body (hero reveal) + once in P.S. Support products: 1 differentiating line each — no per-product price or "Free Shipping" repeat.
-BANNER: main_text_1=tension/hook; main_text_2=proof/mech; main_text_3=resolution/offer. image_guidance: 4–6 bullets. Emit 2 banner.options with different headline family + layout/composition (split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, or guide layout).
-PRODUCTS: 4–6 (even preferred; SF default 4). main_text ≤5w; CTA 2–4w plain text; USPs ≤5w; sub_text=price/proof/deadline. Copy bakes into images. Each product block must have a different overlay role/use case/mechanism and a visibly different layout note (badge placement, crop, hierarchy, overlay position, ranked guide, comparison, or detail callout); template_style should name that role, not repeat the campaign default.
+BANNER: main_text_1=tension/hook; main_text_2=proof/mech; main_text_3=resolution/offer. image_guidance: 4–6 bullets. Actual product/model visible, one large price/discount, CTA/trust strip, clean brand palette; occasion decor supports product, never replaces it. Emit 2 banner.options with different headline family + layout/composition (split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, or guide layout).
+PRODUCTS: 4–6 (even preferred; SF default 4). main_text ≤5w; CTA 2–4w plain text; USPs ≤5w; sub_text=price/proof/deadline. Copy bakes into images. Product tile should be square with full product crop, visible price, baked-in CTA, and 1–2 clipped mechanism/pain→relief callouts; no miniature essays. Each product block must have a different overlay role/use case/mechanism and a visibly different layout note (badge placement, crop, hierarchy, overlay position, ranked guide, comparison, or detail callout); template_style should name that role, not repeat the campaign default.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
 
 const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
@@ -1783,6 +1817,14 @@ function brandBriefPatternLayer(brandId: string): string {
 
 export function brandPlaybookRuleBlock(brandId: string): string {
   return BRAND_PLAYBOOK_RULES[brandId] || "";
+}
+
+export function legacyPromptAlignmentLayer(brandId: string): string {
+  return LEGACY_PROMPT_ALIGNMENT_BY_BRAND[brandId] || "";
+}
+
+export function templateCorpusPromptLayer(): string {
+  return TEMPLATE_CORPUS_PROMPT_LAYER;
 }
 
 export function requiredProductInstruction(brandId: string): string {
@@ -1949,6 +1991,8 @@ export function buildSystemPrompt(
     },
     { title: "Core Rules", body: CORE_PROMPT_LAYER },
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
+    { title: "Template Corpus Memory", body: templateCorpusPromptLayer() },
+    { title: "Legacy Prompt Alignment", body: legacyPromptAlignmentLayer(campaign.brandId) },
     { title: "Surface Variety Contract", body: creativeSurfaceVarietyPrompt(campaign, isOptionB ? "B" : "A") },
     { title: "Production Brief Pattern", body: creativeRoutePrompt(campaign, isOptionB, nonce) },
     { title: "Chosen Concept", body: concept ? conceptPrompt(concept, isOptionB ? "B" : "A") : "" },

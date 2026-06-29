@@ -789,7 +789,6 @@ export function StudioApp() {
         setActiveSegment(segments[0]);
         setOutputTab("preview");
         setView("output");
-        if (payload.warning) result.warning = [result.warning, payload.warning].filter(Boolean).join(" · ");
         pushProgress(`Option ${payload.option.toUpperCase()} ready`, {
           stage: "partial",
           partialA: payload.option === "a" ? true : undefined,
@@ -801,7 +800,7 @@ export function StudioApp() {
       } else if (payload.type === "done") {
         result.a = payload.a || result.a;
         result.b = payload.b || result.b;
-        result.warning = payload.warning || result.warning;
+        result.warning = payload.warning || undefined;
         pushProgress("Generation complete", {
           stage: "done",
           done: 1,

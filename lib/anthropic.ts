@@ -16,6 +16,7 @@ import {
   creativeSurfaceVarietyPrompt,
   isComplianceRepairFlag,
   isHighImpactFlag,
+  legacyPromptAlignmentLayer,
   promoLine,
   PROMPT_REGISTRY_VERSION,
   renderPromptLayers,
@@ -24,6 +25,7 @@ import {
   segmentBodyDirectionLines,
   segmentPromptContext,
   selectVarietyProfile,
+  templateCorpusPromptLayer,
   validateBrief,
   validateBriefPair,
   type GenBrief,
@@ -267,8 +269,10 @@ export function providerConfigError(models: AIModelPair): string | null {
 
 function patchTimeoutForSelection(selection: AIModelSelection): number {
   const tier = modelSpeedTier(selection);
-  if (tier === "balanced") return Math.min(Math.round(PATCH_PROVIDER_TIMEOUT_MS * 1.5), PROVIDER_TIMEOUT_MS);
-  if (tier === "frontier") return Math.min(PATCH_PROVIDER_TIMEOUT_MS * 2, PROVIDER_TIMEOUT_MS);
+  // Segment patches are recoverable from the foundation brief, so keep slow models bounded here.
+  // This still calls the user-selected model, but it falls back locally before the route deadline is eaten.
+  if (tier === "balanced") return Math.min(Math.round(PATCH_PROVIDER_TIMEOUT_MS * 1.25), 60_000, PROVIDER_TIMEOUT_MS);
+  if (tier === "frontier") return Math.min(Math.max(PATCH_PROVIDER_TIMEOUT_MS, 45_000), 60_000, PROVIDER_TIMEOUT_MS);
   return PATCH_PROVIDER_TIMEOUT_MS;
 }
 
@@ -861,19 +865,35 @@ function varietyCollisionCount(a?: BodyVarietyProfile, b?: BodyVarietyProfile): 
 function withContrastingOptionVariety(campaign: Campaign, nonce: string, avoid?: BodyVarietyProfile): Campaign {
   let best = selectVarietyProfile(campaign, nonce);
   let bestScore = varietyCollisionCount(avoid, best);
-  for (let i = 1; avoid && i <= 12 && (best.productGridPattern === avoid.productGridPattern || best.bannerPattern === avoid.bannerPattern || best.openerMechanic === avoid.openerMechanic || bestScore > 2); i++) {
+  for (
+    let i = 1;
+    avoid && i <= 12 && (
+      best.productGridPattern === avoid.productGridPattern ||
+      best.bannerPattern === avoid.bannerPattern ||
+      best.openerMechanic === avoid.openerMechanic ||
+      best.subjectStyle === avoid.subjectStyle ||
+      bestScore > 2
+    );
+    i++
+  ) {
     const candidate = selectVarietyProfile(campaign, `${nonce}:contrast:${i}`);
     const score = varietyCollisionCount(avoid, candidate);
     if (
       score < bestScore ||
       (candidate.productGridPattern !== avoid.productGridPattern &&
         candidate.bannerPattern !== avoid.bannerPattern &&
-        candidate.openerMechanic !== avoid.openerMechanic)
+        candidate.openerMechanic !== avoid.openerMechanic &&
+        candidate.subjectStyle !== avoid.subjectStyle)
     ) {
       best = candidate;
       bestScore = score;
     }
-    if (bestScore <= 2 && best.productGridPattern !== avoid.productGridPattern && best.bannerPattern !== avoid.bannerPattern) break;
+    if (
+      bestScore <= 2 &&
+      best.productGridPattern !== avoid.productGridPattern &&
+      best.bannerPattern !== avoid.bannerPattern &&
+      best.subjectStyle !== avoid.subjectStyle
+    ) break;
   }
   return { ...campaign, bodyVariety: best };
 }
@@ -1107,6 +1127,8 @@ Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + 2 distinct la
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
+    { title: "Template Corpus Memory", body: templateCorpusPromptLayer() },
+    { title: "Legacy Prompt Alignment", body: legacyPromptAlignmentLayer(campaign.brandId) },
     { title: "Campaign Theme Anchor", body: campaignThemeInstruction(campaign) },
     { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
     { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
@@ -1346,6 +1368,31 @@ function feedbackForSegmentPatch(revision?: RevisionFeedback): string {
     : "";
 }
 
+/** @internal exported for unit tests; final warning should describe only unrecovered generation gaps. */
+export function composeLayeredGenerationWarning(input: {
+  warnings: string[];
+  notices: string[];
+  coverageGaps: string[];
+  missingOptions: string[];
+}): string | undefined {
+  const { warnings, notices, coverageGaps, missingOptions } = input;
+  const hasUnrecoveredGaps = coverageGaps.length > 0 || missingOptions.length > 0;
+  const warningParts: string[] = [];
+  if (missingOptions.length) {
+    warningParts.push(`Generated usable copy, but Option ${missingOptions.join(" and ")} did not complete.`);
+  }
+  if (hasUnrecoveredGaps && warnings.length) {
+    warningParts.push(`Some segment batches had provider/deadline issues: ${warnings.slice(0, 6).join(" · ")}${warnings.length > 6 ? ` · +${warnings.length - 6} more` : ""}.`);
+  }
+  if (hasUnrecoveredGaps && notices.length) {
+    warningParts.push(`Recovery notes: ${notices.slice(0, 4).join(" · ")}${notices.length > 4 ? ` · +${notices.length - 4} more` : ""}.`);
+  }
+  if (coverageGaps.length) {
+    warningParts.push(`Incomplete generated coverage remains: ${coverageGaps.slice(0, 8).join(", ")}${coverageGaps.length > 8 ? `, +${coverageGaps.length - 8} more` : ""}.`);
+  }
+  return warningParts.length ? warningParts.join(" ") : undefined;
+}
+
 function buildSegmentPatchPrompt(
   campaign: Campaign,
   products: Product[],
@@ -1374,6 +1421,8 @@ Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 
 Body: selected body + 2 body_options routes. 120-150w, no {{first_name}}, personal-note first, one calm urgency beat, product markdown link by para 2, 2-4 format/link beats, no hard-sell stack.
 Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Supplied/verified facts only; artificial proof can be qualitative only, no fake ratings/counts/dates/ages/medical outcomes/stock/shipping facts.`,
     },
+    { title: "Template Corpus Memory", body: templateCorpusPromptLayer() },
+    { title: "Legacy Prompt Alignment", body: legacyPromptAlignmentLayer(campaign.brandId) },
     { title: "Campaign Theme Anchor", body: campaignThemeInstruction(campaign) },
     { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
     { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
@@ -1936,6 +1985,7 @@ async function generateOptionSegmentParts(
   throwIfAborted(runtime?.signal);
   const optionLabel = option.toUpperCase() as "A" | "B";
   const warnings: string[] = [];
+  const recoverableIssues: string[] = [];
   const notices: string[] = [];
   const total = chunks.length;
   let completed = 0;
@@ -1946,8 +1996,8 @@ async function generateOptionSegmentParts(
       throwIfAborted(runtime?.signal);
       const deadlineWarning = runtime ? softDeadlineWarning(runtime, `Option ${optionLabel} segment patches`) : null;
       if (deadlineWarning) {
-        warnings.push(`batch ${index + 1}/${total}: ${deadlineWarning}`);
-        emit(runtime, { type: "warning", message: deadlineWarning });
+        recoverableIssues.push(`batch ${index + 1}/${total}: ${deadlineWarning}`);
+        emit(runtime, { type: "stage", stage: "segment_recovery", option, batch: index + 1, total, message: deadlineWarning });
         return undefined;
       }
       emit(runtime, {
@@ -1977,10 +2027,10 @@ async function generateOptionSegmentParts(
       completed += 1;
       emit(runtime, { type: "progress", stage: `segments_${option}`, done: completed, total, message: `Option ${optionLabel} segments ${completed}/${total}` });
       const label = `batch ${index + 1}/${total}`;
-      if (result.error) warnings.push(`${label}: ${result.error}`);
-      if (result.warning) warnings.push(`${label}: ${result.warning}`);
+      if (result.error) recoverableIssues.push(`${label}: ${result.error}`);
+      if (result.warning) recoverableIssues.push(`${label}: ${result.warning}`);
       const patch = option === "a" ? result.a : result.b;
-      if (!patch) warnings.push(`${label}: missing Option ${optionLabel}`);
+      if (!patch) recoverableIssues.push(`${label}: missing Option ${optionLabel}`);
       return patch;
     },
     runtime?.signal
@@ -1990,6 +2040,9 @@ async function generateOptionSegmentParts(
   if (missing.length) {
     usableParts.push(fallbackSegmentPatch(withSegments(campaign, missing), products, optionLabel, anchor, missing));
     notices.push(`filled missing Option ${optionLabel} segment copy locally for ${missing.join(", ")} after provider/deadline gaps`);
+  }
+  if (recoverableIssues.length) {
+    notices.push(`recovered Option ${optionLabel} segment provider/deadline issue(s): ${recoverableIssues.slice(0, 3).join(" · ")}${recoverableIssues.length > 3 ? ` · +${recoverableIssues.length - 3} more` : ""}`);
   }
   return {
     parts: [anchor, ...usableParts],
@@ -2121,7 +2174,7 @@ async function generateOptionsBatched(
       const hardContrast = briefContrastIssues(a, b).filter(isHardContrastIssue);
       if (hardContrast.length && optionAAnchor && hasGenerationBudget(runtime, PROVIDER_TIMEOUT_MS + PATCH_PROVIDER_TIMEOUT_MS, 15_000)) {
         try {
-          warnings.push(`contrast retry: ${hardContrast.slice(0, 3).join("; ")}`);
+          notices.push(`attempted Option B contrast retry for: ${hardContrast.slice(0, 3).join("; ")}`);
           emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Retrying Option B contrast" });
           const retrySeedCampaign = { ...campaign, theme: `${campaign.theme} contrast retry ${hardContrast.join(" ")}` };
           const retryConcept = selectEmailConceptPair(retrySeedCampaign, products).b;
@@ -2134,11 +2187,9 @@ async function generateOptionsBatched(
           emit(runtime, { type: "partial", option: "b", brief: b, warning: retryRun.warnings.length ? retryRun.warnings.join(" · ") : undefined });
         } catch (err) {
           if (isGenerationAbortError(err)) throw err;
-          warnings.push(`contrast retry failed: ${errMessage(err)}`);
-          emit(runtime, { type: "warning", message: `Contrast retry failed: ${errMessage(err)}` });
+          notices.push(`Option B contrast retry could not complete; keeping the usable original B: ${errMessage(err)}`);
+          emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Contrast retry skipped; keeping usable Option B" });
         }
-      } else if (hardContrast.length && optionAAnchor) {
-        notices.push(`A/B contrast advisory not retried because the time budget was low: ${hardContrast.slice(0, 2).join("; ")}`);
       }
     }
 
@@ -2148,17 +2199,8 @@ async function generateOptionsBatched(
       ...(a ? missingPatchSegments(campaign, [a]).map((segment) => `A ${segment}`) : []),
       ...(b ? missingPatchSegments(campaign, [b]).map((segment) => `B ${segment}`) : []),
     ];
-    const warningParts: string[] = [];
-    if (warnings.length) {
-      warningParts.push(`Some segment batches had provider/deadline issues: ${warnings.slice(0, 6).join(" · ")}${warnings.length > 6 ? ` · +${warnings.length - 6} more` : ""}.`);
-    }
-    if (notices.length) {
-      warningParts.push(`Review notes: ${notices.slice(0, 4).join(" · ")}${notices.length > 4 ? ` · +${notices.length - 4} more` : ""}.`);
-    }
-    if (coverageGaps.length) {
-      warningParts.push(`Incomplete generated coverage remains: ${coverageGaps.slice(0, 8).join(", ")}${coverageGaps.length > 8 ? `, +${coverageGaps.length - 8} more` : ""}.`);
-    }
-    const warning = warningParts.length ? warningParts.join(" ") : undefined;
+    const missingOptions = [a ? "" : "A", b ? "" : "B"].filter(Boolean);
+    const warning = composeLayeredGenerationWarning({ warnings, notices, coverageGaps, missingOptions });
 
     console.info(`[generate-copy] completed layered A/B in ${Math.round((Date.now() - startedAt) / 1000)}s across ${total} segment batch(es)`);
     telemetry("complete", {

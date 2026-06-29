@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adaptiveBatchSettings, compactPromptText, hasDeadlineBudget, isHardContrastIssue, remainingDeadlineMs, segmentChunks } from "./anthropic";
+import { adaptiveBatchSettings, compactPromptText, composeLayeredGenerationWarning, hasDeadlineBudget, isHardContrastIssue, remainingDeadlineMs, segmentChunks } from "./anthropic";
 import type { AIModelPair } from "./config/types";
 
 describe("segmentChunks", () => {
@@ -108,5 +108,27 @@ describe("isHardContrastIssue", () => {
     expect(isHardContrastIssue("A/B product grid patterns are the same; choose a different surface route for Option B")).toBe(false);
     expect(isHardContrastIssue("A/B product grid has identical product order; reorder or swap at least one support product in Option B")).toBe(false);
     expect(isHardContrastIssue("A/B body copy shares too much structure; change opener family and proof path")).toBe(true);
+  });
+});
+
+describe("composeLayeredGenerationWarning", () => {
+  it("stays quiet when provider/deadline issues were fully recovered by local fallback", () => {
+    expect(composeLayeredGenerationWarning({
+      warnings: ["B batch 1/2: OpenAI gpt-5.5 timed out after 90 seconds", "B batch 1/2: missing Option B"],
+      notices: ["B filled missing Option B segment copy locally for 71, 72 after provider/deadline gaps"],
+      coverageGaps: [],
+      missingOptions: [],
+    })).toBeUndefined();
+  });
+
+  it("warns when generated coverage is still incomplete", () => {
+    const warning = composeLayeredGenerationWarning({
+      warnings: ["B batch 1/2: OpenAI gpt-5.5 timed out after 90 seconds"],
+      notices: ["B attempted local recovery"],
+      coverageGaps: ["B 71"],
+      missingOptions: [],
+    });
+    expect(warning).toMatch(/provider\/deadline issues/i);
+    expect(warning).toMatch(/Incomplete generated coverage remains: B 71/i);
   });
 });
