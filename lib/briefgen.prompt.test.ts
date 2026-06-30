@@ -16,6 +16,7 @@ describe("playbook prompt alignment", () => {
     const layer = artificialProofPromptLayer();
 
     expect(layer).toContain("review");
+    expect(layer).toContain("banner customer-review chips");
     expect(layer).toContain("rating");
     expect(layer).toContain("synthetic");
     expect(layer).toContain("needs verification");

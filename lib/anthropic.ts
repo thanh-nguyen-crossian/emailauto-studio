@@ -1039,7 +1039,7 @@ function compactSegmentBodyDirectionLines(campaign: Campaign): string {
 function foundationOutputSchema(products: Product[]): string {
   return `Foundation JSON fields:
 - creative_direction: angle, framework, branch, brief_route, source_pattern, hook_contract{segment_insight, emotion, hero_product, proof_or_price, urgency, avoid_rule}, flow, differentiator.
-- banner: logo_stars, main_text_1/2/3, sub_text_1/2/3, image_guidance bullets, review_quote, review_texts, main_image, sub_image, trust_booster, emergency, cta, exactly 2 distinct options with same fields.
+- banner: logo_stars, main_text_1/2/3, sub_text_1/2/3, image_guidance bullets, review_quote, 1-2 review_texts customer-review chips (artificial allowed when marked synthetic/needs verification for invented specifics), main_image, sub_image, trust_booster, emergency, cta, exactly 2 distinct options with same fields and each option has review_texts.
 - body.base: designer-facing layout summary only; no segment body copy.
 - ps: 10-15 words.
 - products: exactly ${products.length} rows, slot 1..${products.length}, name, template_style, main_text, sub_text, popup_badge, 2 short usps, review, cta, main_image, sub_image, alt_text, image_notes.
@@ -1124,7 +1124,7 @@ function buildFoundationPrompt(
       title: "Playbook Core",
       body: `One send = one promise. Every shared surface must connect one hero product + one proof/price + one reader situation.
 Supplied/verified facts may be final. Artificial proof may draft reviews, ratings, claim chips, badges, and trust boosters, but invented specifics must be marked synthetic/needs verification in notes unless supplied. Never label synthetic proof as verified, clinical, real customer, or guaranteed.
-Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + 2 distinct layout options. Products are image-overlay copy; main_text <=5w, USPs <=5w, distinct role/use case/mechanism per product.
+Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + customer-review chip(s) + 2 distinct layout options, each with its own review_texts. Artificial reviews are allowed when synthetic/needs-verification if they include invented specifics. Products are image-overlay copy; main_text <=5w, USPs <=5w, distinct role/use case/mechanism per product.
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },

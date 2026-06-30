@@ -1765,7 +1765,7 @@ Prohibit: fake Re/Fwd, "click here", "learn more", guilt opener, "meet your new 
 💲 instead of $; brand off-symbol rules; {{first_name}} in subj XOR prehdr only.`;
 
 const ARTIFICIAL_PROOF_PROMPT_LAYER = `Artificial proof mode:
-- Allowed creative drafts: first-name review snippets, star/rating concepts, claim chips, trust badges, objection reducers, urgency/proof labels, and image-overlay proof notes.
+- Allowed creative drafts: first-name review snippets, banner customer-review chips, star/rating concepts, claim chips, trust badges, objection reducers, urgency/proof labels, and image-overlay proof notes.
 - Keep synthetic proof short, plausible, brand-fit, and useful. Use it to guide banner/product/body ideas, not to fabricate "verified" truth.
 - If a specific invented number/rating/date/age/stock/shipping/medical-like/guarantee/award claim appears, add "synthetic / needs verification" in quality_checks or image_notes unless it came from product/campaign data.
 - Do not label AI-created reviews as verified buyers/customers, real customer quotes, clinical proof, expert proof, or guaranteed outcomes.`;
@@ -1804,7 +1804,7 @@ const COMPONENT_PROMPT_LAYER = `SUBJ: 42–58c (≤60 hard cap); 1 offer signal;
 PREHDR: 60–90c; new beat (proof/deadline/price/tension). Gmail ¶1: hero product + 1 offer/proof beat in first 150c.
 BODY: 120–150w/seg; personal-note first; persona-signed; md product link by ¶2; 2–4 bold/accent/link beats; P.S. 10–15w; no hard-sell commands. Also emit body_options per segment: primary route + alternate route with different opener/proof/placement, not paraphrases.
 OFFER: price/discount once in body (hero reveal) + once in P.S. Support products: 1 differentiating line each — no per-product price or "Free Shipping" repeat.
-BANNER: main_text_1=tension/hook; main_text_2=proof/mech; main_text_3=resolution/offer. image_guidance: 4–6 bullets. Actual product/model visible, one large price/discount, CTA/trust strip, clean brand palette; occasion decor supports product, never replaces it. Emit 2 banner.options with different headline family + layout/composition (split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, or guide layout).
+BANNER: main_text_1=tension/hook; main_text_2=proof/mech; main_text_3=resolution/offer. Include review_quote + 1–2 review_texts as customer-review chips; artificial reviews are allowed when synthetic/needs-verification if they include invented specifics. image_guidance: 4–6 bullets. Actual product/model visible, one large price/discount, CTA/trust strip, clean brand palette; occasion decor supports product, never replaces it. Emit 2 banner.options with different headline family + layout/composition (split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, or guide layout), each with a customer review chip.
 PRODUCTS: 4–6 (even preferred; SF default 4). main_text ≤5w; CTA 2–4w plain text; USPs ≤5w; sub_text=price/proof/deadline. Copy bakes into images. Product tile should be square with full product crop, visible price, baked-in CTA, and 1–2 clipped mechanism/pain→relief callouts; no miniature essays. Each product block must have a different overlay role/use case/mechanism and a visibly different layout note (badge placement, crop, hierarchy, overlay position, ranked guide, comparison, or detail callout); template_style should name that role, not repeat the campaign default.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
 
@@ -2648,9 +2648,15 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     addFlag(brief, "warn", "Banner image guidance should be 4-6 compact bullets");
   }
   if (looksLikeSchemaPlaceholder(banner.image_guidance)) addFlag(brief, "warn", "Banner image guidance still contains schema placeholder text");
-  [banner.review_quote, ...(banner.review_texts || [])].filter(Boolean).forEach((review) => {
-    if (!matchesAnySuppliedReview(String(review), products)) {
-      addFlag(brief, "warn", "Banner review looks invented; use supplied review text or unattributed proof language");
+  const bannerReviews = [banner.review_quote, ...(banner.review_texts || [])]
+    .map((review) => String(review || "").trim())
+    .filter(Boolean);
+  if (!bannerReviews.length) {
+    addFlag(brief, "warn", "Hero banner needs at least one customer review chip; artificial is allowed when marked synthetic/needs verification");
+  }
+  bannerReviews.forEach((review) => {
+    if (!matchesAnySuppliedReview(review, products) && !hasSyntheticProofContext(review)) {
+      addFlag(brief, "warn", "Banner review with rating/count/verification needs supplied proof or synthetic/needs-verification label");
     }
   });
   bannerBullets.forEach((line) => {
@@ -2668,6 +2674,15 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     const optionSubLines = [option.sub_text_1, option.sub_text_2, option.sub_text_3].filter(Boolean);
     if (optionMainLines.length < 3) addFlag(brief, "warn", `Banner option ${i + 1} needs 3 main text beats`);
     if (optionSubLines.length < 2) addFlag(brief, "warn", `Banner option ${i + 1} needs supporting sub text beats`);
+    const optionReviews = (option.review_texts || []).map((review) => String(review || "").trim()).filter(Boolean);
+    if (!optionReviews.length) {
+      addFlag(brief, "warn", `Banner option ${i + 1} needs a customer review chip; artificial is allowed when marked synthetic/needs verification`);
+    }
+    optionReviews.forEach((review) => {
+      if (!matchesAnySuppliedReview(review, products) && !hasSyntheticProofContext(review)) {
+        addFlag(brief, "warn", `Banner option ${i + 1} review with rating/count/verification needs supplied proof or synthetic/needs-verification label`);
+      }
+    });
     optionMainLines.forEach((line) => {
       if (wordCount(line) > 8) addFlag(brief, "warn", `Banner option ${i + 1} line over 8 words: "${line.trim()}"`);
     });

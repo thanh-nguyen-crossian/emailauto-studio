@@ -24,6 +24,11 @@ function segJsonKey(id: string): string {
 
 const stringSchema: JsonSchema = { type: "string" };
 const stringArraySchema: JsonSchema = { type: "array", items: stringSchema };
+const bannerReviewTextsSchema: JsonSchema = {
+  type: "array",
+  items: stringSchema,
+  description: "One or two compact customer-review chips for the banner. Artificial reviews are acceptable; mark invented specifics synthetic/needs verification.",
+};
 
 function subjectOptionSchema(): JsonSchema {
   return {
@@ -114,7 +119,7 @@ function bannerOptionSchema(): JsonSchema {
       sub_text_2: stringSchema,
       sub_text_3: stringSchema,
       cta: stringSchema,
-      review_texts: stringArraySchema,
+      review_texts: bannerReviewTextsSchema,
       main_image: stringSchema,
       sub_image: stringSchema,
       trust_booster: stringSchema,
@@ -262,7 +267,7 @@ export function genBriefJsonSchema(segments: string[], compact = false): Provide
             sub_text_3: stringSchema,
             image_guidance: stringSchema,
             review_quote: stringSchema,
-            review_texts: stringArraySchema,
+            review_texts: bannerReviewTextsSchema,
             main_image: stringSchema,
             sub_image: stringSchema,
             trust_booster: stringSchema,
@@ -341,7 +346,7 @@ export function foundationBriefJsonSchema(): ProviderJsonSchema {
             sub_text_3: stringSchema,
             image_guidance: stringSchema,
             review_quote: stringSchema,
-            review_texts: stringArraySchema,
+            review_texts: bannerReviewTextsSchema,
             main_image: stringSchema,
             sub_image: stringSchema,
             trust_booster: stringSchema,
