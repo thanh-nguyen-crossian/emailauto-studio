@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { segJsonKey, validateBrief, validateBriefPair, briefContrastIssues, type GenBrief } from "../briefgen";
+import { segJsonKey, validateBrief, validateBriefPair, briefContrastIssues, thinProductInputs, type GenBrief } from "../briefgen";
 import type { Campaign, Product } from "../config/types";
 
 const campaign: Campaign = {
@@ -166,6 +166,59 @@ describe("brief validation", () => {
     // Rating counts are fine as a banner badge (Jul 2026 stance); the invented age is not.
     expect((validated._flags || []).some((flag) => /4\.9\/5/i.test(flag.msg))).toBe(false);
     expect((validated._flags || []).some((flag) => /fabricated authority claim/i.test(flag.msg))).toBe(true);
+  });
+
+  it("flags a leaked prompt placeholder token in generated copy", () => {
+    const brief = baseBrief();
+    brief.theme = "Comfort sale hook: [HOOK_CONTRACT] drives the visual";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /prompt scaffolding leaked/i.test(flag.msg))).toBe(true);
+  });
+
+  it("flags a leaked markdown layer heading in body copy", () => {
+    const brief = baseBrief();
+    brief.body.base = "## Output Contract\nReturn ONLY valid JSON.";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /prompt scaffolding leaked/i.test(flag.msg))).toBe(true);
+  });
+
+  it("does not flag a real single-word product markdown link as a leaked placeholder", () => {
+    const brief = baseBrief();
+    brief.body.base = "I love how [ZoeShape](slug:zoeshape) smooths everything out.";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /prompt scaffolding leaked/i.test(flag.msg))).toBe(false);
+  });
+
+  it("flags literal spelled-out percent-off discount phrasing", () => {
+    const brief = baseBrief();
+    brief.body.base = "Grab your Daisy Bra at 50% off before midnight.";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /literal "% off"/i.test(flag.msg))).toBe(true);
+  });
+
+  it("does not flag unrelated uses of the word off", () => {
+    const brief = baseBrief();
+    brief.body.base = "Nothing in the closet fits properly off the rack, so Daisy kicks off a better fit.";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /literal "% off"/i.test(flag.msg))).toBe(false);
+  });
+
+  it("thinProductInputs reports missing usps/review but not missing price/url", () => {
+    const bare: Product = { name: "Mystery Bra", slug: "mystery", price: "", url: "" };
+    const gaps = thinProductInputs([bare]);
+    expect(gaps).toEqual([{ name: "Mystery Bra", gaps: ["usps", "review"] }]);
+  });
+
+  it("advises when a product had no supplied review (thin input data)", () => {
+    // The shared `products` fixture has review: "" on purpose to exercise this path.
+    const validated = validateBrief(baseBrief(), campaign, products);
+    expect((validated._advisory || []).some((flag) => /drafted proof/i.test(flag.msg) && /daisy bra/i.test(flag.msg))).toBe(true);
+  });
+
+  it("does not advise drafted proof when USPs and review are both supplied", () => {
+    const completeProducts: Product[] = [{ ...products[0], review: "\"Forgot it's there!\" — Helen R." }];
+    const validated = validateBrief(baseBrief(), campaign, completeProducts);
+    expect((validated._advisory || []).some((flag) => /drafted proof/i.test(flag.msg))).toBe(false);
   });
 
   it("enforces configured required products", () => {

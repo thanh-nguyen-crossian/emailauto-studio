@@ -251,6 +251,28 @@ function telemetry(event: string, data: Record<string, unknown>): void {
   console.info(`[generation-telemetry] ${event} ${JSON.stringify(data)}`);
 }
 
+/** True when parseStrictJson had to fall back to salvagePartialJson (see the marker it stamps). */
+function isSalvagedResult(parsed: Record<string, unknown>): boolean {
+  const advisory = Array.isArray(parsed._advisory) ? (parsed._advisory as { msg?: unknown }[]) : [];
+  return advisory.some((a) => typeof a?.msg === "string" && a.msg.includes("truncated and salvaged"));
+}
+
+/**
+ * Top-level keys that are missing, null, or empty (string/array/object) — used for salvage telemetry.
+ * @internal exported for unit testing only
+ */
+export function missingOrEmptyTopLevelKeys(obj: Record<string, unknown>, keys: readonly string[] | undefined): string[] {
+  if (!keys?.length) return [];
+  return keys.filter((k) => {
+    const v = obj[k];
+    if (v === undefined || v === null) return true;
+    if (typeof v === "string") return v.trim() === "";
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v as object).length === 0;
+    return false;
+  });
+}
+
 /**
  * Fail-fast check: if a selected provider's key isn't configured on this server, return a
  * user-facing, provider-specific message (never the raw env-var name) before the long generation
@@ -418,7 +440,20 @@ async function createAndParseWithModel(
   for (let attempt = 0; attempt < 2; attempt++) {
     const raw = await createTextWithProviderRetry(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection, options);
     try {
-      return parseStrictJson(raw);
+      const parsed = parseStrictJson(raw);
+      if (isSalvagedResult(parsed)) {
+        // No token-usage accounting exists at this layer for any provider yet — rawLength is the
+        // closest available proxy for how much of the response the salvage path had to discard.
+        telemetry("salvage", {
+          stage: options.stage || "unknown",
+          provider: selection.provider,
+          model: selection.model,
+          attempt,
+          rawLength: raw.length,
+          missingOrEmptyKeys: missingOrEmptyTopLevelKeys(parsed, options.schema?.schema.required),
+        });
+      }
+      return parsed;
     } catch (err) {
       lastErr = err;
     }
@@ -1619,6 +1654,16 @@ function mergeOptionBatches(
   return validated;
 }
 
+/** Records, per-brief, which segments never got a model-authored patch — not just in the top-level warning string. */
+function flagLocallyFilledSegments(brief: GenBrief, segments: string[]): GenBrief {
+  if (!segments.length) return brief;
+  (brief._advisory ||= []).push({
+    type: "warn",
+    msg: `Segment(s) ${segments.join(", ")} did not return model-authored copy after a retry — subject/body were filled locally from body.base; review before sending.`,
+  });
+  return brief;
+}
+
 function sanitizeAndValidateBrief(brief: GenBrief, campaign: Campaign, products: Product[]): GenBrief {
   if (!brief.body_variety && campaign.bodyVariety) {
     brief.body_variety = cleanBodyVarietyProfile(campaign.bodyVariety);
@@ -1984,7 +2029,7 @@ async function generateOptionSegmentParts(
   anchor: GenBrief,
   runtime: GenerationRuntime | undefined,
   overrides?: PromptOverrides
-): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; notices: string[]; completed: number; total: number }> {
+): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; notices: string[]; completed: number; total: number; locallyFilledSegments: string[] }> {
   throwIfAborted(runtime?.signal);
   const optionLabel = option.toUpperCase() as "A" | "B";
   const warnings: string[] = [];
@@ -2039,7 +2084,39 @@ async function generateOptionSegmentParts(
     runtime?.signal
   );
   const usableParts = parts.filter((part): part is SegmentBatchPart => !!part);
-  const missing = missingPatchSegments(campaign, [anchor, ...usableParts]);
+  let missing = missingPatchSegments(campaign, [anchor, ...usableParts]);
+  const modelForOption = option === "a" ? models.a : models.b;
+  if (missing.length && hasGenerationBudget(runtime, patchTimeoutForSelection(modelForOption), 10_000)) {
+    emit(runtime, { type: "stage", stage: "segment_retry", option, message: `Retrying missing Option ${optionLabel} segment(s): ${missing.join(", ")}` });
+    try {
+      const retryResult = await generateSegmentCopyBatch(
+        withSegments(campaign, missing),
+        products,
+        models,
+        revision,
+        {
+          index: total + 1,
+          total,
+          allSegments: campaign.segments,
+          allSegmentContext,
+          optionAAnchor: option === "a" ? anchor : undefined,
+          optionBAnchor: option === "b" ? anchor : undefined,
+        },
+        runtime,
+        overrides
+      );
+      const retryPatch = option === "a" ? retryResult.a : retryResult.b;
+      if (retryPatch) {
+        usableParts.push(retryPatch);
+        notices.push(`recovered Option ${optionLabel} segment copy for ${missing.join(", ")} via a targeted retry`);
+        missing = missingPatchSegments(campaign, [anchor, ...usableParts]);
+      }
+    } catch (err) {
+      if (isGenerationAbortError(err)) throw err;
+      recoverableIssues.push(`segment retry for ${missing.join(", ")}: ${errMessage(err)}`);
+    }
+  }
+  const locallyFilledSegments = [...missing];
   if (missing.length) {
     usableParts.push(fallbackSegmentPatch(withSegments(campaign, missing), products, optionLabel, anchor, missing));
     notices.push(`filled missing Option ${optionLabel} segment copy locally for ${missing.join(", ")} after provider/deadline gaps`);
@@ -2053,6 +2130,7 @@ async function generateOptionSegmentParts(
     notices,
     completed,
     total,
+    locallyFilledSegments,
   };
 }
 
@@ -2134,7 +2212,10 @@ async function generateOptionsBatched(
           .then((run) => {
             warnings.push(...run.warnings.map((w) => `A ${w}`));
             notices.push(...run.notices.map((w) => `A ${w}`));
-            const a = mergeOptionBatches(campaign, products, run.parts, optionAAnchor?._provider, optionAAnchor?._model);
+            const a = flagLocallyFilledSegments(
+              mergeOptionBatches(campaign, products, run.parts, optionAAnchor?._provider, optionAAnchor?._model),
+              run.locallyFilledSegments
+            );
             emit(runtime, { type: "stage", stage: "merge", option: "a", message: "Merged Option A" });
             emit(runtime, { type: "partial", option: "a", brief: a, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
             return a;
@@ -2153,7 +2234,10 @@ async function generateOptionsBatched(
           .then((run) => {
             warnings.push(...run.warnings.map((w) => `B ${w}`));
             notices.push(...run.notices.map((w) => `B ${w}`));
-            const b = mergeOptionBatches(campaign, products, run.parts, optionBAnchor?._provider, optionBAnchor?._model);
+            const b = flagLocallyFilledSegments(
+              mergeOptionBatches(campaign, products, run.parts, optionBAnchor?._provider, optionBAnchor?._model),
+              run.locallyFilledSegments
+            );
             emit(runtime, { type: "stage", stage: "merge", option: "b", message: "Merged Option B" });
             emit(runtime, { type: "partial", option: "b", brief: b, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
             return b;
@@ -2186,7 +2270,10 @@ async function generateOptionsBatched(
           const retryRun = await generateOptionSegmentParts("b", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, retryAnchor, runtime, overrides);
           warnings.push(...retryRun.warnings.map((w) => `contrast retry ${w}`));
           notices.push(...retryRun.notices.map((w) => `contrast retry ${w}`));
-          b = mergeOptionBatches(campaign, products, retryRun.parts, retryAnchor._provider, retryAnchor._model);
+          b = flagLocallyFilledSegments(
+            mergeOptionBatches(campaign, products, retryRun.parts, retryAnchor._provider, retryAnchor._model),
+            retryRun.locallyFilledSegments
+          );
           emit(runtime, { type: "partial", option: "b", brief: b, warning: retryRun.warnings.length ? retryRun.warnings.join(" · ") : undefined });
         } catch (err) {
           if (isGenerationAbortError(err)) throw err;

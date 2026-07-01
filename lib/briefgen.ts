@@ -280,6 +280,9 @@ REQUIREMENT: the 3 subject options for each segment MUST each use a different de
 
 // ---- validation pattern banks ----
 const SPAM_WORDS = ["free!", "winner", "congratulations", "click here", "limited time offer", "act now", "urgent"];
+// R13: write "off" as "o.f.f" (or a brand's spaced form) — catches the literal spelled-out
+// discount phrasing without false-positiving on unrelated "off" usage ("off the rack", "kicks off").
+const RAW_PERCENT_OFF_PATTERN = /\b\d+\s*%\s*off\b/i;
 const WEAK_COPY = ["i hope this email finds you well", "meet your new favorite", "meet the ", "meet your ", "introducing the ", "amazing value", "great quality", "don't miss out", "dont miss out", "be hurry"];
 // LLM-tell phrases that signal AI-generated copy and erode trust/deliverability.
 const AI_SLOP_PHRASES = [
@@ -345,6 +348,13 @@ const BOLD_MARKER = /\*\*[^*]+\*\*/g;
 const THEME_STOPWORDS = new Set(["sale", "email", "campaign", "offer", "promo", "spring", "summer", "winter", "fall", "thank", "thanks"]);
 const HARD_SELL_COMMANDS = new Set(["act now", "hurry", "claim now", "grab now", "rush"]);
 const SCHEMA_PLACEHOLDER_PATTERN = /<[^>]+>|120-150 words|product\(slug:slug\)|main text 1:?\s*$|- bullet\s*\n\s*- bullet/i;
+// Prompt scaffolding that must never reach recipient-facing copy: bracketed ALL-CAPS_WITH_UNDERSCORE
+// placeholder tokens ([HOOK_CONTRACT], [PROOF_POINTS]) — the underscore requirement is deliberate so
+// this never matches a real single-word product markdown link like [ZoeShape](slug:zoeshape) — plus
+// a leaked "## Layer Title" markdown heading (copy only ever uses ==accent==/**bold**, never
+// headings) or literal instruction phrasing from the Output Contract layer. Tested against an
+// already-lowercased blob, so the bracket alternative is written in lowercase too.
+const PROMPT_LEAK_PATTERN = /\[[a-z0-9]+_[a-z0-9_]*\]|##\s+\S|\boutput contract\b|\breturn only valid json\b|\bno prose,?\s*no markdown fence\b|\bprompt id\/version\b/i;
 
 // ---- body variety system ----
 function hashSeed(s: string): number {
@@ -1907,6 +1917,29 @@ Option B must choose a visibly different route on these axes before writing copy
 State the new B choices in creative_direction first. Reusing Option A's route, skeleton, or opening move is invalid even if the words differ.`;
 }
 
+/**
+ * Products missing USPs and/or a review — the two proof-bearing fields a thin catalog entry
+ * typically lacks. Price/URL are factual, not proof, so they are never a reason to invent
+ * content and are intentionally excluded here (see `thinProductPromptLayer`).
+ */
+export function thinProductInputs(products: Product[]): { name: string; gaps: ("usps" | "review")[] }[] {
+  return products
+    .map((p) => {
+      const gaps: ("usps" | "review")[] = [];
+      if (!(p.usps || []).filter(Boolean).length) gaps.push("usps");
+      if (!p.review?.trim()) gaps.push("review");
+      return { name: p.name, gaps };
+    })
+    .filter((entry) => entry.gaps.length);
+}
+
+function thinProductPromptLayer(products: Product[]): string {
+  const thin = thinProductInputs(products);
+  if (!thin.length) return "";
+  const list = thin.map((t) => `${t.name} (missing ${t.gaps.join(" + ")})`).join("; ");
+  return `Thin product data: ${list}. These products have no supplied USPs and/or review. Draft artificial-but-concrete proof for the missing field(s) — a specific mechanism-based USP, or a short named-human review — following Artificial Proof Mode above. Never invent price or the product URL; those must come from Campaign Inputs as-is.`;
+}
+
 export function buildSystemPrompt(
   campaign: Campaign,
   products: Product[],
@@ -2014,6 +2047,7 @@ export function buildSystemPrompt(
     },
     { title: "Core Rules", body: CORE_PROMPT_LAYER },
     { title: "Artificial Proof Mode", body: ARTIFICIAL_PROOF_PROMPT_LAYER },
+    { title: "Thin Product Data", body: thinProductPromptLayer(products) },
     { title: "Creative Variation", body: CREATIVE_PROMPT_LAYER },
     { title: "Template Corpus Memory", body: templateCorpusPromptLayer() },
     { title: "Legacy Prompt Alignment", body: legacyPromptAlignmentLayer(campaign.brandId) },
@@ -2175,7 +2209,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|fabricated authority claim|invented stat in body prose|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
+  /spam word|opt-out risk|invented proof|possibly invented|fabricated authority claim|invented stat in body prose|prompt scaffolding leaked|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|needs 2 editable|body options|banner options|product block roles|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -2194,14 +2228,14 @@ export function isHighImpactFlag(msg: string): boolean {
 // model rewrite helps; stylistic nudges (paragraph rhythm, P.S. length, banner beats, enums) stay
 // advisory so the repair pass does not average every creative route back to one template.
 const COMPLIANCE_REPAIR_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|prompt scaffolding leaked|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
 
 export function isComplianceRepairFlag(msg: string): boolean {
   return COMPLIANCE_REPAIR_FLAG.test(msg);
 }
 
 const COMPLIANCE_VALIDATION_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|prompt scaffolding leaked|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
 
 export function isComplianceValidationFlag(flag: Flag): boolean {
   return flag.type === "error" || COMPLIANCE_VALIDATION_FLAG.test(flag.msg);
@@ -2456,6 +2490,13 @@ const MAX_BODY_DISCOUNT_MENTIONS = 3;
 
 export function validateBrief(brief: GenBrief, campaign: Campaign, products: Product[] = []): GenBrief {
   const incomingAdvisory = Array.isArray(brief._advisory) ? brief._advisory : [];
+  const thinProducts = thinProductInputs(products);
+  if (thinProducts.length) {
+    incomingAdvisory.push({
+      type: "warn",
+      msg: `Drafted proof: ${thinProducts.map((t) => t.name).join(", ")} had no supplied USPs/review — the model was instructed to draft plausible, brand-fit specifics. Review before sending.`,
+    });
+  }
   brief._flags = [];
   normalizePrimarySubjectSelections(brief);
   const brand = BRANDS[campaign.brandId];
@@ -2573,9 +2614,15 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   // fact instead of a tile/banner badge. See R23 "Proof placement".
   const prose = JSON.stringify({ s: brief.subject_lines, t: brief.theme, bo: brief.body }).toLowerCase();
   SPAM_WORDS.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Spam word: "${w}"`));
+  if (RAW_PERCENT_OFF_PATTERN.test(full)) {
+    addFlag(brief, "warn", `Spam word: literal "% off" — write "o.f.f" (or the brand's spaced form) instead`);
+  }
   WEAK_COPY.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Weak/generic copy: "${w}"`));
   AI_SLOP_PHRASES.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `AI-tell phrase — rewrite: "${w}"`));
   OPTOUT_RISK.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Opt-out risk wording: "${w}"`));
+  if (PROMPT_LEAK_PATTERN.test(full)) {
+    addFlag(brief, "error", "Prompt scaffolding leaked into output — rewrite as real customer-facing copy; do not echo instructions, layer titles, or placeholder tokens.");
+  }
   ALWAYS_FORBIDDEN_PROOF_PHRASES.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Fabricated authority claim: "${w}"`));
   ALWAYS_FORBIDDEN_PROOF_PATTERNS.forEach(({ label, pattern }) => {
     if (pattern.test(full)) addFlag(brief, "warn", `Fabricated authority claim: ${label}`);
