@@ -1506,55 +1506,60 @@ export function StudioApp() {
                   <Field label="Campaign theme">
                     <input value={theme} aria-label="Campaign theme" onChange={(e) => setTheme(e.target.value)} placeholder="e.g. Spring comfort sale · Thank-you · Back in stock" className="input" />
                   </Field>
-                  <Field label="Hook Contract (optional — leave blank to let the model build one)">
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={buildSuggestedHookContract} className="btn-ghost">Auto-build from brief</button>
-                      <span className="text-xs text-[var(--muted)]">Uses current brand, segments, hero, offer, urgency, and avoid notes.</span>
-                    </div>
-                    <textarea value={hookContract} aria-label="Hook Contract" onChange={(e) => setHookContract(e.target.value)} rows={3} className="input" placeholder="segment insight + emotion + hero product + price/proof + urgency + avoid rule" />
-                  </Field>
-                  <div className="border-t border-[var(--border)] pt-4 flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-sm font-semibold">Strategy enrichment</h3>
-                        <p className="text-xs text-[var(--muted)] mt-0.5">Goal, narrative, pain, solution, and tone cues.</p>
+                  <details className="details-panel" open={Boolean(hookContract.trim()) || strategyActive}>
+                    <summary className="details-summary">Advanced (optional)</summary>
+                    <div className="flex flex-col gap-5 pt-4">
+                      <Field label="Hook Contract (optional — leave blank to let the model build one)">
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={buildSuggestedHookContract} className="btn-ghost">Auto-build from brief</button>
+                          <span className="text-xs text-[var(--muted)]">Uses current brand, segments, hero, offer, urgency, and avoid notes.</span>
+                        </div>
+                        <textarea value={hookContract} aria-label="Hook Contract" onChange={(e) => setHookContract(e.target.value)} rows={3} className="input" placeholder="segment insight + emotion + hero product + price/proof + urgency + avoid rule" />
+                      </Field>
+                      <div className="border-t border-[var(--border)] pt-4 flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h3 className="text-sm font-semibold">Strategy enrichment</h3>
+                            <p className="text-xs text-[var(--muted)] mt-0.5">Goal, narrative, pain, solution, and tone cues.</p>
+                          </div>
+                          {strategyActive && (
+                            <button type="button" onClick={() => { setStrategy({}); setToneError(null); }} className="btn-ghost">Clear strategy</button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Field label="Campaign goal">
+                            <input value={strategy.campaignGoal || ""} aria-label="Campaign goal" onChange={(e) => updateStrategy({ campaignGoal: e.target.value })} placeholder="e.g. Win back low-click buyers" className="input" />
+                          </Field>
+                          <Field label="Key message">
+                            <input value={strategy.keyMessage || ""} aria-label="Key message" onChange={(e) => updateStrategy({ keyMessage: e.target.value })} placeholder="e.g. Comfort proof before the discount" className="input" />
+                          </Field>
+                        </div>
+                        <Field label="Storyline progression">
+                          <textarea value={strategy.storyline || ""} aria-label="Storyline progression" onChange={(e) => updateStrategy({ storyline: e.target.value })} rows={2} className="input" placeholder="How this send should fit into the larger customer story" />
+                        </Field>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Field label="Pain points">
+                            <textarea value={strategy.painPoints || ""} aria-label="Pain points" onChange={(e) => updateStrategy({ painPoints: e.target.value })} rows={2} className="input" placeholder="Fit doubt, price hesitation, timing, gifting uncertainty" />
+                          </Field>
+                          <Field label="Solutions">
+                            <textarea value={strategy.solutions || ""} aria-label="Solutions" onChange={(e) => updateStrategy({ solutions: e.target.value })} rows={2} className="input" placeholder="USP, review, price, shipping, return, product mechanism" />
+                          </Field>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                          <Field label="Tone source URL">
+                            <input value={strategy.toneSourceUrl || ""} aria-label="Tone source URL" onChange={(e) => updateStrategy({ toneSourceUrl: e.target.value })} placeholder={brand.domain ? `https://${brand.domain}` : "https://..."} className="input" />
+                          </Field>
+                          <Field label="Tone cues">
+                            <input value={strategy.toneKeywords || ""} aria-label="Tone cues" onChange={(e) => updateStrategy({ toneKeywords: e.target.value })} placeholder="warm, practical, premium" className="input" />
+                          </Field>
+                          <button type="button" onClick={extractToneFromUrl} disabled={toneExtracting} className="btn-ghost">
+                            {toneExtracting ? "Extracting…" : "Extract cues"}
+                          </button>
+                        </div>
+                        {toneError && <div className="text-xs text-[var(--bad)]">{toneError}</div>}
                       </div>
-                      {strategyActive && (
-                        <button type="button" onClick={() => { setStrategy({}); setToneError(null); }} className="btn-ghost">Clear strategy</button>
-                      )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Field label="Campaign goal">
-                        <input value={strategy.campaignGoal || ""} aria-label="Campaign goal" onChange={(e) => updateStrategy({ campaignGoal: e.target.value })} placeholder="e.g. Win back low-click buyers" className="input" />
-                      </Field>
-                      <Field label="Key message">
-                        <input value={strategy.keyMessage || ""} aria-label="Key message" onChange={(e) => updateStrategy({ keyMessage: e.target.value })} placeholder="e.g. Comfort proof before the discount" className="input" />
-                      </Field>
-                    </div>
-                    <Field label="Storyline progression">
-                      <textarea value={strategy.storyline || ""} aria-label="Storyline progression" onChange={(e) => updateStrategy({ storyline: e.target.value })} rows={2} className="input" placeholder="How this send should fit into the larger customer story" />
-                    </Field>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Field label="Pain points">
-                        <textarea value={strategy.painPoints || ""} aria-label="Pain points" onChange={(e) => updateStrategy({ painPoints: e.target.value })} rows={2} className="input" placeholder="Fit doubt, price hesitation, timing, gifting uncertainty" />
-                      </Field>
-                      <Field label="Solutions">
-                        <textarea value={strategy.solutions || ""} aria-label="Solutions" onChange={(e) => updateStrategy({ solutions: e.target.value })} rows={2} className="input" placeholder="USP, review, price, shipping, return, product mechanism" />
-                      </Field>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-                      <Field label="Tone source URL">
-                        <input value={strategy.toneSourceUrl || ""} aria-label="Tone source URL" onChange={(e) => updateStrategy({ toneSourceUrl: e.target.value })} placeholder={brand.domain ? `https://${brand.domain}` : "https://..."} className="input" />
-                      </Field>
-                      <Field label="Tone cues">
-                        <input value={strategy.toneKeywords || ""} aria-label="Tone cues" onChange={(e) => updateStrategy({ toneKeywords: e.target.value })} placeholder="warm, practical, premium" className="input" />
-                      </Field>
-                      <button type="button" onClick={extractToneFromUrl} disabled={toneExtracting} className="btn-ghost">
-                        {toneExtracting ? "Extracting…" : "Extract cues"}
-                      </button>
-                    </div>
-                    {toneError && <div className="text-xs text-[var(--bad)]">{toneError}</div>}
-                  </div>
+                  </details>
                 </div>
               )}
 
@@ -1734,13 +1739,11 @@ export function StudioApp() {
               )}
 
               {i === 4 && (
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold">Send operations</h3>
-                      <p className="text-sm text-[var(--muted)] mt-1">Keila-style launch context: provider, list source, consent, tracking, and handoff notes.</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm text-[var(--muted)]">Keila-style launch context: provider, list source, consent, tracking, and handoff notes. Grouped below — expand what you need.</p>
+                  <details className="details-panel" open={Boolean(ops.provider || ops.senderName || ops.senderEmail || ops.replyTo || ops.audienceSource || ops.segmentRule || ops.scheduleWindow)}>
+                    <summary className="details-summary">Send ops</summary>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
                       <Field label="Provider">
                         <select value={ops.provider || "sendgrid"} aria-label="Email provider" onChange={(e) => updateOps({ provider: e.target.value as CampaignOps["provider"] })} className="input">
                           {OPS_PROVIDER_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -1751,38 +1754,49 @@ export function StudioApp() {
                       <Field label="Reply-to"><input value={ops.replyTo || ""} aria-label="Reply-to email" onChange={(e) => updateOps({ replyTo: e.target.value })} placeholder="support@example.com" className="input" /></Field>
                       <Field label="Audience source"><input value={ops.audienceSource || ""} aria-label="Audience source" onChange={(e) => updateOps({ audienceSource: e.target.value })} placeholder="Klaviyo engaged 120d, imported buyers" className="input" /></Field>
                       <Field label="Segment rule"><input value={ops.segmentRule || ""} aria-label="Segment rule" onChange={(e) => updateOps({ segmentRule: e.target.value })} placeholder="Send segment code to matching product interest" className="input" /></Field>
+                      <Field label="Send window"><input value={ops.scheduleWindow || ""} aria-label="Send window" onChange={(e) => updateOps({ scheduleWindow: e.target.value })} placeholder="Tue 10am local / after QA" className="input" /></Field>
+                    </div>
+                  </details>
+                  <details className="details-panel" open={Boolean(ops.doubleOptIn || ops.trackOpens === false || ops.trackClicks === false || ops.publicArchive || ops.utmPlan)}>
+                    <summary className="details-summary">Consent &amp; tracking</summary>
+                    <div className="flex flex-col gap-3 pt-4">
                       <Field label="Consent basis">
                         <select value={ops.consentBasis || "prior_purchase_or_opt_in"} aria-label="Consent basis" onChange={(e) => updateOps({ consentBasis: e.target.value as CampaignOps["consentBasis"] })} className="input">
                           {CONSENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                         </select>
                       </Field>
-                      <Field label="Send window"><input value={ops.scheduleWindow || ""} aria-label="Send window" onChange={(e) => updateOps({ scheduleWindow: e.target.value })} placeholder="Tue 10am local / after QA" className="input" /></Field>
-                      <div className="flex flex-col gap-2 pt-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <label className="ops-check"><input type="checkbox" checked={!!ops.doubleOptIn} onChange={(e) => updateOps({ doubleOptIn: e.target.checked })} /> Double opt-in</label>
                         <label className="ops-check"><input type="checkbox" checked={ops.trackOpens !== false} onChange={(e) => updateOps({ trackOpens: e.target.checked })} /> Track opens</label>
+                        <label className="ops-check"><input type="checkbox" checked={ops.trackClicks !== false} onChange={(e) => updateOps({ trackClicks: e.target.checked })} /> Track clicks</label>
                       </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                        <label className="ops-check"><input type="checkbox" checked={!!ops.publicArchive} onChange={(e) => updateOps({ publicArchive: e.target.checked })} /> Public archive link</label>
+                        <button type="button" onClick={() => setOps(DEFAULT_OPS)} className="btn-ghost">Reset ops</button>
+                      </div>
+                      <Field label="UTM plan"><input value={ops.utmPlan || ""} aria-label="UTM plan" onChange={(e) => updateOps({ utmPlan: e.target.value })} placeholder="utm_source=sendgrid&utm_medium=email&utm_campaign={{campaign_name}}" className="input" /></Field>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <label className="ops-check"><input type="checkbox" checked={ops.trackClicks !== false} onChange={(e) => updateOps({ trackClicks: e.target.checked })} /> Track clicks</label>
-                      <label className="ops-check"><input type="checkbox" checked={!!ops.publicArchive} onChange={(e) => updateOps({ publicArchive: e.target.checked })} /> Public archive link</label>
-                      <button type="button" onClick={() => setOps(DEFAULT_OPS)} className="btn-ghost">Reset ops</button>
-                    </div>
-                    <Field label="UTM plan"><input value={ops.utmPlan || ""} aria-label="UTM plan" onChange={(e) => updateOps({ utmPlan: e.target.value })} placeholder="utm_source=sendgrid&utm_medium=email&utm_campaign={{campaign_name}}" className="input" /></Field>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  </details>
+                  <details className="details-panel" open={Boolean(ops.suppressionNotes || ops.complianceNotes)}>
+                    <summary className="details-summary">Suppression &amp; compliance</summary>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
                       <Field label="Suppression hygiene"><textarea value={ops.suppressionNotes || ""} aria-label="Suppression hygiene" onChange={(e) => updateOps({ suppressionNotes: e.target.value })} rows={2} className="input" placeholder="Exclude recent purchasers, unsubscribed, complaints, hard bounces" /></Field>
                       <Field label="Compliance notes"><textarea value={ops.complianceNotes || ""} aria-label="Compliance notes" onChange={(e) => updateOps({ complianceNotes: e.target.value })} rows={2} className="input" placeholder="Footer/unsubscribe handled by renderer; region-specific note if needed" /></Field>
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-4">
-                    <p className="text-sm text-[var(--muted)]">Optional - helps the model rotate away from the last send's angle/hero.</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <Field label="Last send CTR %"><input value={lastCtr} aria-label="Last send CTR percent" onChange={(e) => setLastCtr(e.target.value)} placeholder="0.84" className="input" /></Field>
-                      <Field label="Last hero"><input value={lastHero} aria-label="Last hero product" onChange={(e) => setLastHero(e.target.value)} placeholder="Daisy Bra" className="input" /></Field>
-                      <Field label="Last angle"><input value={lastAngle} aria-label="Last send angle" onChange={(e) => setLastAngle(e.target.value)} placeholder="Proof" className="input" /></Field>
+                  </details>
+                  <details className="details-panel" open={Boolean(lastCtr || lastHero || lastAngle || lastNote)}>
+                    <summary className="details-summary">Last send</summary>
+                    <div className="flex flex-col gap-3 pt-4">
+                      <p className="text-sm text-[var(--muted)]">Optional - helps the model rotate away from the last send's angle/hero.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Field label="Last send CTR %"><input value={lastCtr} aria-label="Last send CTR percent" onChange={(e) => setLastCtr(e.target.value)} placeholder="0.84" className="input" /></Field>
+                        <Field label="Last hero"><input value={lastHero} aria-label="Last hero product" onChange={(e) => setLastHero(e.target.value)} placeholder="Daisy Bra" className="input" /></Field>
+                        <Field label="Last angle"><input value={lastAngle} aria-label="Last send angle" onChange={(e) => setLastAngle(e.target.value)} placeholder="Proof" className="input" /></Field>
+                      </div>
+                      <Field label="Note (e.g. 3rd reviews arc - avoid)"><input value={lastNote} aria-label="Last-send note" onChange={(e) => setLastNote(e.target.value)} className="input" /></Field>
+                      <RecentSendMemoryPanel history={recentSendHistory.filter((row) => !segments.length || segments.includes(row.segment)).slice(0, 6)} />
                     </div>
-                    <Field label="Note (e.g. 3rd reviews arc - avoid)"><input value={lastNote} aria-label="Last-send note" onChange={(e) => setLastNote(e.target.value)} className="input" /></Field>
-                    <RecentSendMemoryPanel history={recentSendHistory.filter((row) => !segments.length || segments.includes(row.segment)).slice(0, 6)} />
-                  </div>
+                  </details>
                 </div>
               )}
 
@@ -1836,27 +1850,32 @@ export function StudioApp() {
           )}
           {apiError && <Banner level="fail">{apiError}</Banner>}
 
-          <GenerationBudgetPanel
-            systemPrompt={effectiveSystem}
-            userPrompt={effectiveUser}
-            segments={segments.length}
-            products={selectedProducts.length}
-            autoBatching={autoSegmentBatching}
-            promptOverridesActive={promptOverridesActive}
-            modelA={modelA}
-            modelB={modelB}
-          />
+          <details className="details-panel" open>
+            <summary className="details-summary">Models &amp; budget</summary>
+            <div className="mt-4 flex flex-col gap-3">
+              <GenerationBudgetPanel
+                systemPrompt={effectiveSystem}
+                userPrompt={effectiveUser}
+                segments={segments.length}
+                products={selectedProducts.length}
+                autoBatching={autoSegmentBatching}
+                promptOverridesActive={promptOverridesActive}
+                modelA={modelA}
+                modelB={modelB}
+              />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <ModelSelector label="Option A model" value={modelA} onChange={setModelA} providers={AI_PROVIDERS} />
-            <ModelSelector label="Option B model" value={modelB} onChange={setModelB} providers={AI_PROVIDERS} />
-          </div>
-          <Banner level="warn">
-            Timeout tip: Opus, Pro, and full frontier GPT models can still be slower on many segments. For fastest drafts, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model for final polish.
-          </Banner>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <ModelSelector label="Option A model" value={modelA} onChange={setModelA} providers={AI_PROVIDERS} />
+                <ModelSelector label="Option B model" value={modelB} onChange={setModelB} providers={AI_PROVIDERS} />
+              </div>
+              <Banner level="warn">
+                Timeout tip: Opus, Pro, and full frontier GPT models can still be slower on many segments. For fastest drafts, use Claude Haiku, Gemini Flash/Lite, or GPT mini/nano, then regenerate with a stronger model for final polish.
+              </Banner>
+            </div>
+          </details>
 
-          <details className="section-panel" open={productPriceWarnings.length > 0}>
-            <summary className="cursor-pointer text-sm font-semibold">
+          <details className="details-panel" open={productPriceWarnings.length > 0}>
+            <summary className="details-summary">
               Pre-flight <span className={canGenerate && !productPriceWarnings.length ? "badge-ok ml-2" : "badge-warn ml-2"}>{canGenerate && !productPriceWarnings.length ? "Ready" : "Review"}</span>
             </summary>
             <div className="mt-4 flex flex-col gap-3">
