@@ -152,7 +152,7 @@ function compactSystemPromptPreview(campaign: Campaign, varietyProfile?: BodyVar
     `Layered generation steering for ${brand.name}. Persona: ${brand.persona}. Voice: ${compactPreviewText(brand.voice, 260)}`,
     "Server injects compact playbook, brand rules, provider JSON schema, and A/B contrast rules at generation time.",
     "One send = one promise: hero product + proof/price + reader situation shared across subject, preheader, banner, body, products, CTA, and P.S.",
-    "Keep proof safe: supplied facts only for labels/ratings/counts/dates/medical/stock/shipping/prices/guarantees; qualitative artificial review texture may be unlabeled.",
+    "Artificial proof is allowed on banner/product tiles without disclaimer labels: ratings, %-recommend, best-seller/scarcity badges, and named review chips. Keep body proof sensory and human; never invent verified, clinical, age/date, medical, stock, shipping, guarantee, or award facts.",
     "Vary A/B structurally: opener, framework, banner layout, product-grid layout, proof path, CTA style, and subject devices.",
     varietyProfile ? `Creative variety seed: ${varietyProfile.openerMechanicLabel}; ${varietyProfile.creativeLens}; ${varietyProfile.proofRole}; ${varietyProfile.visualDirection}.` : "",
   ].filter(Boolean).join("\n");

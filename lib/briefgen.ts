@@ -347,14 +347,14 @@ const ACCENT_MARKER = /==[^=]+==/g;
 const BOLD_MARKER = /\*\*[^*]+\*\*/g;
 const THEME_STOPWORDS = new Set(["sale", "email", "campaign", "offer", "promo", "spring", "summer", "winter", "fall", "thank", "thanks"]);
 const HARD_SELL_COMMANDS = new Set(["act now", "hurry", "claim now", "grab now", "rush"]);
-const SCHEMA_PLACEHOLDER_PATTERN = /<[^>]+>|120-150 words|product\(slug:slug\)|main text 1:?\s*$|- bullet\s*\n\s*- bullet/i;
+const SCHEMA_PLACEHOLDER_PATTERN = /<[^>]+>|\[[A-Z0-9]+_[A-Z0-9_]*\]|120-150 words|body\[seg_key\]|subject_lines|quality_checks|product\(slug:slug\)|main text 1:?\s*$|- bullet\s*\n\s*- bullet|output contract|return only|campaign inputs|component rules/i;
 // Prompt scaffolding that must never reach recipient-facing copy: bracketed ALL-CAPS_WITH_UNDERSCORE
 // placeholder tokens ([HOOK_CONTRACT], [PROOF_POINTS]) — the underscore requirement is deliberate so
 // this never matches a real single-word product markdown link like [ZoeShape](slug:zoeshape) — plus
 // a leaked "## Layer Title" markdown heading (copy only ever uses ==accent==/**bold**, never
 // headings) or literal instruction phrasing from the Output Contract layer. Tested against an
 // already-lowercased blob, so the bracket alternative is written in lowercase too.
-const PROMPT_LEAK_PATTERN = /\[[a-z0-9]+_[a-z0-9_]*\]|##\s+\S|\boutput contract\b|\breturn only valid json\b|\bno prose,?\s*no markdown fence\b|\bprompt id\/version\b/i;
+const PROMPT_LEAK_PATTERN = /\[[a-z0-9]+_[a-z0-9_]*\]|##\s+\S|\b(?:prompt registry|campaign inputs|core rules|artificial proof mode|creative variation|component rules|production brief pattern|sendgrid html fit|output contract)\b|\breturn only\b|\bno prose,?\s*no markdown fence\b|\bprompt id\/version\b|\bbody\[seg_key\]\b|\bsubject_lines\b|\bquality_checks\b|\bdo not echo instructions\b/i;
 
 // ---- body variety system ----
 function hashSeed(s: string): number {
@@ -2209,7 +2209,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|fabricated authority claim|invented stat in body prose|prompt scaffolding leaked|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
+  /spam word|opt-out risk|invented proof|possibly invented|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|brand avoid pattern|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|needs 2 editable|body options|banner options|product block roles|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -2228,14 +2228,14 @@ export function isHighImpactFlag(msg: string): boolean {
 // model rewrite helps; stylistic nudges (paragraph rhythm, P.S. length, banner beats, enums) stay
 // advisory so the repair pass does not average every creative route back to one template.
 const COMPLIANCE_REPAIR_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|prompt scaffolding leaked|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
 
 export function isComplianceRepairFlag(msg: string): boolean {
   return COMPLIANCE_REPAIR_FLAG.test(msg);
 }
 
 const COMPLIANCE_VALIDATION_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|prompt scaffolding leaked|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
 
 export function isComplianceValidationFlag(flag: Flag): boolean {
   return flag.type === "error" || COMPLIANCE_VALIDATION_FLAG.test(flag.msg);
@@ -2609,10 +2609,18 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   if (themeWords.length && themeSurfaceHits === 0) {
     addFlag(brief, "warn", `Brief may miss campaign theme anchor "${campaign.theme}" across hook, subject, banner, body, products, and P.S.`);
   }
-  const full = JSON.stringify({ s: brief.subject_lines, t: brief.theme, ba: brief.banner, bo: brief.body, p: brief.products }).toLowerCase();
+  const full = JSON.stringify({
+    s: brief.subject_lines,
+    t: brief.theme,
+    ba: brief.banner,
+    bo: brief.body,
+    body_options: brief.body_options,
+    ps: brief.ps,
+    p: brief.products,
+  }).toLowerCase();
   // Prose surfaces only (no banner/products) — where rating/count phrasing reads as an invented
   // fact instead of a tile/banner badge. See R23 "Proof placement".
-  const prose = JSON.stringify({ s: brief.subject_lines, t: brief.theme, bo: brief.body }).toLowerCase();
+  const prose = JSON.stringify({ s: brief.subject_lines, t: brief.theme, bo: brief.body, body_options: brief.body_options, ps: brief.ps }).toLowerCase();
   SPAM_WORDS.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Spam word: "${w}"`));
   if (RAW_PERCENT_OFF_PATTERN.test(full)) {
     addFlag(brief, "warn", `Spam word: literal "% off" — write "o.f.f" (or the brand's spaced form) instead`);
@@ -2986,7 +2994,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       addFlag(brief, "warn", `Product ${i + 1} may be missing visible price/offer context`);
     }
     if (!matchesSuppliedReview(p.review || "", sourceReview)) {
-      addFlag(brief, "warn", `Product ${i + 1} review looks invented; use supplied review or unattributed benefit language`);
+      addFlag(brief, "warn", `Product ${i + 1} review contains source-backed proof language; artificial reviews are allowed, but remove verified, clinical, age/date, guarantee, award, or medical claims unless supplied`);
     }
     const legacyImageOption = Array.isArray(p.image_options) ? p.image_options[0] : undefined;
     p.main_image ||= legacyImageOption?.main_image || "";
