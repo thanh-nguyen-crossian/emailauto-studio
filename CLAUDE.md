@@ -195,7 +195,7 @@ docs/                    Analysis, playbook, architecture, presentations (refere
 - Products ≤ 6 for generation/export quality (SantaFare defaults to 4); the UI allows staging more
   slots, but the generate route rejects 7+ products.
 - Promo copy: write `$` as `💲`, "off" as `o.f.f`; no spam words (see `SPAM_WORDS` in `briefgen.ts`).
-- Never invent proof/scarcity/reviews not supplied in the product data.
+- Artificial reviews, ratings, counts, best-seller/scarcity badges, and claim chips may be invented for banner/product-tile creative. Never invent verified, clinical, age/date, medical, stock, shipping, guarantee, award, or body-prose statistic facts unless supplied.
 - **Never duplicate brand/segment/product logic in prompts** — derive it from `lib/config/*`.
 - Prompt changes go in `lib/briefgen.ts` only; keep the prompt schema and `GenBrief` TS type in sync.
 - Email HTML changes go in `lib/render/email.ts` / `markdown.ts`; keep it SendGrid-module-format and email-safe (tables, inline styles, merge tags emitted literally).

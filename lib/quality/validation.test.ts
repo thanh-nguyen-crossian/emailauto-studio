@@ -182,6 +182,23 @@ describe("brief validation", () => {
     expect((validated._flags || []).some((flag) => /prompt scaffolding leaked/i.test(flag.msg))).toBe(true);
   });
 
+  it("flags leaked layer labels even when they are not markdown headings", () => {
+    const brief = baseBrief();
+    brief.body.base = "Campaign Inputs: Products and body[seg_key] should use the schema.";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /prompt scaffolding leaked/i.test(flag.msg))).toBe(true);
+    expect((validated._flags || []).some((flag) => /schema placeholder/i.test(flag.msg))).toBe(true);
+  });
+
+  it("flags leaked prompt text in P.S. and editable body options", () => {
+    const brief = baseBrief();
+    const key = segJsonKey("21");
+    brief.ps = "Return ONLY valid JSON.";
+    brief.body_options![key]![0]!.body = "Component Rules: write body[seg_key].";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /prompt scaffolding leaked/i.test(flag.msg))).toBe(true);
+  });
+
   it("does not flag a real single-word product markdown link as a leaked placeholder", () => {
     const brief = baseBrief();
     brief.body.base = "I love how [ZoeShape](slug:zoeshape) smooths everything out.";
@@ -219,6 +236,21 @@ describe("brief validation", () => {
     const completeProducts: Product[] = [{ ...products[0], review: "\"Forgot it's there!\" — Helen R." }];
     const validated = validateBrief(baseBrief(), campaign, completeProducts);
     expect((validated._advisory || []).some((flag) => /drafted proof/i.test(flag.msg))).toBe(false);
+  });
+
+  it("allows artificial attributed product reviews without forcing supplied-review parity", () => {
+    const completeProducts: Product[] = [{ ...products[0], review: "\"Forgot it's there!\" — Helen R." }];
+    const brief = baseBrief();
+    brief.products![0]!.review = "\"Soft by noon.\" — Martha B.";
+    const validated = validateBrief(brief, campaign, completeProducts);
+    expect((validated._flags || []).some((flag) => /source-backed proof language/i.test(flag.msg))).toBe(false);
+  });
+
+  it("still catches false verification language in product reviews", () => {
+    const brief = baseBrief();
+    brief.products![0]!.review = "\"Soft by noon.\" — verified buyer Martha B.";
+    const validated = validateBrief(brief, campaign, products);
+    expect((validated._flags || []).some((flag) => /source-backed proof language/i.test(flag.msg))).toBe(true);
   });
 
   it("enforces configured required products", () => {
