@@ -59,7 +59,10 @@ export function checkSlop(brief: GenBrief): SlopResult {
 // ---- shared fixture campaign ----
 export function goldenCampaign(): { campaign: Campaign; products: Product[] } {
   const brand = BRANDS.bra_goddess;
-  const products = [brand.catalog[0], brand.catalog[1], brand.catalog[2], brand.catalog[3]]; // daisy, posy, sona, activa
+  // daisy, posy, zoeshape, activa — daisy/posy/zoeshape are BraGoddess's required top trio
+  // (requiredProductSlugs in lib/config/brands.ts); using sonashape here previously made the
+  // "strong" golden brief fail validation on a missing required product.
+  const products = [brand.catalog[0], brand.catalog[1], brand.catalog[4], brand.catalog[3]];
   const campaign: Campaign = {
     brandId: "bra_goddess",
     sendDate: "2026-06-20",
@@ -168,7 +171,7 @@ export function strongBrief(): GenBrief {
     products: [
       { slot: 1, name: "Daisy Bra 3", template_style: "headline_winner", main_text: "3-second snap", sub_text: "Wire-free lift, just 💲12.99", popup_badge: "Bestseller", usps: ["Front snap closure", "Wire-free lift"], review: `"Forgot it's there!" — Helen R.`, cta: "Shop Daisy", main_image: "Front-on model in Daisy Bra", sub_image: "Snap closure close-up", alt_text: "Daisy Bra 3 wire-free front-snap bra", image_notes: "Keep snap visible, rose palette" },
       { slot: 2, name: "Posy Bra", template_style: "headline_winner", main_text: "Smooths the back", sub_text: "💲19.99, free ship over 💲35", popup_badge: "Repeat buy", usps: ["Front-hook ease", "Smoothing panel"], review: `"My 2nd order!" — Sharon M.`, cta: "Shop Posy", main_image: "Model in Posy Bra side view", sub_image: "Back smoothing panel detail", alt_text: "Posy Bra smoothing front-hook bra", image_notes: "Show back panel" },
-      { slot: 3, name: "SonaShape", template_style: "headline_winner", main_text: "Invisible fit", sub_text: "💲19.99, ships free past 💲35", popup_badge: "Seamless", usps: ["Seamless fit", "Gentle lift"], review: `"Underwires? Never again." — Claire T.`, cta: "Shop Sona", main_image: "Model in SonaShape under tee", sub_image: "Seamless edge close-up", alt_text: "SonaShape seamless wire-free bra", image_notes: "Show invisibility under clothing" },
+      { slot: 3, name: "ZoeShape", template_style: "headline_winner", main_text: "Smooths & shapes", sub_text: "💲19.99, ships free past 💲35", popup_badge: "Shaping favorite", usps: ["Side-bulge smoothing", "Full coverage lift"], review: `"Smooths everything!" — Barbara H.`, cta: "Shop ZoeShape", main_image: "Model in ZoeShape shaping fit", sub_image: "Side-smoothing panel detail", alt_text: "ZoeShape shaping wire-free bra", image_notes: "Show smooth silhouette" },
       { slot: 4, name: "Activa Bra 2.0", template_style: "headline_winner", main_text: "Wide soft straps", sub_text: "💲16.99, free ship over 💲35", popup_badge: "Upgraded", usps: ["Wide comfort straps", "All-day wear"], review: `"Best decision ever!" — Judith K.`, cta: "Shop Activa", main_image: "Model in Activa Bra 2.0", sub_image: "Wide strap detail", alt_text: "Activa Bra 2.0 wide-strap comfort bra", image_notes: "Highlight strap width" },
     ],
     quality_checks: {
