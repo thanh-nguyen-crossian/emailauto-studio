@@ -1525,6 +1525,10 @@ function productCopyStyleLabel(c: Campaign): string {
     proof_badge: "proof_badge: trust badge/review leads, USPs stay minimal",
     urgency_badge: "urgency_badge: supplied scarcity/deadline popup_badge leads, action main_text, price + deadline in sub_text",
     price_prominent: "price_prominent: exact price or discount figure leads in sub_text, popup_badge shows savings signal",
+    persona_pick: `persona_pick: "${BRAND_PERSONA_NAMES[c.brandId] || "the persona"}'s pick" framing leads main_text with a one-line why; popup_badge reads like a recognition chip (e.g. SENIORS' FAVE, MOST SHOPPED)`,
+    story_review: "story_review: a named micro-story review IS the block body (review field carries the story); popup_badge pairs a star rating with a repeat-purchase signal (e.g. ⭐⭐⭐⭐⭐ 90% ORDER AGAIN)",
+    bundle_nudge: "bundle_nudge: multi-unit or free-ship nudge leads main_text (e.g. \"grab 2, shipping's on us\"); popup_badge states the threshold (e.g. FREE SHIP OVER 💲40)",
+    new_arrival: "new_arrival: freshness/just-dropped hook leads main_text; popup_badge is a short NEW/NEW ARRIVAL chip",
   };
   return labels[c.productCopyStyle || "headline_winner"] || labels["headline_winner"];
 }

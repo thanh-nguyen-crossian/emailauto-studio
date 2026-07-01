@@ -18,7 +18,7 @@ const SCAFFOLDING_PATTERNS: RegExp[] = [
   /\[ZONE\s+\d/i,
   /\bseg_[a-z0-9_]+\b/i,
   /\b(?:SERIOUS|STRUCTURAL|COSMETIC)?\s*QA\s+flags?\b/i,
-  /headline_winner/i,
+  /\b(?:headline_winner|benefit_pair|proof_badge|urgency_badge|price_prominent|persona_pick|story_review|bundle_nudge|new_arrival)\b/i,
   /ESP\s+renderer/i,
   /\brenderer\b/i,
   /generated\s+(?:separately|later)/i,

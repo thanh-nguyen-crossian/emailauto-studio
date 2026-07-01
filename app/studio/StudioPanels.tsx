@@ -1205,10 +1205,54 @@ export function ProductStylePicker({ value, onChange }: { value: ProductCopyStyl
         { text: "All-day comfort", style: "usp" },
       ],
     },
+    {
+      id: "persona_pick",
+      label: "Persona pick",
+      when: "Loyal / recognition sends",
+      lines: [
+        { text: "SANDRA'S PICK", style: "headline" },
+        { text: "SENIORS' FAVE", style: "badge" },
+        { text: "Chosen for all-day comfort", style: "usp" },
+        { text: "From 💲12.99", style: "sub" },
+      ],
+    },
+    {
+      id: "story_review",
+      label: "Story review",
+      when: "Proof-hungry buyers",
+      lines: [
+        { text: "★★★★★ 90% ORDER AGAIN", style: "badge" },
+        { text: '"Forgot I had it on by noon." — Helen', style: "review" },
+        { text: "Wire-free comfort", style: "usp" },
+        { text: "From 💲12.99", style: "sub" },
+      ],
+    },
+    {
+      id: "bundle_nudge",
+      label: "Bundle nudge",
+      when: "AOV lift / multi-buy",
+      lines: [
+        { text: "GRAB 2, SHIP FREE", style: "headline" },
+        { text: "FREE SHIP OVER 💲40", style: "badge" },
+        { text: "Mix & match colors", style: "usp" },
+        { text: "💲12.99 each", style: "sub" },
+      ],
+    },
+    {
+      id: "new_arrival",
+      label: "New arrival",
+      when: "Recent buyers / VIP",
+      lines: [
+        { text: "JUST DROPPED", style: "headline" },
+        { text: "NEW", style: "badge" },
+        { text: "First look, first pick", style: "usp" },
+        { text: "From 💲14.99", style: "sub" },
+      ],
+    },
   ];
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
         {opts.map((o) => (
           <button
             key={o.id}

@@ -302,27 +302,50 @@ function showProductCopy(src: string, mode: RenderOptions["productCopyFallback"]
   return isPlaceholderImage(src); // "auto" (default)
 }
 
+// Keyword classification, not an exact enum match: the model is instructed to name each block's
+// own overlay role in template_style rather than repeat the campaign-wide default (see
+// COMPONENT_PROMPT_LAYER "PRODUCTS anatomy" in lib/briefgen.ts), so blocks commonly carry a
+// descriptive phrase ("urgency-badge-scarcity-callout") instead of the literal style id.
+function classifyProductTemplate(templateStyle: string | undefined): "urgency" | "price" | "story" | "default" {
+  const s = String(templateStyle || "").toLowerCase();
+  if (/urgen|scarc/.test(s)) return "urgency";
+  if (/price|discount/.test(s)) return "price";
+  if (/story|review/.test(s)) return "story";
+  return "default";
+}
+
 /**
  * The brief's product copy rendered as an email-safe text card — used when the product image is a
  * placeholder. Surfaces popup_badge, headline, sub_text, USPs, review, and a CTA button so the
  * preview reflects what the model wrote (these are otherwise baked into the product image asset).
+ * Presentation leans into the block's template_style: urgency badges get a filled chip, price-led
+ * blocks enlarge the price line, and story/review blocks give the review more room.
  */
 function productCopyContent(brand: Brand, accent: string, product: Product | undefined, pb: GenProductBlock): string {
   const href = productHref(brand, product);
+  const templateKind = classifyProductTemplate(pb.template_style);
   const lines: string[] = [];
   if (pb.popup_badge) {
-    lines.push(`<div style="font-family:${CARD_FONT}; font-size:11px; font-weight:bold; color:${accent}; text-transform:uppercase; letter-spacing:0.04em; padding-bottom:4px;">${escText(pb.popup_badge)}</div>`);
+    const badgeStyle =
+      templateKind === "urgency"
+        ? `color:#ffffff; background-color:#b3261e; padding:3px 8px; border-radius:3px; display:inline-block;`
+        : `color:${accent};`;
+    lines.push(`<div style="font-family:${CARD_FONT}; font-size:11px; font-weight:bold; ${badgeStyle} text-transform:uppercase; letter-spacing:0.04em; padding-bottom:4px;">${escText(pb.popup_badge)}</div>`);
   }
   const name = pb.main_text || pb.name || product?.name || "Product";
   lines.push(`<div style="font-family:${CARD_FONT}; font-size:16px; font-weight:bold; color:#000000; padding-bottom:4px;">${escText(name)}</div>`);
   if (pb.sub_text) {
-    lines.push(`<div style="font-family:${CARD_FONT}; font-size:13px; color:#333333; padding-bottom:6px;">${escText(pb.sub_text)}</div>`);
+    const subStyle = templateKind === "price" ? "font-size:20px; font-weight:bold; color:#000000;" : "font-size:13px; color:#333333;";
+    lines.push(`<div style="font-family:${CARD_FONT}; ${subStyle} padding-bottom:6px;">${escText(pb.sub_text)}</div>`);
+  }
+  if (templateKind === "story" && pb.review) {
+    lines.push(`<div style="font-family:${CARD_FONT}; font-size:14px; font-style:italic; line-height:1.4; color:#333333; padding-bottom:8px;">&ldquo;${escText(pb.review)}&rdquo;</div>`);
   }
   const usps = (pb.usps || []).filter(Boolean);
   if (usps.length) {
     lines.push(`<div style="font-family:${CARD_FONT}; font-size:12px; color:#555555; padding-bottom:6px;">${usps.map((u) => `&#10003; ${escText(u)}`).join("&nbsp;&nbsp;")}</div>`);
   }
-  if (pb.review) {
+  if (templateKind !== "story" && pb.review) {
     lines.push(`<div style="font-family:${CARD_FONT}; font-size:12px; font-style:italic; color:#555555; padding-bottom:8px;">&ldquo;${escText(pb.review)}&rdquo;</div>`);
   }
   const cta = pb.cta || "Shop now";
