@@ -251,6 +251,28 @@ function telemetry(event: string, data: Record<string, unknown>): void {
   console.info(`[generation-telemetry] ${event} ${JSON.stringify(data)}`);
 }
 
+/** True when parseStrictJson had to fall back to salvagePartialJson (see the marker it stamps). */
+function isSalvagedResult(parsed: Record<string, unknown>): boolean {
+  const advisory = Array.isArray(parsed._advisory) ? (parsed._advisory as { msg?: unknown }[]) : [];
+  return advisory.some((a) => typeof a?.msg === "string" && a.msg.includes("truncated and salvaged"));
+}
+
+/**
+ * Top-level keys that are missing, null, or empty (string/array/object) — used for salvage telemetry.
+ * @internal exported for unit testing only
+ */
+export function missingOrEmptyTopLevelKeys(obj: Record<string, unknown>, keys: readonly string[] | undefined): string[] {
+  if (!keys?.length) return [];
+  return keys.filter((k) => {
+    const v = obj[k];
+    if (v === undefined || v === null) return true;
+    if (typeof v === "string") return v.trim() === "";
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v as object).length === 0;
+    return false;
+  });
+}
+
 /**
  * Fail-fast check: if a selected provider's key isn't configured on this server, return a
  * user-facing, provider-specific message (never the raw env-var name) before the long generation
@@ -418,7 +440,20 @@ async function createAndParseWithModel(
   for (let attempt = 0; attempt < 2; attempt++) {
     const raw = await createTextWithProviderRetry(system, attempt === 0 ? user : user + FIX_JSON_NOTE, selection, options);
     try {
-      return parseStrictJson(raw);
+      const parsed = parseStrictJson(raw);
+      if (isSalvagedResult(parsed)) {
+        // No token-usage accounting exists at this layer for any provider yet — rawLength is the
+        // closest available proxy for how much of the response the salvage path had to discard.
+        telemetry("salvage", {
+          stage: options.stage || "unknown",
+          provider: selection.provider,
+          model: selection.model,
+          attempt,
+          rawLength: raw.length,
+          missingOrEmptyKeys: missingOrEmptyTopLevelKeys(parsed, options.schema?.schema.required),
+        });
+      }
+      return parsed;
     } catch (err) {
       lastErr = err;
     }
@@ -1039,7 +1074,7 @@ function compactSegmentBodyDirectionLines(campaign: Campaign): string {
 function foundationOutputSchema(products: Product[]): string {
   return `Foundation JSON fields:
 - creative_direction: angle, framework, branch, brief_route, source_pattern, hook_contract{segment_insight, emotion, hero_product, proof_or_price, urgency, avoid_rule}, flow, differentiator.
-- banner: logo_stars, main_text_1/2/3, sub_text_1/2/3, image_guidance bullets, review_quote, 1-2 review_texts customer-review chips (artificial allowed when marked synthetic/needs verification for invented specifics), main_image, sub_image, trust_booster, emergency, cta, exactly 2 distinct options with same fields and each option has review_texts.
+- banner: logo_stars, main_text_1/2/3, sub_text_1/2/3, image_guidance bullets, review_quote, 1-2 review_texts customer-review chips (artificial ratings/reviews/badges allowed freely — no disclaimer needed), main_image, sub_image, trust_booster, emergency, cta, exactly 2 distinct options with same fields and each option has review_texts.
 - body.base: designer-facing layout summary only; no segment body copy.
 - ps: 10-15 words.
 - products: exactly ${products.length} rows, slot 1..${products.length}, name, template_style, main_text, sub_text, popup_badge, 2 short usps, review, cta, main_image, sub_image, alt_text, image_notes.
@@ -1123,8 +1158,8 @@ function buildFoundationPrompt(
     {
       title: "Playbook Core",
       body: `One send = one promise. Every shared surface must connect one hero product + one proof/price + one reader situation.
-Supplied/verified facts may be final. Artificial proof may draft reviews, ratings, claim chips, badges, and trust boosters, but invented specifics must be marked synthetic/needs verification in notes unless supplied. Never label synthetic proof as verified, clinical, real customer, or guaranteed.
-Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + customer-review chip(s) + 2 distinct layout options, each with its own review_texts. Artificial reviews are allowed when synthetic/needs-verification if they include invented specifics. Products are image-overlay copy; main_text <=5w, USPs <=5w, distinct role/use case/mechanism per product.
+Proof policy: artificial ratings, %-recommend, best-seller/scarcity badges, and short attributed reviews are standard on the banner and product tiles — invent them freely, no disclaimer needed. Never write a fake clinical/study claim ("studies show") or a false verification claim ("verified buyer", "as seen on", "award-winning").
+Banner: 3 beats (tension -> proof/mechanism -> resolution/offer) + customer-review chip(s) + 2 distinct layout options, each with its own review_texts. Artificial reviews/ratings are allowed and encouraged. Products are image-overlay copy; main_text <=5w, USPs <=5w, distinct role/use case/mechanism per product.
 P.S. is 10-15 words. Renderer handles footer; do not write unsubscribe/footer copy. Tokens allowed: ==accent==, **bold**, [Product](slug:slug), [home text](home).`,
     },
     { title: "Brand Rules", body: brandPlaybookRuleBlock(campaign.brandId) },
@@ -1421,7 +1456,7 @@ function buildSegmentPatchPrompt(
       body: `${brandPlaybookRuleBlock(campaign.brandId)}
 Subject/preheader: primary pair plus 3 options per segment; 42-60 char subject, 60-90 char preheader, {{first_name}} in subject OR preheader only, offer signal required.
 Body: selected body + 2 body_options routes. 120-150w, no {{first_name}}, personal-note first, one calm urgency beat, product markdown link by para 2, 2-4 format/link beats, no hard-sell stack.
-Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Supplied/verified facts may be final; synthetic review/rating/claim ideas are allowed only when marked needs verification in notes, never as verified or clinical final facts.`,
+Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Body prose proof = sensory language + one named-human story (first name + relationship + outcome), at most one number beside that person; never a fake clinical/study claim or a bare rating/count stated as fact — save badges/ratings for the banner and product tiles.`,
     },
     { title: "Artificial Proof Mode", body: artificialProofPromptLayer() },
     { title: "Template Corpus Memory", body: templateCorpusPromptLayer() },
@@ -1617,6 +1652,16 @@ function mergeOptionBatches(
   validated._model = model;
   validated._prompt_version = PROMPT_REGISTRY_VERSION;
   return validated;
+}
+
+/** Records, per-brief, which segments never got a model-authored patch — not just in the top-level warning string. */
+function flagLocallyFilledSegments(brief: GenBrief, segments: string[]): GenBrief {
+  if (!segments.length) return brief;
+  (brief._advisory ||= []).push({
+    type: "warn",
+    msg: `Segment(s) ${segments.join(", ")} did not return model-authored copy after a retry — subject/body were filled locally from body.base; review before sending.`,
+  });
+  return brief;
 }
 
 function sanitizeAndValidateBrief(brief: GenBrief, campaign: Campaign, products: Product[]): GenBrief {
@@ -1984,7 +2029,7 @@ async function generateOptionSegmentParts(
   anchor: GenBrief,
   runtime: GenerationRuntime | undefined,
   overrides?: PromptOverrides
-): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; notices: string[]; completed: number; total: number }> {
+): Promise<{ parts: SegmentBatchPart[]; warnings: string[]; notices: string[]; completed: number; total: number; locallyFilledSegments: string[] }> {
   throwIfAborted(runtime?.signal);
   const optionLabel = option.toUpperCase() as "A" | "B";
   const warnings: string[] = [];
@@ -2039,7 +2084,39 @@ async function generateOptionSegmentParts(
     runtime?.signal
   );
   const usableParts = parts.filter((part): part is SegmentBatchPart => !!part);
-  const missing = missingPatchSegments(campaign, [anchor, ...usableParts]);
+  let missing = missingPatchSegments(campaign, [anchor, ...usableParts]);
+  const modelForOption = option === "a" ? models.a : models.b;
+  if (missing.length && hasGenerationBudget(runtime, patchTimeoutForSelection(modelForOption), 10_000)) {
+    emit(runtime, { type: "stage", stage: "segment_retry", option, message: `Retrying missing Option ${optionLabel} segment(s): ${missing.join(", ")}` });
+    try {
+      const retryResult = await generateSegmentCopyBatch(
+        withSegments(campaign, missing),
+        products,
+        models,
+        revision,
+        {
+          index: total + 1,
+          total,
+          allSegments: campaign.segments,
+          allSegmentContext,
+          optionAAnchor: option === "a" ? anchor : undefined,
+          optionBAnchor: option === "b" ? anchor : undefined,
+        },
+        runtime,
+        overrides
+      );
+      const retryPatch = option === "a" ? retryResult.a : retryResult.b;
+      if (retryPatch) {
+        usableParts.push(retryPatch);
+        notices.push(`recovered Option ${optionLabel} segment copy for ${missing.join(", ")} via a targeted retry`);
+        missing = missingPatchSegments(campaign, [anchor, ...usableParts]);
+      }
+    } catch (err) {
+      if (isGenerationAbortError(err)) throw err;
+      recoverableIssues.push(`segment retry for ${missing.join(", ")}: ${errMessage(err)}`);
+    }
+  }
+  const locallyFilledSegments = [...missing];
   if (missing.length) {
     usableParts.push(fallbackSegmentPatch(withSegments(campaign, missing), products, optionLabel, anchor, missing));
     notices.push(`filled missing Option ${optionLabel} segment copy locally for ${missing.join(", ")} after provider/deadline gaps`);
@@ -2053,6 +2130,7 @@ async function generateOptionSegmentParts(
     notices,
     completed,
     total,
+    locallyFilledSegments,
   };
 }
 
@@ -2134,7 +2212,10 @@ async function generateOptionsBatched(
           .then((run) => {
             warnings.push(...run.warnings.map((w) => `A ${w}`));
             notices.push(...run.notices.map((w) => `A ${w}`));
-            const a = mergeOptionBatches(campaign, products, run.parts, optionAAnchor?._provider, optionAAnchor?._model);
+            const a = flagLocallyFilledSegments(
+              mergeOptionBatches(campaign, products, run.parts, optionAAnchor?._provider, optionAAnchor?._model),
+              run.locallyFilledSegments
+            );
             emit(runtime, { type: "stage", stage: "merge", option: "a", message: "Merged Option A" });
             emit(runtime, { type: "partial", option: "a", brief: a, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
             return a;
@@ -2153,7 +2234,10 @@ async function generateOptionsBatched(
           .then((run) => {
             warnings.push(...run.warnings.map((w) => `B ${w}`));
             notices.push(...run.notices.map((w) => `B ${w}`));
-            const b = mergeOptionBatches(campaign, products, run.parts, optionBAnchor?._provider, optionBAnchor?._model);
+            const b = flagLocallyFilledSegments(
+              mergeOptionBatches(campaign, products, run.parts, optionBAnchor?._provider, optionBAnchor?._model),
+              run.locallyFilledSegments
+            );
             emit(runtime, { type: "stage", stage: "merge", option: "b", message: "Merged Option B" });
             emit(runtime, { type: "partial", option: "b", brief: b, warning: run.warnings.length ? run.warnings.join(" · ") : undefined });
             return b;
@@ -2186,7 +2270,10 @@ async function generateOptionsBatched(
           const retryRun = await generateOptionSegmentParts("b", campaign, products, models, revision, chunks, batchSettings.concurrency, allSegmentContext, retryAnchor, runtime, overrides);
           warnings.push(...retryRun.warnings.map((w) => `contrast retry ${w}`));
           notices.push(...retryRun.notices.map((w) => `contrast retry ${w}`));
-          b = mergeOptionBatches(campaign, products, retryRun.parts, retryAnchor._provider, retryAnchor._model);
+          b = flagLocallyFilledSegments(
+            mergeOptionBatches(campaign, products, retryRun.parts, retryAnchor._provider, retryAnchor._model),
+            retryRun.locallyFilledSegments
+          );
           emit(runtime, { type: "partial", option: "b", brief: b, warning: retryRun.warnings.length ? retryRun.warnings.join(" · ") : undefined });
         } catch (err) {
           if (isGenerationAbortError(err)) throw err;

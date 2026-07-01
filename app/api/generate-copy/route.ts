@@ -16,7 +16,7 @@ const VALID_OFFER_TYPES = new Set<OfferType>(["sitewide_pct", "fixed_price", "fr
 const VALID_URGENCY = new Set<Urgency>(["h24", "h48", "weekend", "none"]);
 const VALID_BODY_LAYOUTS = new Set<BodyLayout>(["continuous", "interspersed", "custom"]);
 const VALID_BODY_FOCUS = new Set<"hero" | "grid">(["hero", "grid"]);
-const VALID_PRODUCT_COPY_STYLES = new Set<ProductCopyStyle>(["headline_winner", "benefit_pair", "proof_badge", "urgency_badge", "price_prominent"]);
+const VALID_PRODUCT_COPY_STYLES = new Set<ProductCopyStyle>(["headline_winner", "benefit_pair", "proof_badge", "urgency_badge", "price_prominent", "persona_pick", "story_review", "bundle_nudge", "new_arrival"]);
 
 export const runtime = "nodejs";
 // A/B generations run in parallel; B retries only when contrast collapses across route/copy shape.

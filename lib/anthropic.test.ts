@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adaptiveBatchSettings, compactPromptText, composeLayeredGenerationWarning, hasDeadlineBudget, isHardContrastIssue, remainingDeadlineMs, segmentChunks } from "./anthropic";
+import { adaptiveBatchSettings, compactPromptText, composeLayeredGenerationWarning, hasDeadlineBudget, isHardContrastIssue, missingOrEmptyTopLevelKeys, remainingDeadlineMs, segmentChunks } from "./anthropic";
 import type { AIModelPair } from "./config/types";
 
 describe("segmentChunks", () => {
@@ -130,5 +130,24 @@ describe("composeLayeredGenerationWarning", () => {
     });
     expect(warning).toMatch(/provider\/deadline issues/i);
     expect(warning).toMatch(/Incomplete generated coverage remains: B 71/i);
+  });
+});
+
+describe("missingOrEmptyTopLevelKeys", () => {
+  it("returns nothing when no expected keys are given (e.g. schema had no required[])", () => {
+    expect(missingOrEmptyTopLevelKeys({ banner: {} }, undefined)).toEqual([]);
+  });
+
+  it("flags missing, null, empty-string, empty-array, and empty-object keys", () => {
+    const result = missingOrEmptyTopLevelKeys(
+      { theme: "", banner: {}, body: null, products: [], subject_lines: { seg_1: {} } },
+      ["theme", "banner", "body", "products", "subject_lines", "ps"]
+    );
+    expect(result).toEqual(["theme", "banner", "body", "products", "ps"]);
+  });
+
+  it("does not flag a populated field", () => {
+    const result = missingOrEmptyTopLevelKeys({ theme: "A visual brief", products: [{ slot: 1 }] }, ["theme", "products"]);
+    expect(result).toEqual([]);
   });
 });

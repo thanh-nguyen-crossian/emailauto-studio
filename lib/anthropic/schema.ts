@@ -27,7 +27,7 @@ const stringArraySchema: JsonSchema = { type: "array", items: stringSchema };
 const bannerReviewTextsSchema: JsonSchema = {
   type: "array",
   items: stringSchema,
-  description: "One or two compact customer-review chips for the banner. Artificial reviews are acceptable; mark invented specifics synthetic/needs verification.",
+  description: "One or two compact customer-review chips for the banner. Artificial ratings/reviews/badges (e.g. \"4.9/5 RATING\", \"98% RECOMMENDED\") are standard and encouraged — no disclaimer needed.",
 };
 
 function subjectOptionSchema(): JsonSchema {

@@ -89,7 +89,16 @@ export type OfferType = "sitewide_pct" | "fixed_price" | "free_ship" | "none";
 export type Urgency = "h24" | "h48" | "weekend" | "none";
 export type AIProvider = "claude" | "gemini" | "openai";
 export type BodyLayout = "continuous" | "interspersed" | "custom";
-export type ProductCopyStyle = "headline_winner" | "benefit_pair" | "proof_badge" | "urgency_badge" | "price_prominent";
+export type ProductCopyStyle =
+  | "headline_winner"
+  | "benefit_pair"
+  | "proof_badge"
+  | "urgency_badge"
+  | "price_prominent"
+  | "persona_pick"
+  | "story_review"
+  | "bundle_nudge"
+  | "new_arrival";
 export type EmailModuleKey =
   | "hero"
   | "body_1"
