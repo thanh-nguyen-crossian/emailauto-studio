@@ -230,26 +230,26 @@ const PRODUCT_IMAGE_BRIEF_RULES = `PRODUCT IMAGE BRIEF RULES (one product image 
 
 const BRAND_PLAYBOOK_RULES: Record<string, string> = {
   bra_goddess: `BRAND RULEBOOK - BraGoddess:
-DO: Sandra voice (first-person singular "I/my/me" — Sandra is ALWAYS the grammatical subject); emotion-first + offer second; Daisy Bra, Posy Bra, and ZoeShape fixed as the top trio; rotate their internal lead order by theme/segment fit; comfort, support, lift, and fit relief; named-character anecdote (first name + relationship + specific outcome); soft social urgency with specific time anchor (midnight tonight, 24 hours); deep rose/crimson #a02338-#d63268. No homepage markdown links in body copy — product links only.
-DON'T: generic empowerment, gratitude opener ("We're so grateful", "BraGoddess is proud to present"), brand-as-announcer copy, bubblegum #f33e8a, muddy #953336, repeated name in subject+preheader, "don't let X go to waste", feature-list checkmark opener (✅ ✅ ✅ structure), artificial promotion counts or star ratings presented as verified proof, clinical/study claims ("studies show", "scientifically proven"), passive urgency ("ending soon", "limited time", "while stocks last", "if you've been meaning to").
-PROOF: supplied proof may be final; artificial proof may draft named reviews, rating concepts, badges, or claim chips only when marked synthetic/needs verification in notes. Never call artificial proof verified, clinical, real-customer, best-selling, or guaranteed.
+DO: Sandra voice (first-person singular "I/my/me" — Sandra is ALWAYS the grammatical subject); emotion-first + offer second; Daisy Bra, Posy Bra, and ZoeShape fixed as the top trio; rotate their internal lead order by theme/segment fit; comfort, support, lift, and fit relief; named-character anecdote (first name + relationship + specific outcome); soft social urgency with specific time anchor (midnight tonight, 24 hours); deep rose/crimson #a02338-#d63268. No homepage markdown links in body copy — product links only. Artificial ratings/%-recommend/best-seller badges are standard on product tiles and the banner.
+DON'T: generic empowerment, gratitude opener ("We're so grateful", "BraGoddess is proud to present"), brand-as-announcer copy, bubblegum #f33e8a, muddy #953336, repeated name in subject+preheader, "don't let X go to waste", feature-list checkmark opener (✅ ✅ ✅ structure), a rating/count stated as fact in body prose, clinical/study claims ("studies show", "scientifically proven"), passive urgency ("ending soon", "limited time", "while stocks last", "if you've been meaning to").
+PROOF: badges/ratings/reviews are freely invented on tiles and banner — no disclaimer needed. Body prose carries sensory language plus one named-human story (first name + relationship + outcome), at most one number beside that person. Never call anything clinical, verified-buyer, as-seen-on, or award-winning.
 SUBJECT: 38-58 chars (sweet spot 44-52); name AFTER emotional hook — never as first word; one emoji max; time anchor in at least one pair (midnight/24 hours/tonight); use o.f.f / 💲; preheader adds tension or deadline.`,
   gents_lux: `BRAND RULEBOOK - GentsLux:
-DO: Jordan voice (Jordan is ALWAYS grammatical subject — "I noticed", "I grabbed", never "GentsLux offers"); curiosity + scarcity; JettJeans, Icy Shorts, and AirFlexion fixed as the top trio; rotate their internal lead order by theme/segment fit; lifestyle scene-setting opener (coffee + remote, seasonal errand); mechanism copy around movement, waistband, cooling, durability; budget-aware senior/practical-buyer framing when the segment calls for it; one useful fit/cooling tip; understated confidence; deep navy #002850-#1d3d56.
-DON'T: brand-as-announcer ("GentsLux offers", "GentsLux is proud to present"), cute puns, over-luxury language, grammar errors, loud hype, weak navy #26508d/#013faa/#183647, over-specified subject discounts, artificial promotion counts or star ratings presented as verified proof, clinical claims, passive urgency ("ending soon", "limited time", "if you've been meaning to").
+DO: Jordan voice (Jordan is ALWAYS grammatical subject — "I noticed", "I grabbed", never "GentsLux offers"); curiosity + scarcity; JettJeans, Icy Shorts, and AirFlexion fixed as the top trio; rotate their internal lead order by theme/segment fit; lifestyle scene-setting opener (coffee + remote, seasonal errand); mechanism copy around movement, waistband, cooling, durability; budget-aware senior/practical-buyer framing when the segment calls for it; one useful fit/cooling tip; understated confidence; deep navy #002850-#1d3d56. Artificial ratings/%-recommend/best-seller badges are standard on product tiles and the banner.
+DON'T: brand-as-announcer ("GentsLux offers", "GentsLux is proud to present"), cute puns, over-luxury language, grammar errors, loud hype, weak navy #26508d/#013faa/#183647, over-specified subject discounts, a rating/count stated as fact in body prose, clinical claims, passive urgency ("ending soon", "limited time", "if you've been meaning to").
 OFFER: if supplied, state storewide/no code/no exclusions/no limit, free-shipping threshold, deadline, and price/% plainly; never invent any of them.
-PRODUCT BLOCKS: headline under 6w; two USP chips under 4w; compact review/proof texture using supplied proof or synthetic proof concepts marked needs verification; never label artificial ratings/counts as verified final facts.
+PRODUCT BLOCKS: headline under 6w; two USP chips under 4w; popup badge carries the artificial rating/best-seller/scarcity chip freely; compact review/proof texture reads like a specific named human, not a fake clinical claim.
 SUBJECT: 33-55 chars (sweet spot 33-43); time anchor required in at least one pair (midnight/24 hours/tonight only — not "ending soon"); name mid-subject; imply offer in subject, reveal scale in preheader.`,
   lux_fitting: `BRAND RULEBOOK - LuxFitting:
-DO: Adele voice (Adele is ALWAYS grammatical subject); price-anchored sensory promise; StretchActive, Icy Shorts, and SoftyGrace fixed as the top trio; rotate their internal lead order by theme/segment fit; outfit ease, comfort, budget-aware senior/practical-buyer framing when the segment calls for it; salutation "Dearest [first_name]," or "Hi [first_name]," (not "Hello"); seasonal styling/comfort tip in "My [Month] Tip:" format; #e7324a/#fe397b.
-DON'T: mixed hooks, "Be hurry!", external health statistics (CDC, clinical, "studies show"), ageist framing, red #d51c18, dull pink #d5255c, birthday+spring+discount+countdown stacking, artificial promotion counts or star ratings presented as verified proof, passive urgency ("ending soon", "limited time").
+DO: Adele voice (Adele is ALWAYS grammatical subject); price-anchored sensory promise; StretchActive, Icy Shorts, and SoftyGrace fixed as the top trio; rotate their internal lead order by theme/segment fit; outfit ease, comfort, budget-aware senior/practical-buyer framing when the segment calls for it; salutation "Dearest [first_name]," or "Hi [first_name]," (not "Hello"); seasonal styling/comfort tip in "My [Month] Tip:" format; #e7324a/#fe397b. Artificial ratings/%-recommend/best-seller badges are standard on product tiles and the banner.
+DON'T: mixed hooks, "Be hurry!", external health statistics (CDC, clinical, "studies show"), ageist framing, red #d51c18, dull pink #d5255c, birthday+spring+discount+countdown stacking, a rating/count stated as fact in body prose, passive urgency ("ending soon", "limited time").
 OFFER: if supplied, state storewide/no code/no exclusions/no limit, free-shipping threshold, deadline, and price/% plainly; never invent any of them.
-PRODUCT BLOCKS: headline under 6w; two USP chips under 4w; compact review/proof texture using supplied proof or synthetic proof concepts marked needs verification; never label artificial ratings/counts as verified final facts.
+PRODUCT BLOCKS: headline under 6w; two USP chips under 4w; popup badge carries the artificial rating/best-seller/scarcity chip freely; compact review/proof texture reads like a specific named human, not a fake clinical claim.
 SUBJECT: 44-56 chars (hard cap 58); specific price/% every time; 💲 or spaced O.F.F; time anchor in at least one pair; preheader escalates.`,
   santa_fare: `BRAND RULEBOOK - SantaFare:
-DO: Mary voice (strict first-person singular "I/my/me" — never "we think", "our team"); suspended loop + gifting; Pouchic + TimelessMark first, BygoneMark support; named family member or close friend in gifting micro-story; 4 products; mystery gift in P.S.; deep scarlet #890106-#c00f28.
-DON'T: bright cheerfulness, pink #d43268, orange-red #d02c16, broad off-season sends, generic accessory grid, countdown-clock energy, artificial promotion counts or star ratings presented as verified proof, passive urgency ("ending soon", "limited time", "while stocks last", "if you've been meaning to").
-PROOF: named family member or close friend + specific gifting moment; artificial ratings/reviews/claim chips are draft proof only and must be marked synthetic/needs verification unless supplied.
+DO: Mary voice (strict first-person singular "I/my/me" — never "we think", "our team"); suspended loop + gifting; Pouchic + TimelessMark first, BygoneMark support; named family member or close friend in gifting micro-story; 4 products; mystery gift in P.S.; deep scarlet #890106-#c00f28. Artificial ratings/%-recommend/best-seller badges are standard on product tiles and the banner.
+DON'T: bright cheerfulness, pink #d43268, orange-red #d02c16, broad off-season sends, generic accessory grid, countdown-clock energy, a rating/count stated as fact in body prose, passive urgency ("ending soon", "limited time", "while stocks last", "if you've been meaning to").
+PROOF: named family member or close friend + specific gifting moment in body prose; badges/ratings/reviews are freely invented on tiles and banner — no disclaimer needed.
 SUBJECT: 42-54 chars (hard cap 58); urgency anchor = "midnight tonight" ONLY — never "ending soon" or "limited time"; name often in preheader; use SAVING/O.F.F; reluctant deadline or revelation.`,
 };
 
@@ -257,7 +257,7 @@ const SUBJECT_DEVICE_DESCRIPTIONS: Record<string, string> = {
   "open-loop": "open a curiosity gap the email resolves — pose a question, name a tension, leave the outcome unstated",
   "pattern-interrupt": "break the scan pattern with an unexpected first word, number, or structure that stops the thumb",
   "playful-conceit": "commit to one unexpected metaphor, analogy, or character POV for the entire subject/preheader pair",
-  "social-proof-tease": "drop a supplied social signal or clearly synthetic draft proof concept without fully explaining it — never present an artificial count, rating, or label as verified",
+  "social-proof-tease": "drop a supplied or freely-invented social signal (named outcome, rating, badge) without fully explaining it — never write a fake clinical/study claim or a false verification label",
   "deadline-whisper": "imply scarcity or time constraint quietly — no hype words, no exclamation marks",
   "check-in": "speak directly to the reader's current state or unfinished action (\"Still thinking?\", \"You added X…\")",
 };
@@ -309,8 +309,22 @@ const BRAND_PERSONA_NAMES: Record<string, string> = {
   santa_fare: "Mary",
 };
 const OPTOUT_RISK = ["for older women", "hide your", "fix your body", "anti aging", "look younger", "flaws"];
-const UNSUPPLIED_PROOF = ["clinically proven", "doctor recommended", "medically proven", "guaranteed results", "thousands of customers", "rated #1", "scientifically proven", "studies show", "research shows", "data shows", "as seen on", "award-winning", "9 out of 10"];
-const UNSUPPLIED_PROOF_PATTERNS: { label: string; pattern: RegExp }[] = [
+// Jul 2026 stance: artificial ratings/badges/counts are standard on tiles + banner (see
+// docs/email-campaign-playbook.html "Artificial Proof Is Allowed"). These lists therefore
+// split into two lanes: phrases that are fake authority claims and stay forbidden everywhere
+// (ALWAYS_*), and rating/count phrasing that is fine as a tile/banner badge but reads as an
+// invented fact when it lands in subject/theme/body prose instead (PROSE_ONLY_*).
+const ALWAYS_FORBIDDEN_PROOF_PHRASES = ["clinically proven", "doctor recommended", "medically proven", "guaranteed results", "scientifically proven", "studies show", "research shows", "data shows", "as seen on", "award-winning"];
+const PROSE_ONLY_PROOF_PHRASES = ["thousands of customers", "rated #1", "9 out of 10"];
+const ALWAYS_FORBIDDEN_PROOF_PATTERNS: { label: string; pattern: RegExp }[] = [
+  { label: "unsupplied verified label", pattern: /\bverified\s+(?:buyer|customer|review|purchase|rating)\b/i },
+  { label: "unsupplied review age/date", pattern: /\b(?:age(?:d)?\s+\d{2}|\d{2}\s*(?:years?|yrs?)\s*old|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:,\s*20\d{2})?)\b/i },
+  { label: "unsupplied medical outcome", pattern: /\b(?:clinically|doctor(?:-|\s)?recommended|medically|reduces?\s+swelling|improves?\s+circulation|treats?\s+(?:arthritis|sciatica)|cures?|heals?)\b/i },
+  { label: "unsupplied study/research claim", pattern: /\b(?:studies?\s+show|research\s+(?:shows?|finds?|suggests?)|data\s+shows?|scientists?\s+(?:say|found|recommend)|experts?\s+(?:say|recommend|agree))\b/i },
+];
+// Fine as a product-tile/banner badge ("4.9/5 RATING", "LAST 30 ITEMS"); an invented fact when
+// stated as narrative prose in subject/theme/body instead — see R23 "Proof placement".
+const PROSE_ONLY_PROOF_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "unsupplied 5-star count", pattern: /\b(?:over\s+)?\d{2,}[\w+ -]*(?:5[- ]?star|five[- ]?star|ratings?|reviews?)\b/i },
   { label: "unsupplied star rating score", pattern: /\b\d(?:\.\d)?\s*\/\s*5\s*stars?\b/i },
   { label: "unsupplied audience count", pattern: /\b(?:loved by|trusted by|chosen by|worn by)\s+(?:over\s+)?\d{2,}[\w+ -]*(?:women|men|customers|shoppers|buyers)\b/i },
@@ -318,11 +332,7 @@ const UNSUPPLIED_PROOF_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "unsupplied promotion-tied count", pattern: /\b\d[\d,]*\s+(?:women|men|customers|shoppers|people)\s+(?:grabbed|bought|ordered|snagged|chose|switched|already)\b/i },
   { label: "unsupplied mass social proof", pattern: /\bover\s+\d[\d,.]*\s*(?:million|thousand|M|k)?\s*(?:women|men|customers|shoppers|buyers)\b/i },
   { label: "unsupplied percent claim", pattern: /\b\d+%\s+of\s+(?:women|men|customers|shoppers|buyers|people)\b/i },
-  { label: "unsupplied verified label", pattern: /\bverified\s+(?:buyer|customer|review|purchase|rating)\b/i },
-  { label: "unsupplied review age/date", pattern: /\b(?:age(?:d)?\s+\d{2}|\d{2}\s*(?:years?|yrs?)\s*old|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:,\s*20\d{2})?)\b/i },
   { label: "unsupplied stock/shipping fact", pattern: /\b(?:only\s+\d+\s+left|left\s+in\s+stock|ships?\s+(?:in|within)\s+\d+\s*(?:hours?|days?)|delivers?\s+(?:in|within)\s+\d+\s*(?:hours?|days?))\b/i },
-  { label: "unsupplied medical outcome", pattern: /\b(?:clinically|doctor(?:-|\s)?recommended|medically|reduces?\s+swelling|improves?\s+circulation|treats?\s+(?:arthritis|sciatica)|cures?|heals?)\b/i },
-  { label: "unsupplied study/research claim", pattern: /\b(?:studies?\s+show|research\s+(?:shows?|finds?|suggests?)|data\s+shows?|scientists?\s+(?:say|found|recommend)|experts?\s+(?:say|recommend|agree))\b/i },
 ];
 const WEAK_CTA = ["click here", "learn more", "shop now", "discover more", "see more"];
 const HOOK_STACK = ["birthday", "anniversary", "spring", "summer", "mother", "review", "thank", "countdown", "last chance", "ending", "comfort", "sale", "gift", "free shipping"];
@@ -845,7 +855,7 @@ const CREATIVE_LEVER_BANKS: Record<string, {
       "use segment motivation to change the risk reducer",
       "use supplied page cues before broad confidence language",
       "use CTA only after one product link and one proof beat",
-      "use tactile vocabulary as qualitative proof; use synthetic metrics only as draft proof with needs-verification notes",
+      "use tactile vocabulary as qualitative proof; save invented ratings/counts for tile/banner badges, not body prose",
       "use product grid order to build outfit logic",
       "use color/palette notes to keep visual trust high",
       "use one practical occasion as the reason for urgency",
@@ -1053,7 +1063,7 @@ const OPENER_MECHANICS: {
     key: "customer_quote",
     label: "Customer Quote",
     directive: (char, role, pain, _persona) =>
-      `Open with a compact quote-style line from ${char} (${role}) about "${pain}". If no supplied review supports it, keep it synthetic/needs-verification in notes and do not call it verified, real-customer, clinical, or guaranteed proof.`,
+      `Open with a compact quote-style line from ${char} (${role}) about "${pain}". Inventing the quote is fine — never call it verified, real-customer, clinical, or guaranteed proof.`,
   },
   {
     key: "occasion_clock",
@@ -1193,7 +1203,7 @@ const COPY_TACTIC_BANK = [
   "FOMO: real deadline/scarcity/early access only; no fake stock or countdown pressure",
   "question: one self-identifying question that the next sentence answers",
   "educational tip: one practical fit, style, comfort, material, or gifting insight",
-  "UGC/emotional story: supplied review or synthetic review/rating texture marked needs verification",
+  "UGC/emotional story: a supplied review or a freely-invented named-human story, never a bare rating/count",
   "pain/benefit contrast: name one specific friction, then the product relief",
   "data/facts: supplied facts only; otherwise write qualitative product truths",
   "curiosity: withhold one useful detail the body or preheader resolves",
@@ -1569,18 +1579,6 @@ function containsLexeme(haystack: string, term: string): boolean {
   const post = /\w$/.test(term) ? "\\b" : "";
   return new RegExp(`${pre}${esc}${post}`, "i").test(haystack);
 }
-function containsLexemeWithoutSyntheticContext(haystack: string, term: string): boolean {
-  const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pre = /^\w/.test(term) ? "\\b" : "";
-  const post = /\w$/.test(term) ? "\\b" : "";
-  const re = new RegExp(`${pre}${esc}${post}`, "gi");
-  for (const match of haystack.matchAll(re)) {
-    const index = match.index ?? 0;
-    const context = haystack.slice(Math.max(0, index - 100), index + (match[0]?.length || 0) + 100);
-    if (!hasSyntheticProofContext(context)) return true;
-  }
-  return false;
-}
 function norm(s: string): string {
   return String(s || "").toLowerCase().replace(/[^a-z0-9{}]+/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -1705,8 +1703,11 @@ function hasOfferSignal(text: string, campaign: Campaign): boolean {
 function hasAttributedReview(text: string): boolean {
   return /["“”']/.test(text) && /(?:—|-)\s*[A-Z][a-z]+(?:\s+[A-Z]\.?)?/.test(text);
 }
+// Artificial ratings/counts/scarcity are allowed as tile/banner badges without a supplied
+// source (R20/R23) — this only gates the phrases that stay forbidden everywhere: false
+// verification claims, clinical/medical claims, guarantees, and invented ages/dates.
 function needsSourceBackedProof(text: string): boolean {
-  return /\b(?:verified(?:\s+(?:buyer|customer|review|purchase))?|rated|rating|stars?|reviews?|customers?|sold|ordered|clinically|doctor(?:-|\s)?recommended|medically|medical(?:ly)?|guaranteed|guarantee|age(?:d)?\s+\d{2}|\d{2}\s*(?:years?|yrs?)\s*old|only\s+\d+\s+left|left\s+in\s+stock|ships?\s+(?:in|within)|shipping\s+(?:today|within|in)|delivered\s+(?:in|within)|20\d{2})\b/i.test(text);
+  return /\b(?:verified\s+(?:buyer|customer|review|purchase)|clinically|doctor(?:-|\s)?recommended|medically|medical(?:ly)?|guaranteed|guarantee|age(?:d)?\s+\d{2}|\d{2}\s*(?:years?|yrs?)\s*old|20\d{2})\b/i.test(text);
 }
 function matchesSuppliedReview(text: string, source?: string): boolean {
   if (!text.trim()) return true;
@@ -1720,25 +1721,6 @@ function matchesSuppliedReview(text: string, source?: string): boolean {
   // or restate it — accept containment in either direction after stripping the attribution tail.
   const tNoAttr = norm(text.replace(/\s*[—-]\s*[A-Za-z.][A-Za-z. ]*$/, ""));
   return t.includes(s) || s.includes(t) || (!!tNoAttr && s.includes(tNoAttr)) || !requiresSource;
-}
-function matchesAnySuppliedReview(text: string, products: Product[]): boolean {
-  if (!String(text || "").trim() || !hasAttributedReview(text)) return true;
-  return products.some((p) => matchesSuppliedReview(text, p.review));
-}
-function hasSyntheticProofContext(text: string): boolean {
-  return /\b(?:synthetic|artificial|ai[-\s]?generated|draft proof|creative draft|needs verification|verify before send|placeholder proof)\b/i.test(
-    text
-  );
-}
-function hasUnsupportedProofWithoutSyntheticContext(text: string, pattern: RegExp): boolean {
-  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
-  const re = new RegExp(pattern.source, flags);
-  for (const match of text.matchAll(re)) {
-    const index = match.index ?? 0;
-    const context = text.slice(Math.max(0, index - 100), index + (match[0]?.length || 0) + 100);
-    if (!hasSyntheticProofContext(context)) return true;
-  }
-  return false;
 }
 function looksLikeSchemaPlaceholder(text?: string): boolean {
   return SCHEMA_PLACEHOLDER_PATTERN.test(String(text || ""));
@@ -1760,15 +1742,15 @@ export function renderPromptLayers(layers: { title: string; body?: string }[]): 
 
 const CORE_PROMPT_LAYER = `Return JSON only. Build order: evidence → segment → hook contract → banner/body/products → subject/preheader → QA.
 1 send = 1 promise. All copy surfaces (subject, preheader, hero, body, grid, CTA, P.S.) share ONE thread: [hero product by name] + [specific proof or price] + [concrete reader situation]. Each surface references ≥2 of those 3 thread elements. A thread anchored only by brand name or discount % is NOT a shared thread.
-Proof policy — two lanes: supplied/verified facts may be final; artificial proof may be drafted as synthetic review/rating/claim/badge/trust-booster concepts. Mark invented specifics (rating, count, age, date, stock, shipping, guarantee, medical-like outcome, award, best-seller) as "synthetic / needs verification" in notes unless supplied. Never call artificial proof verified, real-customer, clinical, doctor-recommended, guaranteed, award-winning, best-selling, or as-seen-on.
+Proof policy: artificial reviews, ratings, %-recommend, and best-seller/scarcity badges are standard and encouraged on product tiles and the banner — invent them freely, no disclaimer needed. Body prose is different: proof reads as sensory language plus ONE named-human story (first name + relationship + outcome), at most one number beside that person. Forbidden anywhere: fake clinical/study claims ("studies show", "clinically proven"), false verification claims ("verified buyer", "as seen on", "award-winning"), and invented reviewer ages/dates.
 Prohibit: fake Re/Fwd, "click here", "learn more", guilt opener, "meet your new favorite", "don't let X go to waste", generic gratitude, grammar errors, unsupported medical/age claims, body/age shaming.
 💲 instead of $; brand off-symbol rules; {{first_name}} in subj XOR prehdr only.`;
 
-const ARTIFICIAL_PROOF_PROMPT_LAYER = `Artificial proof mode:
-- Allowed creative drafts: first-name review snippets, banner customer-review chips, star/rating concepts, claim chips, trust badges, objection reducers, urgency/proof labels, and image-overlay proof notes.
-- Keep synthetic proof short, plausible, brand-fit, and useful. Use it to guide banner/product/body ideas, not to fabricate "verified" truth.
-- If a specific invented number/rating/date/age/stock/shipping/medical-like/guarantee/award claim appears, add "synthetic / needs verification" in quality_checks or image_notes unless it came from product/campaign data.
-- Do not label AI-created reviews as verified buyers/customers, real customer quotes, clinical proof, expert proof, or guaranteed outcomes.`;
+const ARTIFICIAL_PROOF_PROMPT_LAYER = `Artificial proof mode (invented proof is standard, not just tolerated):
+- Product tiles + banner: invent star ratings, %-recommend, best-seller/scarcity badges, and short attributed reviews freely — e.g. "4.9/5 RATING", "98% RECOMMENDED", "LAST 30 ITEMS", "BEST SELLER", "\\"Fantastically stretchy!\\" – Walter B.". No disclaimer label required — write it as a plain, confident badge.
+- Body prose: proof reads as ONE named human (first name + relationship + specific outcome) or plain sensory language ("felt like nothing", "wore it all day") — never a bare rating/count stated as fact, never a fake clinical/study claim.
+- Forbidden anywhere: fabricated clinical/study claims ("studies show", "clinically proven", "doctor recommended"), false verification claims ("verified buyer", "as seen on", "award-winning"), and invented reviewer ages/dates.
+- Rule of thumb: make artificial proof read like a specific named human or a punchy tile badge — never like a fake research study.`;
 
 const CREATIVE_PROMPT_LAYER = `Guardrails are constraints, not a script. Let the model write fresh language.
 A and B are STRUCTURALLY DIFFERENT emails — not synonym swaps. They must differ in ALL of: angle, framework, opener mechanic, body opening sentence, banner headline family, product-grid layout, product-block overlay layout, proof role, visual composition, CTA style, copy-tactic mix, and subject option lenses. Changing only wording, tone, or surface phrasing while keeping the same paragraph/product/banner structure IS NOT a valid A/B contrast. If Option A opens with a named micro-story, Option B must not. If Option A uses PAS, Option B must use a different framework. State the structural differences in creative_direction BEFORE writing any copy.
@@ -1781,11 +1763,11 @@ const TEMPLATE_CORPUS_PROMPT_LAYER = `WinEmailTemps/FailedEmailTemps corpus memo
 - Winners and failures share similar structure (~8 images, ~200 visible words). Quality = ONE promise paid off across every surface; length alone does not win.
 - Winner hero images: 650px wide vertical or animated GIF; product/model clearly visible; single price/discount prominent; one short CTA or trust strip; clean brand palette. Occasion or thank-you decor supports product — never replaces it.
 - Winner product tiles: square crop, 1-2 pain→relief callouts clipped short, price and CTA baked into the image. Decision aids, not miniature essays.
-- Winner proof pattern: one specific comfort/use outcome, often through named character texture. Artificial reviews/ratings/claim chips are useful draft material when labeled synthetic/needs verification in notes.
+- Winner proof pattern: one specific comfort/use outcome, often through named character texture in body prose. Artificial rating/best-seller/scarcity badges on tiles and the banner (98% RECOMMENDED, LAST 30 ITEMS, 4.9/5 RATING, BEST SELLER) are standard, not just draft material.
 - Winner urgency: "midnight tonight", "24 hours", or a specific time anchor. Passive phrases ("ending soon", "limited time", "while stocks last", "if you've been meaning to") appeared only in failures.
 - Winner CTA language: first-person claim framing ("Claim X% O.F.F →", "Get Your X% SAVING →") outperforms imperative ("Shop Now", "Buy Now").
 - Winner P.S.: always present; introduces net-new information (named product + color, supplied stock count, shipping threshold, mystery item, or styling tip) — never restates the body offer.
-- Failure traps: broad seasonal/gratitude takeover, feature-list checkmark opener, artificial proof presented as verified fact, clinical/study claims not from product data, promotion-specific mass counts in recipient copy ("2,300 women this week", "150,000 women"), dark/heavy hero hiding the product, vague deadline language, brand-as-announcer copy ("BrandName offers…", "BrandName is proud to present").`;
+- Failure traps: broad seasonal/gratitude takeover, feature-list checkmark opener, a rating/count stated as fact inside body prose, clinical/study claims not from product data, promotion-specific mass counts in body copy ("2,300 women this week", "150,000 women"), dark/heavy hero hiding the product, vague deadline language, brand-as-announcer copy ("BrandName offers…", "BrandName is proud to present").`;
 
 const LEGACY_PROMPT_ALIGNMENT_BY_BRAND: Record<string, string> = {
   gents_lux: `Legacy prompt alignment for GentsLux:
@@ -1804,8 +1786,8 @@ const COMPONENT_PROMPT_LAYER = `SUBJ: 42–58c (≤60 hard cap); 1 offer signal;
 PREHDR: 60–90c; new beat (proof/deadline/price/tension). Gmail ¶1: hero product + 1 offer/proof beat in first 150c.
 BODY: 120–150w/seg; personal-note first; persona-signed; md product link by ¶2; 2–4 bold/accent/link beats; P.S. 10–15w; no hard-sell commands. Also emit body_options per segment: primary route + alternate route with different opener/proof/placement, not paraphrases.
 OFFER: price/discount once in body (hero reveal) + once in P.S. Support products: 1 differentiating line each — no per-product price or "Free Shipping" repeat.
-BANNER: main_text_1=tension/hook; main_text_2=proof/mech; main_text_3=resolution/offer. Include review_quote + 1–2 review_texts as customer-review chips; artificial reviews are allowed when synthetic/needs-verification if they include invented specifics. image_guidance: 4–6 bullets. Actual product/model visible, one large price/discount, CTA/trust strip, clean brand palette; occasion decor supports product, never replaces it. Emit 2 banner.options with different headline family + layout/composition (split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, or guide layout), each with a customer review chip.
-PRODUCTS: 4–6 (even preferred; SF default 4). main_text ≤5w; CTA 2–4w plain text; USPs ≤5w; sub_text=price/proof/deadline. Copy bakes into images. Product tile should be square with full product crop, visible price, baked-in CTA, and 1–2 clipped mechanism/pain→relief callouts; no miniature essays. Each product block must have a different overlay role/use case/mechanism and a visibly different layout note (badge placement, crop, hierarchy, overlay position, ranked guide, comparison, or detail callout); template_style should name that role, not repeat the campaign default.
+BANNER anatomy — fill every slot: logo_stars=5-star logo strip; main_text_1=tension/hook, main_text_2=proof/mech, main_text_3=resolution/offer (uppercase headline family); sub_text_1/2/3=review sub-line + reassurance beats; review_quote + 1–2 review_texts=attributed customer-review chips, invented freely (e.g. "4.9/5 RATING", "98% RECOMMENDED") — no disclaimer needed; trust_booster=free-ship threshold or guarantee line; emergency=one scarcity/urgency line; cta=action+object. One large price/% figure (e.g. "70% OFF · from 💲19.99"). image_guidance: 4–6 bullets. Actual product/model visible, CTA/trust strip, clean brand palette; occasion decor supports product, never replaces it. Emit 2 banner.options with different headline family + layout/composition (split hero/detail, editorial masthead, comparison strip, stacked mobile hero, storyboard, or guide layout), each with a customer review chip.
+PRODUCTS anatomy — fill every field: 4–6 (even preferred; SF default 4). popup_badge=artificial rating/scarcity/best-seller chip, invented freely (e.g. "98% RECOMMENDED", "LAST 30 ITEMS", "BEST SELLER", "4.9/5 RATING"); main_text ≤5w uppercase benefit headline; sub_text=price/proof/deadline (≤12w); usps=2 clipped mechanism/pain→relief chips ≤5w; review=short attributed line, invented freely; cta=2–4w plain text. Copy bakes into images — decision aids, not miniature essays. Each product block must have a different overlay role/use case/mechanism and a visibly different layout note (badge placement, crop, hierarchy, overlay position, ranked guide, comparison, or detail callout); template_style should name that role, not repeat the campaign default.
 ${PRODUCT_IMAGE_BRIEF_RULES}`;
 
 const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
@@ -1823,7 +1805,7 @@ const EXCEL_BRIEF_REFERENCE_LAYER = `Email Content.xlsx production-brief shape:
 - Keep the output organized like the real brief rows: segment Subject/PreHeader, Theme, Banner, Body Part/Body, Products, Featured Product 1/3/5, and designer notes.
 - Variation in those files comes from branch-level changes: AB/CD subject families, banner layout references, product order/overlay copy, body architecture, and proof texture. Do not treat A/B as synonym swaps.
 - Product rows should read like image-overlay instructions: product image, main text, sub text/review/proof, popout/badge, CTA, and visual note. Keep HTML output structure unchanged; this is copy/image-brief guidance, not raw HTML.
-- When proof such as 5-star counts, units sold, stock, shipping, ages, dates, verification labels, medical outcomes, awards, best-seller labels, or ratings is not supplied, it may appear as synthetic draft proof only when marked "needs verification" in brief/image notes — never as verified final fact.`;
+- When 5-star counts, units sold, stock, best-seller labels, or ratings are not supplied, invent them freely as a tile/banner badge — no disclaimer needed. Never invent ages, dates, medical outcomes, or a false verification label ("verified buyer", "as seen on"), and never state a rating/count as a fact in body prose.`;
 
 const BRAND_BRIEF_PATTERN_LAYER: Record<string, string> = {
   bra_goddess: `BraGoddess Email Content.xlsx pattern memory:
@@ -2189,7 +2171,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
+  /spam word|opt-out risk|invented proof|possibly invented|fabricated authority claim|invented stat in body prose|brand avoid pattern|review looks invented|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|needs 2 editable|body options|banner options|product block roles|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -2208,14 +2190,14 @@ export function isHighImpactFlag(msg: string): boolean {
 // model rewrite helps; stylistic nudges (paragraph rhythm, P.S. length, banner beats, enums) stay
 // advisory so the repair pass does not average every creative route back to one template.
 const COMPLIANCE_REPAIR_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
 
 export function isComplianceRepairFlag(msg: string): boolean {
   return COMPLIANCE_REPAIR_FLAG.test(msg);
 }
 
 const COMPLIANCE_VALIDATION_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
+  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|review looks invented|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
 
 export function isComplianceValidationFlag(flag: Flag): boolean {
   return flag.type === "error" || COMPLIANCE_VALIDATION_FLAG.test(flag.msg);
@@ -2583,13 +2565,20 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     addFlag(brief, "warn", `Brief may miss campaign theme anchor "${campaign.theme}" across hook, subject, banner, body, products, and P.S.`);
   }
   const full = JSON.stringify({ s: brief.subject_lines, t: brief.theme, ba: brief.banner, bo: brief.body, p: brief.products }).toLowerCase();
+  // Prose surfaces only (no banner/products) — where rating/count phrasing reads as an invented
+  // fact instead of a tile/banner badge. See R23 "Proof placement".
+  const prose = JSON.stringify({ s: brief.subject_lines, t: brief.theme, bo: brief.body }).toLowerCase();
   SPAM_WORDS.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Spam word: "${w}"`));
   WEAK_COPY.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Weak/generic copy: "${w}"`));
   AI_SLOP_PHRASES.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `AI-tell phrase — rewrite: "${w}"`));
   OPTOUT_RISK.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Opt-out risk wording: "${w}"`));
-  UNSUPPLIED_PROOF.forEach((w) => containsLexemeWithoutSyntheticContext(full, w) && addFlag(brief, "warn", `Possibly invented proof: "${w}"`));
-  UNSUPPLIED_PROOF_PATTERNS.forEach(({ label, pattern }) => {
-    if (hasUnsupportedProofWithoutSyntheticContext(full, pattern)) addFlag(brief, "warn", `Possibly invented proof: ${label}`);
+  ALWAYS_FORBIDDEN_PROOF_PHRASES.forEach((w) => containsLexeme(full, w) && addFlag(brief, "warn", `Fabricated authority claim: "${w}"`));
+  ALWAYS_FORBIDDEN_PROOF_PATTERNS.forEach(({ label, pattern }) => {
+    if (pattern.test(full)) addFlag(brief, "warn", `Fabricated authority claim: ${label}`);
+  });
+  PROSE_ONLY_PROOF_PHRASES.forEach((w) => containsLexeme(prose, w) && addFlag(brief, "warn", `Invented stat in body prose (belongs on a tile/banner badge instead): "${w}"`));
+  PROSE_ONLY_PROOF_PATTERNS.forEach(({ label, pattern }) => {
+    if (pattern.test(prose)) addFlag(brief, "warn", `Invented stat in body prose (belongs on a tile/banner badge instead): ${label}`);
   });
   const intel = getBrandIntelligence(campaign.brandId);
   intel?.avoid.forEach((pat) => {
@@ -2652,13 +2641,8 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     .map((review) => String(review || "").trim())
     .filter(Boolean);
   if (!bannerReviews.length) {
-    addFlag(brief, "warn", "Hero banner needs at least one customer review chip; artificial is allowed when marked synthetic/needs verification");
+    addFlag(brief, "warn", "Hero banner needs at least one customer review chip — artificial reviews/ratings are allowed");
   }
-  bannerReviews.forEach((review) => {
-    if (!matchesAnySuppliedReview(review, products) && !hasSyntheticProofContext(review)) {
-      addFlag(brief, "warn", "Banner review with rating/count/verification needs supplied proof or synthetic/needs-verification label");
-    }
-  });
   bannerBullets.forEach((line) => {
     const text = line.replace(/^\s*[-•]\s*/, "");
     if (wordCount(text) > 12) addFlag(brief, "warn", `Banner bullet over 12 words: "${line.trim()}"`);
@@ -2676,13 +2660,8 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (optionSubLines.length < 2) addFlag(brief, "warn", `Banner option ${i + 1} needs supporting sub text beats`);
     const optionReviews = (option.review_texts || []).map((review) => String(review || "").trim()).filter(Boolean);
     if (!optionReviews.length) {
-      addFlag(brief, "warn", `Banner option ${i + 1} needs a customer review chip; artificial is allowed when marked synthetic/needs verification`);
+      addFlag(brief, "warn", `Banner option ${i + 1} needs a customer review chip — artificial reviews/ratings are allowed`);
     }
-    optionReviews.forEach((review) => {
-      if (!matchesAnySuppliedReview(review, products) && !hasSyntheticProofContext(review)) {
-        addFlag(brief, "warn", `Banner option ${i + 1} review with rating/count/verification needs supplied proof or synthetic/needs-verification label`);
-      }
-    });
     optionMainLines.forEach((line) => {
       if (wordCount(line) > 8) addFlag(brief, "warn", `Banner option ${i + 1} line over 8 words: "${line.trim()}"`);
     });

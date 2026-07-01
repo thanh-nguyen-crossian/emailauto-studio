@@ -159,11 +159,13 @@ describe("brief validation", () => {
     expect(segJsonKey("1-A")).toBe("seg_1_A");
   });
 
-  it("flags fake source-backed proof in generated surfaces", () => {
+  it("allows artificial ratings on the banner but still flags a fabricated age/date", () => {
     const brief = baseBrief();
-    brief.banner.review_texts = ["Verified 5-star review from Martha, age 62"];
+    brief.banner.review_texts = ["4.9/5 stars from Martha, age 62"];
     const validated = validateBrief(brief, campaign, products);
-    expect((validated._flags || []).some((flag) => /invented proof|review looks invented/i.test(flag.msg))).toBe(true);
+    // Rating counts are fine as a banner badge (Jul 2026 stance); the invented age is not.
+    expect((validated._flags || []).some((flag) => /4\.9\/5/i.test(flag.msg))).toBe(false);
+    expect((validated._flags || []).some((flag) => /fabricated authority claim/i.test(flag.msg))).toBe(true);
   });
 
   it("enforces configured required products", () => {

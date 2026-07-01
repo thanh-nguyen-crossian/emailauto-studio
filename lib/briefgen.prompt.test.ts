@@ -1,5 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { artificialProofPromptLayer, brandPlaybookRuleBlock, legacyPromptAlignmentLayer, templateCorpusPromptLayer } from "./briefgen";
+import { PLAYBOOK_RULES, promptRuleBlock } from "./config/playbook";
+
+describe("playbook artificial-proof stance (Jul 2026)", () => {
+  it("never tells the model to avoid artificial proof or mark it needs-verification", () => {
+    const allRuleText = PLAYBOOK_RULES.map((r) => `${r.win} ${r.fail}`).join(" ");
+
+    expect(allRuleText.toLowerCase()).not.toContain("needs verification");
+    expect(allRuleText.toLowerCase()).not.toContain("needs-verification");
+    expect(allRuleText).toContain("standard and encouraged");
+  });
+
+  it("forbids fake clinical/study claims while allowing artificial badges", () => {
+    const rule20 = PLAYBOOK_RULES.find((r) => r.id === "R20")!;
+    const rule23 = PLAYBOOK_RULES.find((r) => r.id === "R23")!;
+
+    expect(rule20.win.toLowerCase()).toContain("badges are standard");
+    expect(rule20.fail.toLowerCase()).toContain("studies show");
+    expect(rule23.name).toBe("Proof placement");
+  });
+
+  it("threads the artificial-proof stance into the assembled prompt rule block", () => {
+    const block = promptRuleBlock("bra_goddess", "prompt");
+
+    expect(block.toLowerCase()).not.toContain("needs verification");
+  });
+});
 
 describe("playbook prompt alignment", () => {
   it("keeps win/fail template corpus lessons available to generation prompts", () => {
@@ -9,18 +35,18 @@ describe("playbook prompt alignment", () => {
     expect(layer.toLowerCase()).toContain("one promise");
     expect(layer).toContain("product/model clearly visible");
     expect(layer).toContain("square crop");
-    expect(layer).toContain("synthetic/needs verification");
+    expect(layer).toContain("standard, not just draft material");
   });
 
-  it("allows artificial proof as draft material without treating it as verified proof", () => {
+  it("allows artificial proof on tiles/banner without a verification disclaimer, but keeps clinical claims banned", () => {
     const layer = artificialProofPromptLayer();
 
-    expect(layer).toContain("review");
-    expect(layer).toContain("banner customer-review chips");
+    expect(layer).toContain("banner");
     expect(layer).toContain("rating");
-    expect(layer).toContain("synthetic");
-    expect(layer).toContain("needs verification");
-    expect(layer).toContain("verified");
+    expect(layer).toContain("BEST SELLER");
+    expect(layer).not.toContain("needs verification");
+    expect(layer.toLowerCase()).toContain("studies show");
+    expect(layer.toLowerCase()).toContain("verified buyer");
   });
 
   it("keeps GentsLux legacy prompt habits available to the app", () => {
