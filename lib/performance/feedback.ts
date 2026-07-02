@@ -36,6 +36,8 @@ export interface SendOutcome {
   subjectStyle?: string;
   hero?: string;
   productSlugs?: string[];
+  /** Which generated option (A/B) this send used — for the F1.5 dashboard's A-vs-B win-rate table. */
+  optionKey?: "a" | "b";
   metrics?: SendMetrics;
   /** Optional explicit win flag; when absent, win is inferred from CTR vs. the set median. */
   won?: boolean;

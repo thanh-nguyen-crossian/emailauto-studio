@@ -45,6 +45,22 @@ function describeError(err: unknown): string {
   return `SendGrid error${status ? ` ${status}` : ""}: ${detail}`;
 }
 
+/** Thrown by the F1.3/F2.1 stats + Single Send functions — carries the HTTP status so callers can back off on 429. */
+export class SendGridApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "SendGridApiError";
+    this.status = status;
+  }
+}
+
+function toSendGridError(err: unknown): SendGridApiError {
+  const e = err as SendGridError;
+  const status = e.response?.statusCode ?? e.code;
+  return new SendGridApiError(describeError(err), status);
+}
+
 /** POST /v3/designs — store the HTML as a reusable design (editor: "code"). */
 export async function createDesign(input: CreateDesignInput): Promise<CreatedDesign> {
   let body: unknown;
@@ -158,7 +174,7 @@ export async function getSingleSendStats(singlesendId: string): Promise<SingleSe
   try {
     [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/stats/singlesends/${singlesendId}` });
   } catch (err) {
-    throw new Error(describeError(err));
+    throw toSendGridError(err);
   }
   const results = ((body as { results?: { stats?: SingleSendStatsResultStats }[] })?.results) || [];
   const totals: SingleSendStats = { delivered: 0, uniqueOpens: 0, uniqueClicks: 0, bounces: 0, unsubscribes: 0, spamReports: 0 };
@@ -180,7 +196,7 @@ export async function getSingleSendClickStats(singlesendId: string): Promise<Rec
   try {
     [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/stats/singlesends/${singlesendId}/links` });
   } catch (err) {
-    throw new Error(describeError(err));
+    throw toSendGridError(err);
   }
   const results = ((body as { results?: { url?: string; unique_clicks?: number; clicks?: number }[] })?.results) || [];
   const byUrl: Record<string, number> = {};
@@ -204,7 +220,7 @@ export async function listSingleSends(pageSize = 50): Promise<SingleSendSummary[
   try {
     [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/singlesends?page_size=${pageSize}` });
   } catch (err) {
-    throw new Error(describeError(err));
+    throw toSendGridError(err);
   }
   const result = ((body as { result?: { id?: string; name?: string; status?: string; send_at?: string | null }[] })?.result) || [];
   return result.map((r) => ({ id: r.id || "", name: r.name || "", status: r.status || "", sendAt: r.send_at || null }));
@@ -222,7 +238,7 @@ export async function listContactLists(): Promise<ContactList[]> {
   try {
     [, body] = await getClient().request({ method: "GET", url: "/v3/marketing/lists?page_size=100" });
   } catch (err) {
-    throw new Error(describeError(err));
+    throw toSendGridError(err);
   }
   const result = ((body as { result?: { id?: string; name?: string; contact_count?: number }[] })?.result) || [];
   return result.map((r) => ({ id: r.id || "", name: r.name || "", contactCount: r.contact_count || 0 }));
@@ -270,7 +286,7 @@ export async function createSingleSend(input: CreateSingleSendInput): Promise<Cr
       },
     });
   } catch (err) {
-    throw new Error(describeError(err));
+    throw toSendGridError(err);
   }
   const b = body as { id?: string; status?: string };
   return { id: b.id || "", status: b.status || "draft" };
@@ -289,7 +305,7 @@ export async function scheduleSingleSend(singlesendId: string, sendAt: "now" | s
       body: { send_at: sendAt },
     });
   } catch (err) {
-    throw new Error(describeError(err));
+    throw toSendGridError(err);
   }
   return { status: (body as { status?: string })?.status || "scheduled" };
 }

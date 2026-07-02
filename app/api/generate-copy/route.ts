@@ -8,6 +8,7 @@ import { requireActiveUser } from "@/lib/supabaseAdmin";
 import { apiError, apiErrorFromCaught, apiOk, rateLimitedResponse } from "@/lib/api/respond";
 import { createRateLimiter, requestRateKey } from "@/lib/api/rateLimit";
 import { loadPerformanceHistory } from "@/lib/performance/serverHistory";
+import { getWinningExemplars } from "@/lib/performance/corpus";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
 const MAX_PRODUCTS = 6;
@@ -279,7 +280,14 @@ export async function POST(req: NextRequest) {
   // Server-side truth for the performance feedback loop (F1.4) — replaces whatever the client
   // might send for performanceHistory; the client has no access to real CTR data.
   if (activeUser?.userId) {
-    v.campaign.performanceHistory = await loadPerformanceHistory(activeUser.userId, v.campaign.brandId);
+    const [performanceHistory, winningExemplars] = await Promise.all([
+      loadPerformanceHistory(activeUser.userId, v.campaign.brandId),
+      getWinningExemplars(activeUser.userId, v.campaign.brandId),
+    ]);
+    v.campaign.performanceHistory = performanceHistory;
+    if (winningExemplars.subjects.length || winningExemplars.openers.length) {
+      v.campaign.winningExemplars = winningExemplars;
+    }
   }
 
   const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;

@@ -276,6 +276,12 @@ export interface Campaign {
    * model biases toward what is converting for this brand. See lib/performance/feedback.ts.
    */
   performanceHistory?: SendOutcome[];
+  /**
+   * Server-loaded few-shot exemplars mined from this brand's real top-quartile-CTR sends (F1.7).
+   * Injected as a "imitate the shape, never the words" prompt layer (Q3) — see
+   * lib/performance/corpus.ts and winningExemplarsPromptLayer in lib/briefgen.ts.
+   */
+  winningExemplars?: { subjects: string[]; openers: string[] };
   /** Auto-computed variety profile for this send. Never user-typed. */
   bodyVariety?: BodyVarietyProfile;
 }

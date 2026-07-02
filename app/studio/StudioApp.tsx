@@ -43,7 +43,7 @@ import { renderEmailHTML, type ProductLayout } from "@/lib/render/email";
 import { analyzeBriefDeliverability } from "@/lib/quality/deliverability";
 import { scoreFreshnessAgainstHistory } from "@/lib/quality/freshness";
 import { analyzeProductPriceOutliers } from "@/lib/quality/productData";
-import { listSendHistory, recordSendHistory, type SendHistoryRow } from "@/lib/sendHistory";
+import { linkSingleSend, listSendHistory, listUnlinkedSendHistory, recordSendHistory, type SendHistoryRow } from "@/lib/sendHistory";
 import {
   CONSENT_OPTIONS,
   CUSTOM_PRODUCT_VALUE,
@@ -329,6 +329,9 @@ export function StudioApp() {
   const [recentSendHistory, setRecentSendHistory] = useState<SendHistoryRow[]>([]);
   const [sendHistoryState, setSendHistoryState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [sendHistoryError, setSendHistoryError] = useState<string | null>(null);
+  const [singlesendInput, setSinglesendInput] = useState("");
+  const [singlesendLinkState, setSinglesendLinkState] = useState<"idle" | "linking" | "linked" | "error">("idle");
+  const [singlesendLinkError, setSinglesendLinkError] = useState<string | null>(null);
 
   async function refreshAuth() {
     if (!supabaseConfigured()) {
@@ -1143,6 +1146,7 @@ export function StudioApp() {
           ? { id: data.id, editorUrl: data.editorUrl, warnings: data.warnings, blocking: data.blocking, cleanedBytes: data.cleanedBytes }
           : { error: data.error ? errorMessage(data) : undefined, warnings: data.warnings, blocking: data.blocking },
       }));
+      if (res.ok && data.id) void recordSyncLinkage(opt, seg, { designId: data.id });
     } catch (e) {
       setSyncResults((r) => ({ ...r, [key]: { error: e instanceof Error ? e.message : "Network error" } }));
     } finally {
@@ -1163,6 +1167,7 @@ export function StudioApp() {
           ? { templateId: data.templateId, editorUrl: data.editorUrl, warnings: data.warnings, blocking: data.blocking, cleanedBytes: data.cleanedBytes }
           : { error: data.error ? errorMessage(data) : undefined, warnings: data.warnings, blocking: data.blocking },
       }));
+      if (res.ok && data.templateId) void recordSyncLinkage(opt, seg, { templateId: data.templateId });
     } catch (e) {
       setTplResults((r) => ({ ...r, [key]: { error: e instanceof Error ? e.message : "Network error" } }));
     } finally {
@@ -1192,32 +1197,81 @@ export function StudioApp() {
     }
   }
 
+  /** First sentence (or ~140 chars) of a segment's body copy, stripped of markdown — for the F1.7 winning-copy corpus. */
+  function bodyOpener(brief: GenBrief, seg: string): string {
+    const raw = String(brief.body?.[segJsonKey(seg)] || brief.body?.base || "");
+    const plain = raw.replace(/[=*_[\]()]/g, "").replace(/\s+/g, " ").trim();
+    const firstSentence = plain.match(/^[^.!?]*[.!?]/)?.[0] || plain;
+    return firstSentence.slice(0, 140);
+  }
+
+  function creativeLeverRow(brief: GenBrief, seg: string, opt: OptKey): RecentSendMemory & { data?: Record<string, unknown> } {
+    const cd = brief.creative_direction || {};
+    return {
+      brandId,
+      segment: seg,
+      sendDate,
+      optionKey: opt,
+      angle: cd.angle,
+      framework: cd.framework,
+      openerMechanic: brief.quality_checks?.opener_mechanic || brief.body_variety?.openerMechanic,
+      emotionalArc: brief.body_variety?.emotionalArc,
+      visualPattern: [cd.branch, cd.brief_route, brief.banner?.main_image, brief.banner?.sub_image].filter(Boolean).join(" · "),
+      heroSlug: selectedProducts[0]?.slug || brief.products?.[0]?.name,
+      data: { subject: subjectFor(opt, seg), opener: bodyOpener(brief, seg) },
+    };
+  }
+
   async function recordCurrentSendHistory() {
     if (!activeBrief) return;
     setSendHistoryState("saving");
     setSendHistoryError(null);
     try {
-      const cd = activeBrief.creative_direction || {};
-      const rows: RecentSendMemory[] = segments.map((seg) => ({
-        brandId,
-        segment: seg,
-        sendDate,
-        optionKey: activeOption,
-        angle: cd.angle,
-        framework: cd.framework,
-        openerMechanic: activeBrief.quality_checks?.opener_mechanic || activeBrief.body_variety?.openerMechanic,
-        emotionalArc: activeBrief.body_variety?.emotionalArc,
-        visualPattern: [cd.branch, cd.brief_route, activeBrief.banner?.main_image, activeBrief.banner?.sub_image]
-          .filter(Boolean)
-          .join(" · "),
-        heroSlug: selectedProducts[0]?.slug || activeBrief.products?.[0]?.name,
-      }));
+      const rows = segments.map((seg) => creativeLeverRow(activeBrief, seg, activeOption));
       await recordSendHistory(rows);
       setSendHistoryState("saved");
       if (supabaseConfigured() && userId) setRecentSendHistory(await listSendHistory(brandId, 18));
     } catch (e) {
       setSendHistoryState("error");
       setSendHistoryError(e instanceof Error ? e.message : "Could not record send history");
+    }
+  }
+
+  /**
+   * F1.2: auto-record the send-history linkage (design/template id + creative levers) the moment
+   * a Design/Template sync succeeds, instead of relying on the separate manual "Record send
+   * memory" button. Best-effort — a failure here must never surface as a sync failure.
+   */
+  async function recordSyncLinkage(opt: OptKey, seg: string, linkage: { designId?: string; templateId?: string }) {
+    if (!supabaseConfigured() || !userId) return;
+    const brief = options[opt];
+    if (!brief) return;
+    try {
+      await recordSendHistory([{ ...creativeLeverRow(brief, seg, opt), ...linkage }]);
+      setRecentSendHistory(await listSendHistory(brandId, 18));
+    } catch {
+      // non-fatal: the sync itself already succeeded and is reflected in the UI
+    }
+  }
+
+  /** Paste a Single Send id/URL after scheduling it in SendGrid — links the brand's most recent unlinked rows. */
+  async function submitSinglesendLink() {
+    const raw = singlesendInput.trim();
+    if (!raw) return;
+    // Accept either a bare id or a SendGrid Marketing Campaigns URL ending in the id.
+    const singlesendId = raw.includes("/") ? raw.replace(/\/+$/, "").split("/").pop() || raw : raw;
+    setSinglesendLinkState("linking");
+    setSinglesendLinkError(null);
+    try {
+      const unlinked = await listUnlinkedSendHistory(brandId, segments.length * 2 || 12);
+      if (!unlinked.length) throw new Error("No recently recorded sends to link — sync a Design/Template first.");
+      await linkSingleSend(unlinked.map((r) => r.id), singlesendId);
+      setSinglesendLinkState("linked");
+      setSinglesendInput("");
+      setRecentSendHistory(await listSendHistory(brandId, 18));
+    } catch (e) {
+      setSinglesendLinkState("error");
+      setSinglesendLinkError(e instanceof Error ? e.message : "Could not link Single Send");
     }
   }
 
@@ -2260,6 +2314,25 @@ export function StudioApp() {
                   {saveState === "error" && <span className="text-xs text-[var(--bad)]">{saveError}</span>}
                   {sendHistoryState === "error" && <span className="text-xs text-[var(--bad)]">{sendHistoryError}</span>}
                 </div>
+                {authState === "in" && (
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={singlesendInput}
+                      onChange={(e) => setSinglesendInput(e.target.value)}
+                      placeholder="Paste the Single Send URL or id after scheduling in SendGrid…"
+                      className="input flex-1 min-w-[260px]"
+                      aria-label="SendGrid Single Send URL or id"
+                    />
+                    <button onClick={submitSinglesendLink} disabled={singlesendLinkState === "linking" || !singlesendInput.trim()} className="btn-ghost">
+                      {singlesendLinkState === "linking" ? "Linking…" : singlesendLinkState === "linked" ? "Linked" : "Link Single Send"}
+                    </button>
+                    {singlesendLinkState === "error" && <span className="text-xs text-[var(--bad)]">{singlesendLinkError}</span>}
+                    <span className="text-xs text-[var(--muted)] w-full">
+                      Links this brand&apos;s most recently synced sends so performance stats (F1.3) can be pulled back automatically.
+                    </span>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {(["a", "b"] as OptKey[]).flatMap((opt) =>
                     options[opt] ? segments.map((seg) => {

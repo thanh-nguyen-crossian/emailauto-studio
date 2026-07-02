@@ -42,6 +42,7 @@ function toOutcome(row: SendHistoryMetricsRow): SendOutcome {
     openerMechanic: row.opener_mechanic || undefined,
     emotionalArc: row.emotional_arc || undefined,
     hero: row.hero_slug || undefined,
+    optionKey: row.option_key || undefined,
     metrics: hasMetrics
       ? {
           ctrPct: round(((row.unique_clicks ?? 0) / delivered) * 100),

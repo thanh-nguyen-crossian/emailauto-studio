@@ -501,3 +501,26 @@ describe("validateBriefPair", () => {
     expect(allAdvisory.some((x) => /opener|openers/i.test(x.msg))).toBe(true);
   });
 });
+
+describe("Q3 winning-exemplar copying check", () => {
+  it("flags body copy that repeats a winning exemplar almost verbatim", () => {
+    const brief = validateBrief(baseBrief(), {
+      ...campaign,
+      winningExemplars: { subjects: [], openers: ["Some bras make the day feel longer before you even leave the room."] },
+    }, braRequiredProducts);
+    expect((brief._advisory || []).some((f) => /past winning exemplar/i.test(f.msg))).toBe(true);
+  });
+
+  it("does not flag copy that only shares brand/product vocabulary, not phrasing", () => {
+    const brief = validateBrief(baseBrief(), {
+      ...campaign,
+      winningExemplars: { subjects: ["A completely different hook about something unrelated entirely"], openers: ["Nothing like this brief's actual wording at all here"] },
+    }, braRequiredProducts);
+    expect((brief._advisory || []).some((f) => /past winning exemplar/i.test(f.msg))).toBe(false);
+  });
+
+  it("is a no-op when the campaign has no winning exemplars", () => {
+    const brief = validateBrief(baseBrief(), campaign, braRequiredProducts);
+    expect((brief._advisory || []).some((f) => /past winning exemplar/i.test(f.msg))).toBe(false);
+  });
+});

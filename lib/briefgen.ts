@@ -1628,6 +1628,38 @@ function phraseOverlap(a: string, b: string, size = 5): number {
   });
   return shared / denom;
 }
+/**
+ * Q3 (docs/IMPROVEMENT_PLAN-2026-07-02.md): the exemplar layer tells the model to imitate the
+ * *shape* of past winners, never their exact words — this catches when it copies a phrase
+ * verbatim anyway. 4-word-or-longer shared sequences are treated as copying, not coincidence.
+ */
+function exemplarCopyingHits(brief: GenBrief, exemplars: Campaign["winningExemplars"]): string[] {
+  if (!exemplars || (!exemplars.subjects.length && !exemplars.openers.length)) return [];
+  const exemplarGrams = new Set<string>();
+  [...exemplars.subjects, ...exemplars.openers].forEach((text) => {
+    ngramSet(text, 4).forEach((g) => exemplarGrams.add(g));
+  });
+  if (!exemplarGrams.size) return [];
+
+  const briefTexts: string[] = [];
+  Object.values(brief.subject_lines || {}).forEach((v) => {
+    if (v.subject) briefTexts.push(v.subject);
+    if (v.preheader) briefTexts.push(v.preheader);
+  });
+  if (brief.body?.base) briefTexts.push(String(brief.body.base));
+  Object.entries(brief.body || {}).forEach(([k, v]) => {
+    if (k !== "base" && typeof v === "string") briefTexts.push(v);
+  });
+
+  const hits = new Set<string>();
+  briefTexts.forEach((text) => {
+    ngramSet(text, 4).forEach((g) => {
+      if (exemplarGrams.has(g)) hits.add(g);
+    });
+  });
+  return [...hits];
+}
+
 function hardSellHits(s: string): string[] {
   const hits: string[] = [];
   BODY_HARD_SELL_PATTERNS.forEach(({ label, pattern }) => {
@@ -1810,6 +1842,22 @@ const SENDGRID_HTML_PROMPT_LAYER = `SendGrid/WinEmailTemps April 2026 fit:
 - Product modules are image-only links in HTML; product block text/CTA is brief copy to bake inside images, not captions under images.
 - Footer is handled by renderer: thanks line, product/purchase placeholders, opt-out-below sentence, reply/contact-list reminder, homepage, 1851 Central Park Loop address, Privacy Policy, Exchanges & Returns. Do not write a second footer in body/P.S.
 - HTML expectations for QA: clicktracking off on links, descriptive alt text, max-width responsive images, role=module/table layout compatibility, light-background SendGrid design.`;
+
+/**
+ * Q3 — few-shot grounding from this brand's real top-quartile-CTR sends (F1.7's live corpus).
+ * Explicitly "imitate the shape, never the words" — exemplarCopyingHits() checks compliance.
+ */
+function winningExemplarsPromptLayer(exemplars: Campaign["winningExemplars"]): string {
+  if (!exemplars || (!exemplars.subjects.length && !exemplars.openers.length)) return "";
+  const lines: string[] = [
+    "WINNING EXEMPLARS FROM THIS BRAND'S REAL SEND HISTORY (imitate the *shape* — rhythm, structure, hook style — never copy the words or reuse exact phrasing; a 4-word verbatim match is flagged):",
+  ];
+  if (exemplars.subjects.length) lines.push(`Top-performing subject lines: ${exemplars.subjects.map((s) => `"${s}"`).join(" | ")}`);
+  if (exemplars.openers.length) lines.push(`Top-performing body openers: ${exemplars.openers.map((s) => `"${s}"`).join(" | ")}`);
+  const block = lines.join("\n");
+  const CHAR_CAP = 2000; // ~500 tokens
+  return block.length > CHAR_CAP ? `${block.slice(0, CHAR_CAP - 1)}…` : block;
+}
 
 const PERFORMANCE_PROMPT_LAYER = `Pages are generally converting; assume email intent is the leak unless supplied page/product data says otherwise.
 Access/Delivered drop -> improve lead/body/CTA path. PO/View drop -> improve product order, price clarity, fit proof, page-product match. Optout/spam risk -> softer urgency and narrower list.
@@ -2080,6 +2128,7 @@ This rule applies to every segment in body[segKey].`,
     { title: "Subject Devices", body: subjectDeviceLayer(brand) },
     { title: "Performance Lens", body: `${PERFORMANCE_PROMPT_LAYER}\n${perfContext}` },
     { title: "Adaptive Performance Feedback", body: performanceFeedbackPromptBlock(campaign.performanceHistory, campaign.brandId) },
+    { title: "Winning Exemplars", body: winningExemplarsPromptLayer(campaign.winningExemplars) },
     { title: "Option Contrast", body: contrast },
     { title: "Winning Reference", body: winning },
     {
@@ -3039,6 +3088,10 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   brief._creative_score = computeCreativityScore(brief);
   if (brief._creative_score < 70) {
     addFlag(brief, "warn", `Creative score ${brief._creative_score}/100 — add a concrete human or product moment and reduce repeated mechanism or offer phrasing`);
+  }
+  const exemplarHits = exemplarCopyingHits(brief, campaign.winningExemplars);
+  if (exemplarHits.length) {
+    addFlag(brief, "warn", `Copy repeats a past winning exemplar almost verbatim ("${exemplarHits[0]}") — imitate the shape, not the words`);
   }
   brief._technique_coverage = computeTechniqueCoverage(brief, campaign);
   brief._technique_score = brief._technique_coverage.score;
