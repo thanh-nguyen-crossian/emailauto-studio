@@ -84,6 +84,44 @@ describe("listContactLists", () => {
     const { listContactLists } = await import("./sendgrid");
     expect(await listContactLists()).toEqual([{ id: "list_1", name: "Active customers", contactCount: 12000 }]);
   });
+
+  it("follows SendGrid pagination and de-duplicates list ids", async () => {
+    requestMock
+      .mockResolvedValueOnce([{}, {
+        result: [{ id: "list_1", name: "Active customers", contact_count: 12000 }],
+        _metadata: { next: "https://api.sendgrid.com/v3/marketing/lists?page_size=1&page_token=next_page" },
+      }])
+      .mockResolvedValueOnce([{}, {
+        result: [
+          { id: "list_1", name: "Active customers duplicate", contact_count: 12000 },
+          { id: "list_2", name: "VIP buyers", contact_count: 900 },
+        ],
+      }]);
+    const { listContactLists } = await import("./sendgrid");
+    expect(await listContactLists(1, 3)).toEqual([
+      { id: "list_1", name: "Active customers", contactCount: 12000 },
+      { id: "list_2", name: "VIP buyers", contactCount: 900 },
+    ]);
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(requestMock.mock.calls[1][0].url).toContain("page_token=next_page");
+  });
+});
+
+describe("listSingleSendsPaginated", () => {
+  it("follows SendGrid pagination for Single Send summaries", async () => {
+    requestMock
+      .mockResolvedValueOnce([{}, {
+        result: [{ id: "ss_1", name: "July A", status: "draft", send_at: null }],
+        _metadata: { next: "https://api.sendgrid.com/v3/marketing/singlesends?page_size=1&page_token=ss_next" },
+      }])
+      .mockResolvedValueOnce([{}, { result: [{ id: "ss_2", name: "July B", status: "scheduled", send_at: "2026-07-03T00:00:00Z" }] }]);
+    const { listSingleSendsPaginated } = await import("./sendgrid");
+    expect(await listSingleSendsPaginated(1, 3)).toEqual([
+      { id: "ss_1", name: "July A", status: "draft", sendAt: null },
+      { id: "ss_2", name: "July B", status: "scheduled", sendAt: "2026-07-03T00:00:00Z" },
+    ]);
+    expect(requestMock.mock.calls[1][0].url).toContain("page_token=ss_next");
+  });
 });
 
 describe("createSingleSend", () => {

@@ -198,6 +198,9 @@ export function BriefView({
             {typeof displayBrief._technique_score === "number" && (
               <Tag label={`Technique: ${displayBrief._technique_score}/100`} />
             )}
+            {typeof displayBrief._deliverability_score === "number" && (
+              <Tag label={`Deliverability: ${displayBrief._deliverability_score}/100`} />
+            )}
             <Row k="Source pattern" v={cd.source_pattern} />
             <Row k="Flow" v={cd.flow} />
             <Row k="Differentiator" v={cd.differentiator} />
@@ -727,6 +730,7 @@ export function briefToMarkdown(rawBrief: GenBrief, title: string): string {
     ] : []),
     ...(typeof brief._creative_score === "number" ? [`- Creativity score: ${brief._creative_score}/100`] : []),
     ...(typeof brief._technique_score === "number" ? [`- Technique score: ${brief._technique_score}/100`] : []),
+    ...(typeof brief._deliverability_score === "number" ? [`- Deliverability score: ${brief._deliverability_score}/100`] : []),
     ...(cd.concept?.techniquePlan ? [
       `- Technique lead: ${cd.concept.techniquePlan.lead}`,
       `- Technique seasoning: ${cd.concept.techniquePlan.seasoning.join(", ") || "none"}`,

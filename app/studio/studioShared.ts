@@ -17,7 +17,7 @@ import {
 import type { GenBrief } from "@/lib/briefgen";
 import type { ProductLayout } from "@/lib/render/email";
 
-export type View = "build" | "review" | "output";
+export type View = "build" | "review" | "output" | "performance";
 export type OptKey = "a" | "b";
 
 /** A product slot: a chosen catalog product + per-send URL override + the USPs selected for copy. */

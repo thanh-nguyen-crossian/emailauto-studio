@@ -425,9 +425,94 @@ describe("brief validation", () => {
     const validated = validateBrief(brief, gentsCampaign, gentsProducts);
     expect((validated._flags || []).some((flag) => /missing required homepage link/i.test(flag.msg))).toBe(true);
   });
+
+  it("flags segment bodies with high trigram overlap", () => {
+    const brief = baseBrief();
+    const campaignTwoSegments: Campaign = { ...campaign, segments: ["21", "22"] };
+    const key21 = segJsonKey("21");
+    const key22 = segJsonKey("22");
+    brief.subject_lines![key22] = {
+      subject: "{{first_name}}, Daisy comfort has a quiet fix",
+      preheader: "Soft straps, front-snap ease, and the same 💲12.99 Daisy comfort before midnight.",
+      style: "direct",
+      model_hint: "direct",
+      shared_thread: "Daisy comfort",
+      options: [],
+    };
+    const clonedRhythm =
+      "Some bras make the day feel longer before you even leave the room. [Daisy Bra](slug:daisybra) keeps the fix simple with a front snap, soft straps, and wire-free support at ==💲12.99== today.\n\n" +
+      "That is the kind of comfort you notice when the band stays calm, the cups stop shifting, and your shoulders are no longer doing extra work. Free Shipping 💲35+ is active before midnight.\n\n" +
+      "I would keep this one for the days when getting dressed needs to feel simple, because the closure is easy, the shape stays smooth, and the support does not turn into a negotiation by lunch.\n\n" +
+      "Try Daisy today.\n\nSandra";
+    brief.body![key21] = clonedRhythm;
+    brief.body![key22] = clonedRhythm.replace("before you even leave the room", "before breakfast even starts").replace("cups stop shifting", "support stops shifting");
+
+    const validated = validateBrief(brief, campaignTwoSegments, braRequiredProducts);
+    const messages = [...(validated._flags || []), ...(validated._advisory || [])].map((flag) => flag.msg).join("\n");
+    expect(messages).toMatch(/trigram overlap/i);
+  });
+
+  it("flags segment bodies missing accent highlights", () => {
+    const brief = baseBrief();
+    const key = segJsonKey("21");
+    brief.body![key] = String(brief.body![key]).replace(/==/g, "");
+
+    const validated = validateBrief(brief, campaign, braRequiredProducts);
+    const messages = [...(validated._flags || []), ...(validated._advisory || [])].map((flag) => flag.msg).join("\n");
+    expect(messages).toMatch(/missing ==accent== highlights/i);
+  });
+
+  it("flags subject urgency that drifts from the campaign or other segments", () => {
+    const brief = baseBrief();
+    const campaignTwoSegments: Campaign = { ...campaign, segments: ["21", "22"], urgency: "h24" };
+    const key22 = segJsonKey("22");
+    brief.subject_lines![key22] = {
+      subject: "{{first_name}}, Daisy has 72 hours left",
+      preheader: "Front-snap comfort, wire-free support, and the 💲12.99 Daisy price for 3 days.",
+      style: "deadline",
+      model_hint: "deadline",
+      shared_thread: "Daisy comfort",
+      options: [],
+    };
+    brief.body![key22] =
+      "Some mornings need a calmer first layer. [Daisy Bra](slug:daisybra) brings front-snap ease, soft straps, and ==💲12.99== support before midnight.\n\nThat comfort gives lapsed buyers a simple reason to come back without fighting hooks or wires.\n\nTry Daisy today.\n\nSandra";
+
+    const validated = validateBrief(brief, campaignTwoSegments, braRequiredProducts);
+    const messages = [...(validated._flags || []), ...(validated._advisory || [])].map((flag) => flag.msg).join("\n");
+    expect(messages).toMatch(/subject\/preheader urgency .*does not match campaign urgency/i);
+    expect(messages).toMatch(/Subject\/preheader urgency differs across segments/i);
+  });
+
+  it("flags subject option sets that reuse the same testing device", () => {
+    const brief = baseBrief();
+    const key = segJsonKey("21");
+    brief.subject_lines![key]!.options = [
+      { style: "value", model_hint: "value", subject: "{{first_name}}, Daisy is 💲12.99 today", preheader: "Front-snap comfort and Free Shipping 💲35+ before midnight.", shared_thread: "price" },
+      { style: "deal", model_hint: "deal", subject: "{{first_name}}, Daisy comfort for 💲12.99", preheader: "Soft support, a clearer fit, and Free Shipping 💲35+ today.", shared_thread: "price" },
+      { style: "offer", model_hint: "offer", subject: "{{first_name}}, today’s Daisy price is 💲12.99", preheader: "Wire-free support and the Daisy comfort price before midnight.", shared_thread: "price" },
+    ];
+
+    const validated = validateBrief(brief, campaign, braRequiredProducts);
+    const messages = [...(validated._flags || []), ...(validated._advisory || [])].map((flag) => flag.msg).join("\n");
+    expect(messages).toMatch(/subject options need 3 distinct devices/i);
+  });
 });
 
 describe("validateBriefPair", () => {
+  it("preserves deliverability weighting when pair checks rescore a brief", () => {
+    const briefA = baseBrief();
+    const key = segJsonKey("21");
+    briefA.subject_lines![key]!.subject = "Re: you're a winner, {{first_name}}!!!";
+    briefA.subject_lines![key]!.preheader = "Daisy is 💲12.99 today with soft support before midnight.";
+    const validatedA = validateBrief(briefA, campaign, braRequiredProducts);
+    const before = validatedA._score || 0;
+    expect(validatedA._deliverability_score).toBeLessThan(100);
+
+    const validatedB = validateBrief(baseBrief(), campaign, braRequiredProducts);
+    const [after] = validateBriefPair(validatedA, validatedB);
+    expect(after._score || 0).toBeLessThanOrEqual(before);
+  });
+
   it("returns both briefs unchanged when they are clearly distinct", () => {
     const briefA = baseBrief();
     const briefB = baseBrief();

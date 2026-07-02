@@ -68,6 +68,7 @@ import {
 import { useStudioReducer } from "./useStudioReducer";
 import { BuildView } from "./views/BuildView";
 import { OutputView } from "./views/OutputView";
+import { PerformanceView } from "./views/PerformanceView";
 import { ReviewView } from "./views/ReviewView";
 import {
   ABContrastPanel,
@@ -332,6 +333,15 @@ export function StudioApp() {
   const [singlesendInput, setSinglesendInput] = useState("");
   const [singlesendLinkState, setSinglesendLinkState] = useState<"idle" | "linking" | "linked" | "error">("idle");
   const [singlesendLinkError, setSinglesendLinkError] = useState<string | null>(null);
+  const [contactLists, setContactLists] = useState<{ id: string; name: string; contactCount: number }[]>([]);
+  const [contactListsState, setContactListsState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const [contactListsError, setContactListsError] = useState<string | null>(null);
+  const [singleSendListId, setSingleSendListId] = useState("");
+  const [singleSendScheduleMode, setSingleSendScheduleMode] = useState<"draft" | "now" | "later">("draft");
+  const [singleSendAt, setSingleSendAt] = useState("");
+  const [singleSendState, setSingleSendState] = useState<"idle" | "creating" | "created" | "error">("idle");
+  const [singleSendError, setSingleSendError] = useState<string | null>(null);
+  const [singleSendResult, setSingleSendResult] = useState<string | null>(null);
 
   async function refreshAuth() {
     if (!supabaseConfigured()) {
@@ -1043,6 +1053,8 @@ export function StudioApp() {
   }
   const activeHtmlKey = `${activeOption}:${activeSegment}`;
   const activeHtmlEdited = htmlOverrides[activeHtmlKey] != null;
+  const activeDesignId = syncResults[activeHtmlKey]?.id;
+  const activeTemplateId = tplResults[activeHtmlKey]?.templateId;
   function subjectFor(opt: OptKey, seg: string): string {
     return options[opt]?.subject_lines?.[segJsonKey(seg)]?.subject || `${brand.name} ${seg}`;
   }
@@ -1275,6 +1287,105 @@ export function StudioApp() {
     }
   }
 
+  async function loadContactLists() {
+    setContactListsState("loading");
+    setContactListsError(null);
+    try {
+      const res = await fetch("/api/sendgrid/singlesend", { headers: await authHeader() });
+      const json = await res.json();
+      if (!res.ok) throw new Error(errorMessage(json) || "Could not load SendGrid lists");
+      const lists = Array.isArray(json.lists) ? json.lists as { id: string; name: string; contactCount: number }[] : [];
+      setContactLists(lists);
+      setSingleSendListId((current) => current || lists[0]?.id || "");
+      setContactListsState("loaded");
+    } catch (e) {
+      setContactListsState("error");
+      setContactListsError(e instanceof Error ? e.message : "Could not load SendGrid lists");
+    }
+  }
+
+  function scheduleSendAt(): "now" | string | undefined {
+    if (singleSendScheduleMode === "draft") return undefined;
+    if (singleSendScheduleMode === "now") return "now";
+    if (!singleSendAt) return "";
+    const dt = new Date(singleSendAt);
+    return Number.isFinite(dt.getTime()) ? dt.toISOString() : "";
+  }
+
+  async function createSingleSendForActive() {
+    if (!activeBrief) return;
+    if (segmentIncomplete(activeOption, activeSegment)) {
+      setSingleSendState("error");
+      setSingleSendError("Complete this segment before creating a Single Send.");
+      return;
+    }
+    if (!activeDesignId && !activeTemplateId) {
+      setSingleSendState("error");
+      setSingleSendError("Sync this active segment as a Design or Template first.");
+      return;
+    }
+    if (!singleSendListId) {
+      setSingleSendState("error");
+      setSingleSendError("Choose a SendGrid contact list first.");
+      return;
+    }
+    const sendDesignId = activeDesignId;
+    const sendTemplateId = activeDesignId ? undefined : activeTemplateId;
+    const sendAt = scheduleSendAt();
+    if (sendAt === "") {
+      setSingleSendState("error");
+      setSingleSendError("Choose a valid schedule time.");
+      return;
+    }
+    const chosenList = contactLists.find((list) => list.id === singleSendListId);
+    if (sendAt) {
+      const label = sendAt === "now" ? "send now" : `schedule for ${new Date(sendAt).toLocaleString()}`;
+      const audience = chosenList ? `${chosenList.name}${chosenList.contactCount ? ` (${chosenList.contactCount.toLocaleString()} contacts)` : ""}` : "the selected list";
+      if (!window.confirm(`Create and ${label} Option ${activeOption.toUpperCase()} / segment ${activeSegment} to ${audience}?`)) return;
+    }
+
+    setSingleSendState("creating");
+    setSingleSendError(null);
+    setSingleSendResult(null);
+    try {
+      let rowIds: string[] = [];
+      try {
+        const rows = await listUnlinkedSendHistory(brandId, Math.max(12, segments.length * 2));
+        rowIds = rows
+          .filter((row) => row.segment === activeSegment && row.optionKey === activeOption)
+          .filter((row) => sendDesignId ? row.designId === sendDesignId : !sendTemplateId || row.templateId === sendTemplateId)
+          .map((row) => row.id);
+      } catch {
+        rowIds = [];
+      }
+      const res = await fetch("/api/sendgrid/singlesend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify({
+          name: templateName(activeOption, activeSegment),
+          subject: subjectFor(activeOption, activeSegment),
+          html: htmlFor(activeOption, activeSegment),
+          listIds: [singleSendListId],
+          designId: sendDesignId,
+          templateId: sendTemplateId,
+          sendAt,
+          confirmSchedule: Boolean(sendAt),
+          sendHistoryRowIds: rowIds,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(errorMessage(json) || "Could not create Single Send");
+      setSingleSendState("created");
+      const warningCount = Array.isArray(json.warnings) ? json.warnings.length : 0;
+      setSingleSendResult(`Single Send ${json.id}${json.scheduled ? ` · ${json.scheduled}` : " · draft"}${warningCount ? ` · ${warningCount} preflight warning${warningCount === 1 ? "" : "s"}` : ""}`);
+      setSinglesendInput(json.id || "");
+      if (supabaseConfigured() && userId) setRecentSendHistory(await listSendHistory(brandId, 18));
+    } catch (e) {
+      setSingleSendState("error");
+      setSingleSendError(e instanceof Error ? e.message : "Could not create Single Send");
+    }
+  }
+
   // Wipe everything back to a fresh first-load state (optionally confirming if work would be lost).
   function startNewBrief() {
     if ((options.a || options.b) && !window.confirm("Start a new brief? This clears the current campaign and generated options.")) return;
@@ -1285,6 +1396,15 @@ export function StudioApp() {
     setSendHistoryError(null);
     setSyncResults({});
     setTplResults({});
+    setContactLists([]);
+    setContactListsState("idle");
+    setContactListsError(null);
+    setSingleSendListId("");
+    setSingleSendScheduleMode("draft");
+    setSingleSendAt("");
+    setSingleSendState("idle");
+    setSingleSendError(null);
+    setSingleSendResult(null);
     setToneError(null);
     setToneExtracting(false);
     clearDraft();
@@ -1294,6 +1414,9 @@ export function StudioApp() {
     dispatchStudio({ type: "openVersion", payload: v.data });
     setSyncResults({});
     setTplResults({});
+    setSingleSendState("idle");
+    setSingleSendError(null);
+    setSingleSendResult(null);
     setSaveState("idle");
     setHistoryOpen(false);
   }
@@ -1482,8 +1605,13 @@ export function StudioApp() {
           ["build", "1 · Build brief"],
           ["review", "2 · Review & generate"],
           ["output", "3 · A/B output"],
+          ["performance", "4 · Performance"],
         ] as [View, string][]).map(([v, lbl]) => {
-          const enabled = v === "build" || (v === "review" && canGenerate) || (v === "output" && (options.a || options.b));
+          const enabled =
+            v === "build" ||
+            v === "performance" ||
+            (v === "review" && canGenerate) ||
+            (v === "output" && (options.a || options.b));
           return (
             <button
               key={v}
@@ -2315,22 +2443,82 @@ export function StudioApp() {
                   {sendHistoryState === "error" && <span className="text-xs text-[var(--bad)]">{sendHistoryError}</span>}
                 </div>
                 {authState === "in" && (
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <input
-                      type="text"
-                      value={singlesendInput}
-                      onChange={(e) => setSinglesendInput(e.target.value)}
-                      placeholder="Paste the Single Send URL or id after scheduling in SendGrid…"
-                      className="input flex-1 min-w-[260px]"
-                      aria-label="SendGrid Single Send URL or id"
-                    />
-                    <button onClick={submitSinglesendLink} disabled={singlesendLinkState === "linking" || !singlesendInput.trim()} className="btn-ghost">
-                      {singlesendLinkState === "linking" ? "Linking…" : singlesendLinkState === "linked" ? "Linked" : "Link Single Send"}
-                    </button>
-                    {singlesendLinkState === "error" && <span className="text-xs text-[var(--bad)]">{singlesendLinkError}</span>}
-                    <span className="text-xs text-[var(--muted)] w-full">
-                      Links this brand&apos;s most recently synced sends so performance stats (F1.3) can be pulled back automatically.
-                    </span>
+                  <div className="mt-3 flex flex-col gap-3">
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-3)] p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold">Create Single Send</div>
+                          <div className="text-xs text-[var(--muted)] truncate">
+                            Active: {activeOption.toUpperCase()} · {activeSegment} · {activeDesignId ? `Design ${activeDesignId}` : activeTemplateId ? `Template ${activeTemplateId}` : "sync a Design/Template first"}
+                          </div>
+                        </div>
+                        <button type="button" onClick={loadContactLists} disabled={contactListsState === "loading"} className="btn-ghost">
+                          {contactListsState === "loading" ? "Loading lists…" : "Load lists"}
+                        </button>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-2">
+                        <select value={singleSendListId} onChange={(e) => setSingleSendListId(e.target.value)} className="input" aria-label="SendGrid contact list">
+                          <option value="">Choose a SendGrid list…</option>
+                          {contactLists.map((list) => (
+                            <option key={list.id} value={list.id}>
+                              {list.name}{list.contactCount ? ` · ${list.contactCount.toLocaleString()}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex flex-wrap gap-2">
+                          {(["draft", "now", "later"] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              type="button"
+                              onClick={() => setSingleSendScheduleMode(mode)}
+                              className={`choice-pill ${singleSendScheduleMode === mode ? "choice-pill-active" : ""}`}
+                            >
+                              {mode === "draft" ? "Draft" : mode === "now" ? "Now" : "Later"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {singleSendScheduleMode === "later" && (
+                        <input
+                          type="datetime-local"
+                          value={singleSendAt}
+                          onChange={(e) => setSingleSendAt(e.target.value)}
+                          className="input mt-2"
+                          aria-label="Single Send schedule time"
+                        />
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={createSingleSendForActive}
+                          disabled={singleSendState === "creating" || !singleSendListId || (!activeDesignId && !activeTemplateId)}
+                          className="btn-primary"
+                        >
+                          {singleSendState === "creating" ? "Creating…" : singleSendScheduleMode === "draft" ? "Create draft" : "Create & schedule"}
+                        </button>
+                        {contactListsState === "error" && <span className="text-xs text-[var(--bad)]">{contactListsError}</span>}
+                        {singleSendState === "error" && <span className="text-xs text-[var(--bad)]">{singleSendError}</span>}
+                        {singleSendResult && <span className="text-xs text-[var(--ok)]">{singleSendResult}</span>}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        value={singlesendInput}
+                        onChange={(e) => setSinglesendInput(e.target.value)}
+                        placeholder="Paste the Single Send URL or id after scheduling in SendGrid…"
+                        className="input flex-1 min-w-[260px]"
+                        aria-label="SendGrid Single Send URL or id"
+                      />
+                      <button onClick={submitSinglesendLink} disabled={singlesendLinkState === "linking" || !singlesendInput.trim()} className="btn-ghost">
+                        {singlesendLinkState === "linking" ? "Linking…" : singlesendLinkState === "linked" ? "Linked" : "Link Single Send"}
+                      </button>
+                      {singlesendLinkState === "error" && <span className="text-xs text-[var(--bad)]">{singlesendLinkError}</span>}
+                      <span className="text-xs text-[var(--muted)] w-full">
+                        Links this brand&apos;s most recently synced sends so performance stats (F1.3) can be pulled back automatically.
+                      </span>
+                    </div>
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2377,6 +2565,10 @@ export function StudioApp() {
             </>
           )}
         </OutputView>
+      )}
+
+      {view === "performance" && (
+        <PerformanceView brandId={brandId} brandName={brand.name} getAuthHeaders={authHeader} />
       )}
 
     </main>

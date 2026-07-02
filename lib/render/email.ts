@@ -206,7 +206,7 @@ function footerBlock(brand: Brand, campaign: Campaign, muid: () => string): stri
 // ---- head + body scaffold (verbatim SendGrid Design shell) ----
 function htmlShell(modules: string): string {
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html data-editor-version="2" class="sg-campaigns" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" data-editor-version="2" class="sg-campaigns" xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
@@ -349,7 +349,7 @@ function productCopyContent(brand: Brand, accent: string, product: Product | und
     lines.push(`<div style="font-family:${CARD_FONT}; font-size:12px; font-style:italic; color:#555555; padding-bottom:8px;">&ldquo;${escText(pb.review)}&rdquo;</div>`);
   }
   const cta = pb.cta || "Shop now";
-  lines.push(`<div><a clicktracking="off" href="${attr(href)}" style="display:inline-block; font-family:${CARD_FONT}; font-size:13px; font-weight:bold; color:#ffffff; background-color:${accent}; padding:9px 20px; text-decoration:none; border-radius:3px;">${escText(cta)}</a></div>`);
+  lines.push(`<div><a clicktracking="off" aria-label="${attr(`${cta} - ${pb.name || product?.name || "product"}`)}" href="${attr(href)}" style="display:inline-block; font-family:${CARD_FONT}; font-size:13px; font-weight:bold; color:#ffffff; background-color:${accent}; padding:9px 20px; text-decoration:none; border-radius:3px;">${escText(cta)}</a></div>`);
   return `<div style="text-align:center;">${lines.join("\n")}</div>`;
 }
 

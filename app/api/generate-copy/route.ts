@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateOptions, providerConfigError, type GenerationEvent } from "@/lib/anthropic";
+import { generateOptions, providerConfigError, type GenerationEvent, type PromptOverrides } from "@/lib/anthropic";
 import type { GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS, missingRequiredProducts } from "@/lib/config/brands";
@@ -7,6 +7,7 @@ import { RECIPIENT_NAME_TOKEN, type BodyLayout, type Campaign, type CampaignCons
 import { requireActiveUser } from "@/lib/supabaseAdmin";
 import { apiError, apiErrorFromCaught, apiOk, rateLimitedResponse } from "@/lib/api/respond";
 import { createRateLimiter, requestRateKey } from "@/lib/api/rateLimit";
+import { generateCopyBodySchema, zodIssueSummary } from "@/lib/api/generateCopySchema";
 import { loadPerformanceHistory } from "@/lib/performance/serverHistory";
 import { getWinningExemplars } from "@/lib/performance/corpus";
 
@@ -33,6 +34,36 @@ const STREAMING_ENABLED = !/^(0|false|off|no)$/i.test(process.env.AI_GENERATION_
 
 function cleanText(value: unknown, max = MAX_TEXT): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function cleanPromptOverride(value: unknown, max = 12_000): string | undefined {
+  if (typeof value !== "string") return undefined;
+  let text = value
+    .replace(/```+/g, "`")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim()
+    .slice(0, max);
+  const open = (text.match(/\{/g) || []).length;
+  const close = (text.match(/\}/g) || []).length;
+  if (open !== close) text = text.replace(/[{}]/g, "");
+  return text || undefined;
+}
+
+function cleanPromptOverrides(input: unknown): PromptOverrides | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const raw = input as { system?: unknown; user?: unknown; segments?: unknown };
+  const system = cleanPromptOverride(raw.system);
+  const user = cleanPromptOverride(raw.user);
+  const segments: Record<string, string> = {};
+  if (raw.segments && typeof raw.segments === "object") {
+    Object.entries(raw.segments as Record<string, unknown>).slice(0, 12).forEach(([segment, note]) => {
+      const key = cleanText(segment, 40).replace(/[^a-zA-Z0-9_-]/g, "");
+      const value = cleanPromptOverride(note, 1_200);
+      if (key && value) segments[key] = value;
+    });
+  }
+  return system || user || Object.keys(segments).length ? { system, user, segments } : undefined;
 }
 
 function cleanProducts(input: unknown): Product[] | string {
@@ -193,7 +224,7 @@ function sseFrame(event: string, data: unknown): string {
 function streamGenerate(
   campaign: Campaign,
   products: Product[],
-  overrides: { system?: string; user?: string } | undefined,
+  overrides: PromptOverrides | undefined,
   models: ReturnType<typeof normalizeModelPair>,
   revision: { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } } | undefined,
   requestSignal: AbortSignal
@@ -274,7 +305,12 @@ export async function POST(req: NextRequest) {
     return apiError(400, "bad_request", "Invalid JSON body");
   }
 
-  const v = validate(body);
+  const parsed = generateCopyBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError(400, "bad_request", "Invalid generation request", { issues: zodIssueSummary(parsed.error) });
+  }
+
+  const v = validate(parsed.data);
   if (!v.ok) return apiError(400, "bad_request", v.error);
 
   // Server-side truth for the performance feedback loop (F1.4) — replaces whatever the client
@@ -290,13 +326,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;
-  const overrides = po && (po.system || po.user) ? { system: po.system, user: po.user } : undefined;
-  const models = normalizeModelPair((body as { models?: Parameters<typeof normalizeModelPair>[0] }).models);
+  const overrides = cleanPromptOverrides(parsed.data.promptOverrides);
+  const models = normalizeModelPair(parsed.data.models);
   // Fail fast (before the multi-minute call) if a selected provider has no key configured.
   const keyError = providerConfigError(models);
   if (keyError) return apiError(400, "bad_request", keyError);
-  const revisionBody = body as { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } };
+  const revisionBody = parsed.data as { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } };
   const revision = revisionBody.feedback?.trim()
     ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
     : undefined;

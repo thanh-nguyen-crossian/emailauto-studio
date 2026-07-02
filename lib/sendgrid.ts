@@ -1,8 +1,6 @@
 import client from "@sendgrid/client";
 
-// SendGrid v3 Web API wrapper (server-side only). Scope: create a Design in the Design Library
-// from the studio's generated HTML. No audience, nothing sendable — a human builds the Single
-// Send from the design inside SendGrid.
+// SendGrid v3 Web API wrapper (server-side only).
 
 let configured = false;
 function getClient() {
@@ -232,16 +230,70 @@ export interface ContactList {
   contactCount: number;
 }
 
-/** GET /v3/marketing/lists — audience picker for F2.1's "Create Single Send" modal. */
-export async function listContactLists(): Promise<ContactList[]> {
-  let body: unknown;
+function nextPageToken(body: unknown): string | null {
+  const next = (body as { _metadata?: { next?: string } })?._metadata?.next;
+  if (!next) return null;
   try {
-    [, body] = await getClient().request({ method: "GET", url: "/v3/marketing/lists?page_size=100" });
-  } catch (err) {
-    throw toSendGridError(err);
+    const url = new URL(next, "https://api.sendgrid.com");
+    return url.searchParams.get("page_token");
+  } catch {
+    return null;
   }
-  const result = ((body as { result?: { id?: string; name?: string; contact_count?: number }[] })?.result) || [];
-  return result.map((r) => ({ id: r.id || "", name: r.name || "", contactCount: r.contact_count || 0 }));
+}
+
+function uniqueById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (!item.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+/** GET /v3/marketing/lists — paginated audience picker for F2.1's "Create Single Send" modal. */
+export async function listContactLists(pageSize = 1000, maxPages = 5): Promise<ContactList[]> {
+  const lists: ContactList[] = [];
+  let pageToken = "";
+  const safePageSize = Math.max(1, Math.min(1000, pageSize));
+  for (let page = 0; page < maxPages; page++) {
+    const params = new URLSearchParams({ page_size: String(safePageSize) });
+    if (pageToken) params.set("page_token", pageToken);
+    let body: unknown;
+    try {
+      [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/lists?${params.toString()}` });
+    } catch (err) {
+      throw toSendGridError(err);
+    }
+    const result = ((body as { result?: { id?: string; name?: string; contact_count?: number }[] })?.result) || [];
+    lists.push(...result.map((r) => ({ id: r.id || "", name: r.name || "", contactCount: r.contact_count || 0 })));
+    const next = nextPageToken(body);
+    if (!next) break;
+    pageToken = next;
+  }
+  return uniqueById(lists);
+}
+
+/** GET /v3/marketing/singlesends — paginated variant used when future UI exposes a picker. */
+export async function listSingleSendsPaginated(pageSize = 100, maxPages = 3): Promise<SingleSendSummary[]> {
+  const sends: SingleSendSummary[] = [];
+  let pageToken = "";
+  const safePageSize = Math.max(1, Math.min(1000, pageSize));
+  for (let page = 0; page < maxPages; page++) {
+    const params = new URLSearchParams({ page_size: String(safePageSize) });
+    if (pageToken) params.set("page_token", pageToken);
+    let body: unknown;
+    try {
+      [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/singlesends?${params.toString()}` });
+    } catch (err) {
+      throw toSendGridError(err);
+    }
+    const result = ((body as { result?: { id?: string; name?: string; status?: string; send_at?: string | null }[] })?.result) || [];
+    sends.push(...result.map((r) => ({ id: r.id || "", name: r.name || "", status: r.status || "", sendAt: r.send_at || null })));
+    const next = nextPageToken(body);
+    if (!next) break;
+    pageToken = next;
+  }
+  return uniqueById(sends);
 }
 
 export interface CreateSingleSendInput {

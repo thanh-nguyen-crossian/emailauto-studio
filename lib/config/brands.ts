@@ -169,7 +169,7 @@ export const BRANDS: Record<string, Brand> = {
       },
     ],
     catalog: [
-      { slug: "jettjeans", name: "JettJeans3", price: "32.99", hero: true, url: "https://gentslux.com/jettjeans", usps: ["4-way stretch denim", "Classic straight-fit look", "Deep functional pockets", "Broken-in comfort from day one"], review: "\"Comfortable all day.\" — Terry D." },
+      { slug: "jettjeans", name: "JettJeans", price: "32.99", hero: true, url: "https://gentslux.com/jettjeans", usps: ["4-way stretch denim", "Classic straight-fit look", "Deep functional pockets", "Broken-in comfort from day one"], review: "\"Comfortable all day.\" — Terry D." },
       { slug: "icyshorts", name: "Icy Shorts", price: "18.98", url: "https://gentslux.com/icyshorts", usps: ["Ice Silk Fabric™ cooling", "9°F instant coolness", "Quick-dry 8x stretch", "All-day arctic comfort"], review: "\"Saved my summer!\" — Frank D." },
       { slug: "flexcamo", name: "FlexCamo", price: "29.99", url: "https://gentslux.com/flexcamo", usps: ["Tactical camo design", "Waterproof finish", "4-way flex fabric", "Deep utility pockets"], review: "\"Great for everything!\" — Mike R." },
       { slug: "timelessflex", name: "TimelessFlex", price: "24.99", url: "https://gentslux.com/timelessflex", usps: ["Timeless classic style", "Pull-on elastic waist", "Versatile dress-casual", "Classic comfort style"], review: "\"Looks sharp, feels great.\" — Robert W." },

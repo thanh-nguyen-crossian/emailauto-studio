@@ -7,6 +7,7 @@ import { performanceFeedbackPromptBlock } from "./performance/feedback";
 import { promptRuleBlock } from "./config/playbook";
 import type { Brand, Campaign, Product, Urgency, BodyVarietyProfile } from "./config/types";
 import { analyzeProductPriceOutliers } from "./quality/productData";
+import { analyzeDeliverability } from "./quality/deliverability";
 import { conceptPrompt, type EmailConcept } from "./concept";
 import { getTechnique, selectTechniquePlan, techniquePlanPrompt, type TechniquePlan } from "./config/techniques";
 
@@ -180,6 +181,7 @@ export interface GenBrief {
   _score?: number;
   _creative_score?: number;
   _technique_score?: number;
+  _deliverability_score?: number;
   _technique_coverage?: TechniqueCoverage;
   _provider?: string;
   _model?: string;
@@ -1628,6 +1630,16 @@ function phraseOverlap(a: string, b: string, size = 5): number {
   });
   return shared / denom;
 }
+function ngramJaccard(a: string, b: string, size = 3): number {
+  const left = ngramSet(a, size);
+  const right = ngramSet(b, size);
+  if (!left.size && !right.size) return 0;
+  let shared = 0;
+  left.forEach((gram) => {
+    if (right.has(gram)) shared++;
+  });
+  return shared / (left.size + right.size - shared || 1);
+}
 /**
  * Q3 (docs/IMPROVEMENT_PLAN-2026-07-02.md): the exemplar layer tells the model to imitate the
  * *shape* of past winners, never their exact words — this catches when it copies a phrase
@@ -2258,7 +2270,7 @@ function normalizePrimarySubjectSelections(brief: GenBrief) {
 export type FlagTier = "serious" | "structural" | "cosmetic";
 // SERIOUS: compliance / proof safety / a broken-promise the marketer must not send.
 const SERIOUS_FLAG =
-  /spam word|opt-out risk|invented proof|possibly invented|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|brand avoid pattern|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price/i;
+  /spam word|deliverability|opt-out risk|invented proof|possibly invented|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|brand avoid pattern|missing persona|hook contract missing|body too short|body over \d+|missing product-name markdown|homepage link|required product|visible price\/offer|sounds too salesy|hard-sell command|hero banner should|weak\/generic copy|non-playbook (?:angle|framework)|a\/b (?:angles|frameworks) are the same|a\/b brief routes|a\/b creative_direction must|a\/b opener mechanics are the same|missing required field|missing subject\/preheader|missing selected (?:subject|preheader)|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|hook contract hero_product .* does not match|body\.base is empty|body repeats price|fallback copy used/i;
 // STRUCTURAL: weakens the test or coherence but is still sendable.
 const STRUCTURAL_FLAG =
   /too similar|same body structure|repeat the same angle|shared thread|shares too much structure|copy is too similar|layout direction is too similar|creative direction text is too similar|creative direction missing (?:production branch|brief route|source pattern)|schema placeholder|stacking hooks|needs 3\+ subject|distinct style\/model lenses|needs 2 editable|body options|banner options|product block roles|body opener should name|miss campaign theme|opens with a bullet|product introduction|below 3-paragraph|above 5-paragraph|interspersed body should|preheader adds no new beat|reactivation guilt\/apology opener|ops .*(?:missing|unknown)|utm plan missing/i;
@@ -2277,14 +2289,14 @@ export function isHighImpactFlag(msg: string): boolean {
 // model rewrite helps; stylistic nudges (paragraph rhythm, P.S. length, banner beats, enums) stay
 // advisory so the repair pass does not average every creative route back to one template.
 const COMPLIANCE_REPAIR_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price/i;
+  /spam word|deliverability|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|consent basis unknown|utm plan missing|body repeats price|fallback copy used/i;
 
 export function isComplianceRepairFlag(msg: string): boolean {
   return COMPLIANCE_REPAIR_FLAG.test(msg);
 }
 
 const COMPLIANCE_VALIDATION_FLAG =
-  /spam word|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty/i;
+  /spam word|deliverability|opt-out risk|possibly invented proof|invented proof|fabricated authority claim|invented stat in body prose|source-backed proof|prompt scaffolding leaked|subject over hard cap|subject above target|subject may be too short|preheader length|repeats \{\{first_name\}\}|missing \{\{first_name\}\}|missing selected subject|missing selected preheader|missing subject\/preheader|subject\/preheader missing offer signal|body contains \{\{first_name\}\}|body over \d+|homepage link|required product|visible price\/offer|hard-sell command|sounds too salesy|brand avoid pattern|merge-tag|unbalanced|missing required field|schema placeholder|sender email missing|audience source missing|consent basis unknown|utm plan missing|missing product-name markdown|body\.base is empty|fallback copy used/i;
 
 export function isComplianceValidationFlag(flag: Flag): boolean {
   return flag.type === "error" || COMPLIANCE_VALIDATION_FLAG.test(flag.msg);
@@ -2537,6 +2549,76 @@ function validateProductData(brief: GenBrief, products: Product[]): void {
 const MAX_BODY_OFFER_MENTIONS = 2;
 const MAX_BODY_DISCOUNT_MENTIONS = 3;
 
+type UrgencyBucket = "today" | "tomorrow" | "48h" | "72h" | "weekend";
+
+const URGENCY_BUCKET_PATTERNS: { bucket: UrgencyBucket; pattern: RegExp }[] = [
+  { bucket: "72h", pattern: /\b(?:h\s*72|72\s*(?:h|hrs?|hours?)|3\s*days?)\b/i },
+  { bucket: "48h", pattern: /\b(?:h\s*48|48\s*(?:h|hrs?|hours?)|2\s*days?)\b/i },
+  { bucket: "tomorrow", pattern: /\btomorrow\b/i },
+  { bucket: "weekend", pattern: /\b(?:this\s+)?weekend\b|\b(?:saturday|sunday)\b/i },
+  { bucket: "today", pattern: /\b(?:h\s*24|today|tonight|midnight|24\s*(?:h|hrs?|hours?)|last\s+day)\b/i },
+];
+
+function urgencyBucketsFromText(text: string): Set<UrgencyBucket> {
+  const buckets = new Set<UrgencyBucket>();
+  URGENCY_BUCKET_PATTERNS.forEach(({ bucket, pattern }) => {
+    if (pattern.test(text)) buckets.add(bucket);
+  });
+  return buckets;
+}
+
+function campaignUrgencyBuckets(campaign: Campaign): Set<UrgencyBucket> {
+  return urgencyBucketsFromText([campaign.urgency, campaign.offer, campaign.theme].filter(Boolean).join(" "));
+}
+
+function urgencyBucketLabel(bucket: UrgencyBucket): string {
+  return bucket === "today" ? "today/tonight" : bucket === "weekend" ? "weekend" : bucket;
+}
+
+function formatUrgencyBuckets(buckets: Iterable<UrgencyBucket>): string {
+  return [...buckets].map(urgencyBucketLabel).join(", ");
+}
+
+function setIntersects<T>(a: Set<T>, b: Set<T>): boolean {
+  for (const item of a) {
+    if (b.has(item)) return true;
+  }
+  return false;
+}
+
+type SubjectDeviceBucket =
+  | "question"
+  | "number"
+  | "curiosity"
+  | "value"
+  | "proof"
+  | "fomo"
+  | "personal"
+  | "educational"
+  | "wordplay"
+  | "emoji"
+  | "direct";
+
+function subjectDeviceBucket(input: { subject?: string; preheader?: string; style?: string; model_hint?: string; shared_thread?: string }): SubjectDeviceBucket {
+  const text = `${input.style || ""} ${input.model_hint || ""} ${input.shared_thread || ""} ${input.subject || ""} ${input.preheader || ""}`;
+  const lower = text.toLowerCase();
+  if (/[?？]/.test(text) || /\b(question|quiz|wonder|what if|why)\b/i.test(text)) return "question";
+  if (/\b\d+\b|💲|\bpercent\b|%/.test(text)) return "number";
+  if (/\b(secret|surprise|odd|small detail|thing|curious|guess|noticed|peek)\b/i.test(text)) return "curiosity";
+  if (/\b(value|deal|price|saving|o\.f\.f|free shipping|shipping|under|today)\b/i.test(text)) return "value";
+  if (/\b(review|rated|stars?|customer|wearers?|loved|proof|recommended|testimonial)\b/i.test(text)) return "proof";
+  if (/\b(midnight|tonight|last|ends|72|48|24|deadline|before it)\b/i.test(text)) return "fomo";
+  if (/\b({{\s*first_name\s*}}|you|your|picked|noticed|because you)\b/i.test(text)) return "personal";
+  if (/\b(tip|did you know|guide|how to|fit note|style note|care tip)\b/i.test(text)) return "educational";
+  if (/\b(pun|wordplay|idiom|joke|funny|wink)\b/i.test(lower)) return "wordplay";
+  if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text)) return "emoji";
+  return "direct";
+}
+
+function subjectDeviceLabel(bucket: SubjectDeviceBucket): string {
+  return bucket === "fomo" ? "FOMO/deadline" : bucket;
+}
+
 export function validateBrief(brief: GenBrief, campaign: Campaign, products: Product[] = []): GenBrief {
   const incomingAdvisory = Array.isArray(brief._advisory) ? brief._advisory : [];
   const thinProducts = thinProductInputs(products);
@@ -2580,9 +2662,23 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
   campaign.segments.forEach((id) => {
     if (!sl[segJsonKey(id)]) addFlag(brief, "error", "Missing subject/preheader for segment " + id);
   });
+  const expectedUrgencyBuckets = campaignUrgencyBuckets(campaign);
+  const selectedSubjectUrgencyBySegment = new Map<string, Set<UrgencyBucket>>();
   Object.entries(sl).forEach(([seg, v]) => {
     const s = v.subject || "", p = v.preheader || "";
     const opts = Array.isArray(v.options) ? v.options : [];
+    const primaryUrgencyBuckets = urgencyBucketsFromText(`${s} ${p}`);
+    if (primaryUrgencyBuckets.size > 1) {
+      addFlag(brief, "warn", `${seg} subject/preheader mixes deadline horizons (${formatUrgencyBuckets(primaryUrgencyBuckets)}); keep one clear urgency promise`);
+    }
+    if (expectedUrgencyBuckets.size && primaryUrgencyBuckets.size && !setIntersects(expectedUrgencyBuckets, primaryUrgencyBuckets)) {
+      addFlag(
+        brief,
+        "warn",
+        `${seg} subject/preheader urgency (${formatUrgencyBuckets(primaryUrgencyBuckets)}) does not match campaign urgency (${formatUrgencyBuckets(expectedUrgencyBuckets)})`
+      );
+    }
+    if (primaryUrgencyBuckets.size) selectedSubjectUrgencyBySegment.set(seg, primaryUrgencyBuckets);
     if (!s.trim()) addFlag(brief, "warn", `${seg} missing selected subject`);
     if (!p.trim()) addFlag(brief, "warn", `${seg} missing selected preheader`);
     if (s.length > 60) addFlag(brief, "warn", `${seg} subject over hard cap (${s.length} > 60)`);
@@ -2626,6 +2722,14 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     if (optionStyles.length >= 3 && new Set(optionStyles).size < 3) {
       addFlag(brief, "warn", `${seg} subject options need distinct style/model lenses`);
     }
+    const optionDeviceBuckets = opts.map(subjectDeviceBucket);
+    if (optionDeviceBuckets.length >= 3 && new Set(optionDeviceBuckets).size < 3) {
+      addFlag(
+        brief,
+        "warn",
+        `${seg} subject options need 3 distinct devices (found ${[...new Set(optionDeviceBuckets)].map(subjectDeviceLabel).join(", ")}); rotate question, proof, curiosity, value, FOMO, educational, wordplay, emoji, or direct routes`
+      );
+    }
     for (let i = 0; i < opts.length; i++) {
       for (let j = i + 1; j < opts.length; j++) {
         if (similarity(opts[i].subject || "", opts[j].subject || "") > 0.78) {
@@ -2639,12 +2743,30 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     const hits = HOOK_STACK.filter((w) => (s + " " + p).toLowerCase().includes(w));
     if (hits.length >= 4) addFlag(brief, "warn", `${seg} stacking hooks: ${hits.join(", ")}`);
   });
+  if (selectedSubjectUrgencyBySegment.size > 1) {
+    const segmentBuckets = [...selectedSubjectUrgencyBySegment.entries()];
+    const allBuckets = new Set<UrgencyBucket>();
+    segmentBuckets.forEach(([, buckets]) => buckets.forEach((bucket) => allBuckets.add(bucket)));
+    if (allBuckets.size > 1) {
+      addFlag(
+        brief,
+        "warn",
+        `Subject/preheader urgency differs across segments (${segmentBuckets.map(([seg, buckets]) => `${seg}: ${formatUrgencyBuckets(buckets)}`).join("; ")}); align every segment to one campaign deadline`
+      );
+    }
+  }
 
   const body = brief.body || {};
   if (!body.base || !String(body.base).trim()) addFlag(brief, "error", "body.base is empty — shared body foundation is required");
   campaign.segments.forEach((id) => {
     if (!body[segJsonKey(id)]) addFlag(brief, "warn", "Missing body variant for segment " + id);
   });
+  const missingAccentSegments = campaign.segments
+    .map((id) => segJsonKey(id))
+    .filter((key) => String(body[key] || "").trim() && !(String(body[key] || "").match(ACCENT_MARKER)?.length));
+  if (missingAccentSegments.length) {
+    addFlag(brief, "warn", `Segments missing ==accent== highlights: ${missingAccentSegments.join(", ")}; add one focused product/offer/emotion highlight per body`);
+  }
   Object.entries(body).forEach(([key, value]) => {
     if (looksLikeSchemaPlaceholder(value)) addFlag(brief, "warn", `${key} still contains schema placeholder text`);
   });
@@ -2915,6 +3037,7 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
       const fullSimilarity = similarity(String(leftText), String(rightText));
       const openerSimilarity = similarity(firstParagraph(String(leftText)), firstParagraph(String(rightText)));
       const sharedPhraseOverlap = phraseOverlap(String(leftText), String(rightText));
+      const trigramOverlap = ngramJaccard(String(leftText), String(rightText), 3);
       const leftOpeningStart = openingStart(String(leftText));
       const rightOpeningStart = openingStart(String(rightText));
       const sameOpeningStart = !!leftOpeningStart && leftOpeningStart === rightOpeningStart;
@@ -2926,6 +3049,9 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
         (sameOpeningStart && (openerSimilarity > 0.5 || sharedPhraseOverlap > 0.15));
       if (fullSimilarity > 0.74) {
         addFlag(brief, "warn", `${leftKey} and ${rightKey} body variants are too similar; adapt motivation/risk reducer by segment`);
+      }
+      if (trigramOverlap > 0.60) {
+        addFlag(brief, "warn", `${leftKey} and ${rightKey} body variants have ${Math.round(trigramOverlap * 100)}% trigram overlap; change the segment-specific opener, proof path, and CTA payoff`);
       } else if (structureDup) {
         addFlag(brief, "warn", `${leftKey} and ${rightKey} share the same body structure; change the opener, proof/risk reducer, bridge, and final CTA sentence`);
       }
@@ -3053,6 +3179,12 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     (["main_image", "sub_image", "alt_text", "image_notes"] as const).forEach((field) => {
       if (!p[field]) addFlag(brief, "warn", `Product ${i + 1} image brief missing ${field}`);
     });
+    if (p.alt_text && p.name && norm(p.alt_text) === norm(p.name)) {
+      addFlag(brief, "warn", `Product ${i + 1} alt_text is only the product name; describe the visual/use case in <=120 chars`);
+    }
+    if (p.alt_text && p.alt_text.length > 120) {
+      addFlag(brief, "warn", `Product ${i + 1} alt_text over 120 chars`);
+    }
   });
   const productRoles = prods.map((p) => norm(p.template_style || "")).filter(Boolean);
   if (prods.length >= 3 && new Set(productRoles).size < Math.min(3, productRoles.length)) {
@@ -3103,15 +3235,32 @@ export function validateBrief(brief: GenBrief, campaign: Campaign, products: Pro
     );
   }
 
+  const deliverability = analyzeDeliverability(brief);
+  brief._deliverability_score = deliverability.score;
+  deliverability.findings
+    .filter((finding) => finding.severity !== "polish")
+    .slice(0, 6)
+    .forEach((finding) => {
+      addFlag(
+        brief,
+        finding.severity === "block" ? "error" : "warn",
+        `Deliverability ${finding.severity}: ${finding.surface} — ${finding.message}`
+      );
+    });
+
   const split = splitValidationFlags(brief._flags || []);
   brief._flags = split.compliance;
   brief._advisory = [...incomingAdvisory, ...split.advisory];
-  brief._score = scoreBrief(brief._flags);
+  const validationScore = scoreBrief(brief._flags);
+  brief._score = Math.min(validationScore, Math.round(validationScore * 0.9 + deliverability.score * 0.1));
   return brief;
 }
 
 function rescoreBrief(brief: GenBrief): GenBrief {
-  brief._score = scoreBrief(brief._flags || []);
+  const validationScore = scoreBrief(brief._flags || []);
+  brief._score = typeof brief._deliverability_score === "number"
+    ? Math.min(validationScore, Math.round(validationScore * 0.9 + brief._deliverability_score * 0.1))
+    : validationScore;
   return brief;
 }
 

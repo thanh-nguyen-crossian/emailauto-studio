@@ -26,6 +26,7 @@ import {
   segmentBodyDirectionLines,
   segmentPromptContext,
   selectVarietyProfile,
+  scoreBrief,
   templateCorpusPromptLayer,
   validateBrief,
   validateBriefPair,
@@ -729,6 +730,7 @@ function failurePriority(message: string): number {
 export interface PromptOverrides {
   system?: string;
   user?: string;
+  segments?: Record<string, string>;
 }
 
 export interface RevisionFeedback {
@@ -969,7 +971,11 @@ interface SegmentBatchContext {
 }
 
 function hasPromptOverrides(overrides?: PromptOverrides): boolean {
-  return !!(overrides?.system?.trim() || overrides?.user?.trim());
+  return !!(
+    overrides?.system?.trim() ||
+    overrides?.user?.trim() ||
+    Object.values(overrides?.segments || {}).some((note) => note.trim())
+  );
 }
 
 /** @internal exported for unit testing only */
@@ -1108,6 +1114,17 @@ ${user ? `\nEdited user prompt:\n${compactPromptText(user, PROMPT_OVERRIDE_MAX_C
 If the edited text asks for full-email fields outside this call, adapt the relevant instruction to the foundation or segment patch being generated here. Do not abandon the JSON schema.`;
 }
 
+function segmentOverrideLayer(campaign: Campaign, overrides?: PromptOverrides): string {
+  const segmentNotes = overrides?.segments || {};
+  const rows = campaign.segments
+    .map((segment) => {
+      const note = segmentNotes[segment]?.trim() || segmentNotes[segJsonKey(segment)]?.trim();
+      return note ? `${segment}: ${compactPromptText(note, 300)}` : "";
+    })
+    .filter(Boolean);
+  return rows.length ? `Segment-specific marketer steering. Apply only to the matching segment; do not let one segment note homogenize the others.\n${rows.join("\n")}` : "";
+}
+
 function foundationBodyBase(campaign: Campaign): string {
   if (campaign.bodyLayout === "interspersed") {
     return "Layout summary: Open with the hero banner, place a short story paragraph before the first product images, add one bridge between product rows, then close with the P.S.";
@@ -1201,7 +1218,7 @@ Hook input: ${campaign.hookContract?.trim() || "Build from selected segments, he
 
 function subjectPatchSchema(campaign: Campaign): string {
   const devices = (BRANDS[campaign.brandId]?.subjectDevices ?? ["open-loop", "pattern-interrupt", "playful-conceit"]).slice(0, 3);
-  return `subject_lines[seg_key]={subject, preheader, style, model_hint, shared_thread, options[3+] using styles: ${devices.join(", ")}}`;
+  return `subject_lines[seg_key]={subject, preheader, style, model_hint, shared_thread, options[3]}. Options must use three visibly different devices: ${devices.join(" | ")}; no three value/offer rewrites.`;
 }
 
 function bodyPatchSchema(campaign: Campaign): string {
@@ -1465,6 +1482,7 @@ Tokens: ==accent==, **bold**, [Product](slug:slug), [home text](home). Body pros
     { title: "Required Products", body: requiredProductInstruction(campaign.brandId) },
     { title: "Body Homepage Link Policy", body: bodyHomepageLinkInstruction(campaign.brandId) },
     { title: "Reviewed Prompt Edits", body: promptOverrideLayer(overrides) },
+    { title: "Segment-Specific Steering", body: segmentOverrideLayer(campaign, overrides) },
   ]);
 
   const user = renderPromptLayers([
@@ -1657,10 +1675,11 @@ function mergeOptionBatches(
 /** Records, per-brief, which segments never got a model-authored patch — not just in the top-level warning string. */
 function flagLocallyFilledSegments(brief: GenBrief, segments: string[]): GenBrief {
   if (!segments.length) return brief;
-  (brief._advisory ||= []).push({
-    type: "warn",
-    msg: `Segment(s) ${segments.join(", ")} did not return model-authored copy after a retry — subject/body were filled locally from body.base; review before sending.`,
+  (brief._flags ||= []).push({
+    type: "error",
+    msg: `Fallback copy used for segment(s) ${segments.join(", ")} after provider/deadline gaps — regenerate or edit these segments before export or SendGrid sync.`,
   });
+  brief._score = scoreBrief(brief._flags);
   return brief;
 }
 
@@ -1723,11 +1742,17 @@ function shouldKeepCreativeRepair(original: GenBrief, repaired: GenBrief): boole
   return after >= CREATIVE_REPAIR_THRESHOLD || after >= before + 8;
 }
 
-function buildQualityRepairPrompt(optionLabel: "A" | "B", brief: GenBrief, flags: string[]): string {
+function repairOverrideNote(overrides?: PromptOverrides): string {
+  const note = promptOverrideLayer(overrides);
+  return note ? `\nImmutable marketer steering to preserve during repair:\n${note}\n` : "";
+}
+
+function buildQualityRepairPrompt(optionLabel: "A" | "B", brief: GenBrief, flags: string[], overrides?: PromptOverrides): string {
   const current = compactPromptText(JSON.stringify(briefRevisionSummary(brief)), 11000);
   return `QUALITY REPAIR PASS FOR OPTION ${optionLabel}
 
 Fix only the compliance, proof-safety, deliverability, and hard length problems below. Preserve the current creative direction, route, hook, product order, and sentence architecture wherever they are valid.
+${repairOverrideNote(overrides)}
 
 Problems to fix:
 ${flags.map((flag, i) => `${i + 1}. ${flag}`).join("\n")}
@@ -1738,11 +1763,12 @@ ${current}
 Return the complete corrected brief JSON using the exact same schema. Do not add prose or markdown fences.`;
 }
 
-function buildCreativeRepairPrompt(optionLabel: "A" | "B", brief: GenBrief): string {
+function buildCreativeRepairPrompt(optionLabel: "A" | "B", brief: GenBrief, overrides?: PromptOverrides): string {
   const current = compactPromptText(JSON.stringify(briefRevisionSummary(brief)), 11000);
   return `CREATIVE REPAIR PASS FOR OPTION ${optionLabel}
 
 The brief is compliant, but the copy is too formulaic or sales-led. Rewrite only customer-facing creative copy enough to raise the creative score while preserving all facts, products, prices, reviews, links, offer limits, and the current concept tuple.
+${repairOverrideNote(overrides)}
 
 Required changes:
 1. Open body copy with one concrete scene, named-person note, or specific reader moment.
@@ -1763,7 +1789,8 @@ async function repairCreativityIfNeeded(
   campaign: Campaign,
   products: Product[],
   selection: AIModelSelection,
-  runtime?: GenerationRuntime
+  runtime?: GenerationRuntime,
+  overrides?: PromptOverrides
 ): Promise<GenBrief> {
   throwIfAborted(runtime?.signal);
   if (!creativeRepairEnabled()) return brief;
@@ -1773,7 +1800,7 @@ async function repairCreativityIfNeeded(
 
   try {
     const repaired = sanitizeAndValidateBrief(
-      (await createAndParseWithModel(REPAIR_SYSTEM, buildCreativeRepairPrompt(optionLabel, brief), selection, {
+      (await createAndParseWithModel(REPAIR_SYSTEM, buildCreativeRepairPrompt(optionLabel, brief, overrides), selection, {
         temperature: Math.max(AI_REPAIR_TEMP, 0.7),
         ...runtimeCallOptions(runtime),
         schema: genBriefJsonSchema(campaign.segments, true),
@@ -1801,17 +1828,18 @@ async function repairBriefIfNeeded(
   products: Product[],
   system: string,
   selection: AIModelSelection,
-  runtime?: GenerationRuntime
+  runtime?: GenerationRuntime,
+  overrides?: PromptOverrides
 ): Promise<GenBrief> {
   throwIfAborted(runtime?.signal);
   if (!qualityRepairEnabled()) return brief;
   const flags = repairFlagsFor(brief);
-  if (!flags.length) return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime);
+  if (!flags.length) return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime, overrides);
   if (!hasGenerationBudget(runtime, PROVIDER_TIMEOUT_MS, 12_000)) return brief;
 
   try {
     const repaired = sanitizeAndValidateBrief(
-      (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags), selection, {
+      (await createAndParseWithModel(REPAIR_SYSTEM, buildQualityRepairPrompt(optionLabel, brief, flags, overrides), selection, {
         temperature: AI_REPAIR_TEMP,
         ...runtimeCallOptions(runtime),
         schema: genBriefJsonSchema(campaign.segments, true),
@@ -1821,14 +1849,14 @@ async function repairBriefIfNeeded(
     );
     if (shouldKeepRepair(brief, repaired)) {
       console.info(`[generate-copy] quality repair kept for option ${optionLabel}: ${brief._score ?? "?"} -> ${repaired._score ?? "?"}`);
-      return repairCreativityIfNeeded(optionLabel, repaired, campaign, products, selection, runtime);
+      return repairCreativityIfNeeded(optionLabel, repaired, campaign, products, selection, runtime, overrides);
     }
     console.info(`[generate-copy] quality repair discarded for option ${optionLabel}: ${brief._score ?? "?"} -> ${repaired._score ?? "?"}`);
-    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime);
+    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime, overrides);
   } catch (err) {
     if (isGenerationAbortError(err)) throw err;
     console.warn(`[generate-copy] quality repair failed for option ${optionLabel}: ${err instanceof Error ? err.message : "unknown error"}`);
-    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime);
+    return repairCreativityIfNeeded(optionLabel, brief, campaign, products, selection, runtime, overrides);
   }
 }
 
@@ -1901,8 +1929,8 @@ async function generateOptionsSingle(
       a = aSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(aSettled.value as unknown as GenBrief, concepts.a), campaignA, products) : undefined;
       b = bSettled.status === "fulfilled" ? sanitizeAndValidateBrief(attachConceptToBrief(bSettled.value as unknown as GenBrief, concepts.b), campaignB, products) : undefined;
       [a, b] = await Promise.all([
-        a ? repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a, runtime) : Promise.resolve(undefined),
-        b ? repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b, runtime) : Promise.resolve(undefined),
+        a ? repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a, runtime, overrides) : Promise.resolve(undefined),
+        b ? repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b, runtime, overrides) : Promise.resolve(undefined),
       ]);
       if (a) emit(runtime, { type: "partial", option: "a", brief: a });
       if (b) emit(runtime, { type: "partial", option: "b", brief: b });
@@ -1910,7 +1938,7 @@ async function generateOptionsSingle(
       try {
         emit(runtime, { type: "stage", stage: "single_a", option: "a", message: "Generating Option A" });
         a = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysA, usrA, models.a, campaignA, { temperature: AI_TEMP_A, ...runtimeCallOptions(runtime), stage: "single_a" })) as unknown as GenBrief, concepts.a), campaignA, products);
-        a = await repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a, runtime);
+        a = await repairBriefIfNeeded("A", a, campaignA, products, sysA, models.a, runtime, overrides);
         stampBrief(a, models.a, campaignA.bodyVariety);
         emit(runtime, { type: "partial", option: "a", brief: a });
       } catch (err) {
@@ -1924,7 +1952,7 @@ async function generateOptionsSingle(
       try {
         emit(runtime, { type: "stage", stage: "single_b", option: "b", message: "Generating Option B" });
         b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysBInitial, usrB, models.b, campaignB, { temperature: AI_TEMP_B, ...runtimeCallOptions(runtime), stage: "single_b" })) as unknown as GenBrief, concepts.b), campaignB, products);
-        b = await repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b, runtime);
+        b = await repairBriefIfNeeded("B", b, campaignB, products, sysBInitial, models.b, runtime, overrides);
         if (b) emit(runtime, { type: "partial", option: "b", brief: b });
       } catch (err) {
         if (isGenerationAbortError(err)) throw err;
@@ -1964,7 +1992,7 @@ ${contrastProblems.map((problem, i) => `${i + 1}. ${problem}`).join("\n")}
 Regenerate Option B with a different production branch/brief_route, subject family, body architecture, banner pattern, product-grid emphasis, and proof path. Preserve supplied facts and the JSON schema.`;
       emit(runtime, { type: "stage", stage: "contrast_retry", option: "b", message: "Retrying Option B for stronger contrast" });
       b = sanitizeAndValidateBrief(attachConceptToBrief((await createFullBriefWithModel(sysB, retry, models.b, retryCampaignB, { temperature: AI_TEMP_B_RETRY, ...runtimeCallOptions(runtime), stage: "contrast_retry" })) as unknown as GenBrief, concepts.b), retryCampaignB, products);
-      b = await repairBriefIfNeeded("B", b, retryCampaignB, products, sysB, models.b, runtime);
+      b = await repairBriefIfNeeded("B", b, retryCampaignB, products, sysB, models.b, runtime, overrides);
       stampBrief(b, models.b, retryCampaignB.bodyVariety);
     }
 
@@ -2118,6 +2146,10 @@ async function generateOptionSegmentParts(
   }
   const locallyFilledSegments = [...missing];
   if (missing.length) {
+    emit(runtime, {
+      type: "warning",
+      message: `Fallback copy used for Option ${optionLabel} segment(s) ${missing.join(", ")} after provider/deadline gaps. Regenerate or edit before export.`,
+    });
     usableParts.push(fallbackSegmentPatch(withSegments(campaign, missing), products, optionLabel, anchor, missing));
     notices.push(`filled missing Option ${optionLabel} segment copy locally for ${missing.join(", ")} after provider/deadline gaps`);
   }
