@@ -98,6 +98,17 @@ function statForLever(outcomes: SendOutcome[], lever: Lever): LeverStat[] {
     .sort((a, b) => b.meanCtr - a.meanCtr);
 }
 
+/** Linear-interpolation percentile (q in [0,1]) over a numeric array (any order). */
+function quantile(values: number[], q: number): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (sorted[base + 1] !== undefined) return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+  return sorted[base];
+}
+
 /** Derive an adaptive performance signal from a window of past send outcomes. */
 export function derivePerformanceSignal(history: SendOutcome[], brandId?: string, minSamples = 2): PerformanceSignal {
   const outcomes = (brandId ? history.filter((o) => !o.brandId || o.brandId === brandId) : history).filter(Boolean);
@@ -106,11 +117,18 @@ export function derivePerformanceSignal(history: SendOutcome[], brandId?: string
 
   const levers: Lever[] = ["angle", "framework", "openerMechanic", "emotionalArc", "subjectStyle"];
   const allStats = levers.flatMap((l) => statForLever(outcomes, l));
+  // Quartile thresholds over the per-lever-value mean CTRs themselves (not raw sends) — "lean
+  // into" the top quartile of levers, "avoid" the bottom quartile, each vs. the population of
+  // levers actually tried, not just above/below the brand's overall mean (docs/IMPROVEMENT_PLAN
+  // -2026-07-02.md F1.4).
+  const statMeans = allStats.map((s) => s.meanCtr);
+  const topQuartile = quantile(statMeans, 0.75);
+  const bottomQuartile = quantile(statMeans, 0.25);
   const winners = allStats
-    .filter((s) => s.samples >= minSamples && s.meanCtr > brandMean)
+    .filter((s) => s.samples >= minSamples && s.meanCtr >= topQuartile && s.meanCtr > brandMean)
     .sort((a, b) => b.meanCtr - a.meanCtr);
   const laggards = allStats
-    .filter((s) => s.samples >= minSamples && s.meanCtr < brandMean)
+    .filter((s) => s.samples >= Math.max(minSamples, 3) && s.meanCtr <= bottomQuartile && s.meanCtr < brandMean)
     .sort((a, b) => a.meanCtr - b.meanCtr);
 
   const heroRanking = statForLever(outcomes, "hero");
@@ -180,7 +198,11 @@ export function performanceFeedbackPromptBlock(history: SendOutcome[] | undefine
   if (sig.optoutRising) {
     lines.push(`Optout is trending UP across this window — soften urgency, tighten relevance, and avoid hard-sell command stacks.`);
   }
-  return lines.join("\n");
+  const block = lines.join("\n");
+  // Budget ~600 tokens (docs/IMPROVEMENT_PLAN-2026-07-02.md F1.4) at a ~4 chars/token heuristic —
+  // this layer is decision support, never worth crowding out playbook/brief content for.
+  const CHAR_CAP = 2400;
+  return block.length > CHAR_CAP ? `${block.slice(0, CHAR_CAP - 1)}…` : block;
 }
 
 // ---- page-performance CSV → product winners ----

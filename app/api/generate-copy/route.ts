@@ -4,7 +4,10 @@ import type { GenBrief } from "@/lib/briefgen";
 import { normalizeModelPair } from "@/lib/config/aiModels";
 import { BRANDS, missingRequiredProducts } from "@/lib/config/brands";
 import { RECIPIENT_NAME_TOKEN, type BodyLayout, type Campaign, type CampaignConsentBasis, type CampaignMailProvider, type CampaignOps, type CampaignStrategy, type EmailModuleKey, type LastSend, type OfferType, type Product, type ProductCopyStyle, type RecentSendMemory, type Urgency } from "@/lib/config/types";
-import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
+import { requireActiveUser } from "@/lib/supabaseAdmin";
+import { apiError, apiErrorFromCaught, apiOk, rateLimitedResponse } from "@/lib/api/respond";
+import { createRateLimiter, requestRateKey } from "@/lib/api/rateLimit";
+import { loadPerformanceHistory } from "@/lib/performance/serverHistory";
 
 const VALID_MODULE_KEYS = new Set<string>(["hero","body_1","body_2","body_3","products_1_2","products_3_4","products_5_6"]);
 const MAX_PRODUCTS = 6;
@@ -23,36 +26,9 @@ export const runtime = "nodejs";
 // Keep a generous route ceiling for high-segment briefs and slower frontier models.
 export const maxDuration = 300;
 
-const RATE_LIMIT_WINDOW_MS = 60_000;
 const GENERATE_RATE_LIMIT_PER_MIN = Math.max(0, Number(process.env.AI_GENERATE_RATE_LIMIT_PER_MIN || 6));
-const generateRateBuckets = new Map<string, { count: number; resetAt: number }>();
+const generateRateLimiter = createRateLimiter({ windowMs: 60_000, max: GENERATE_RATE_LIMIT_PER_MIN });
 const STREAMING_ENABLED = !/^(0|false|off|no)$/i.test(process.env.AI_GENERATION_STREAMING || "");
-
-function rateLimitKey(req: NextRequest, userId?: string): string {
-  if (userId) return `user:${userId}`;
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  return `ip:${forwarded || realIp || "local"}`;
-}
-
-function checkGenerateRateLimit(req: NextRequest, userId?: string): { retryAfter: number } | null {
-  if (!GENERATE_RATE_LIMIT_PER_MIN) return null;
-  const now = Date.now();
-  const key = rateLimitKey(req, userId);
-  for (const [bucketKey, bucket] of generateRateBuckets) {
-    if (bucket.resetAt <= now) generateRateBuckets.delete(bucketKey);
-  }
-  const current = generateRateBuckets.get(key);
-  if (!current || current.resetAt <= now) {
-    generateRateBuckets.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return null;
-  }
-  if (current.count >= GENERATE_RATE_LIMIT_PER_MIN) {
-    return { retryAfter: Math.max(1, Math.ceil((current.resetAt - now) / 1000)) };
-  }
-  current.count += 1;
-  return null;
-}
 
 function cleanText(value: unknown, max = MAX_TEXT): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -284,34 +260,34 @@ export async function POST(req: NextRequest) {
   try {
     activeUser = await requireActiveUser(req);
   } catch (err) {
-    const e = err as HttpError;
-    return NextResponse.json({ error: e.message }, { status: e.status || 401 });
+    return apiErrorFromCaught(err, { status: 401 });
   }
 
-  const rateLimit = checkGenerateRateLimit(req, activeUser?.userId);
-  if (rateLimit) {
-    return NextResponse.json(
-      { error: `Generation rate limit reached. Try again in ${rateLimit.retryAfter}s.` },
-      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } }
-    );
-  }
+  const rateLimit = generateRateLimiter.check(requestRateKey(req, activeUser?.userId));
+  if (rateLimit) return rateLimitedResponse(rateLimit.retryAfter, "Generation rate limit reached");
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return apiError(400, "bad_request", "Invalid JSON body");
   }
 
   const v = validate(body);
-  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
+  if (!v.ok) return apiError(400, "bad_request", v.error);
+
+  // Server-side truth for the performance feedback loop (F1.4) — replaces whatever the client
+  // might send for performanceHistory; the client has no access to real CTR data.
+  if (activeUser?.userId) {
+    v.campaign.performanceHistory = await loadPerformanceHistory(activeUser.userId, v.campaign.brandId);
+  }
 
   const po = (body as { promptOverrides?: { system?: string; user?: string } }).promptOverrides;
   const overrides = po && (po.system || po.user) ? { system: po.system, user: po.user } : undefined;
   const models = normalizeModelPair((body as { models?: Parameters<typeof normalizeModelPair>[0] }).models);
   // Fail fast (before the multi-minute call) if a selected provider has no key configured.
   const keyError = providerConfigError(models);
-  if (keyError) return NextResponse.json({ error: keyError }, { status: 400 });
+  if (keyError) return apiError(400, "bad_request", keyError);
   const revisionBody = body as { feedback?: string; existingOptions?: { a?: GenBrief; b?: GenBrief } };
   const revision = revisionBody.feedback?.trim()
     ? { feedback: revisionBody.feedback, existingOptions: revisionBody.existingOptions }
@@ -324,13 +300,13 @@ export async function POST(req: NextRequest) {
     result = await generateOptions(v.campaign, v.products, overrides, models, revision, undefined, req.signal);
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json({ error: "Generation cancelled" }, { status: 499 });
+      return apiError(499, "cancelled", "Generation cancelled");
     }
-    throw err;
+    return apiErrorFromCaught(err, { context: { route: "generate-copy" } });
   }
   if (result.error) {
-    const status = /API_KEY|not set/i.test(result.error) ? 500 : 502;
-    return NextResponse.json({ error: result.error }, { status });
+    const isConfigError = /API_KEY|not set/i.test(result.error);
+    return apiError(isConfigError ? 500 : 502, isConfigError ? "server_error" : "upstream_error", result.error);
   }
-  return NextResponse.json({ a: result.a, b: result.b, warning: result.warning });
+  return apiOk({ a: result.a, b: result.b, warning: result.warning });
 }

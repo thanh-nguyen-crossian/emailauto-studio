@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { HttpError, requireAdmin, supabaseAdmin } from "@/lib/supabaseAdmin";
+import { apiErrorFromCaught, apiOk } from "@/lib/api/respond";
 
 export const runtime = "nodejs";
 
@@ -12,10 +13,9 @@ export async function GET(req: NextRequest) {
       .select("id, email, status, is_admin, created_at")
       .order("created_at", { ascending: false });
     if (error) throw new HttpError(500, error.message);
-    return NextResponse.json({ users: data });
+    return apiOk({ users: data });
   } catch (err) {
-    const e = err as HttpError;
-    return NextResponse.json({ error: e.message }, { status: e.status || 500 });
+    return apiErrorFromCaught(err, { status: 500 });
   }
 }
 
@@ -45,9 +45,8 @@ export async function POST(req: NextRequest) {
       /* non-fatal: profile status still gates the app */
     }
 
-    return NextResponse.json({ ok: true });
+    return apiOk({ ok: true });
   } catch (err) {
-    const e = err as HttpError;
-    return NextResponse.json({ error: e.message }, { status: e.status || 500 });
+    return apiErrorFromCaught(err, { status: 500 });
   }
 }

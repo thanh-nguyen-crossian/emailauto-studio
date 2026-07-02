@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { HttpError, requireAdmin, supabaseAdmin } from "@/lib/supabaseAdmin";
+import { apiErrorFromCaught, apiOk } from "@/lib/api/respond";
 
 export const runtime = "nodejs";
 
@@ -13,9 +14,8 @@ export async function POST(req: NextRequest) {
     }
     const { error } = await supabaseAdmin().auth.admin.updateUserById(userId, { password });
     if (error) throw new HttpError(500, error.message);
-    return NextResponse.json({ ok: true });
+    return apiOk({ ok: true });
   } catch (err) {
-    const e = err as HttpError;
-    return NextResponse.json({ error: e.message }, { status: e.status || 500 });
+    return apiErrorFromCaught(err, { status: 500 });
   }
 }

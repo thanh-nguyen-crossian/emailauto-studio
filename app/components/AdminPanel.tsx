@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { accessToken } from "@/lib/profile";
+import { errorMessage } from "@/lib/api/clientError";
 
 interface AdminUser {
   id: string;
@@ -30,7 +31,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
       const token = await accessToken();
       const res = await fetch("/api/admin/users", { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to load"));
       setUsers(data.users || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
@@ -89,7 +90,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
         body: JSON.stringify({ userId, status }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Update failed");
+      if (!res.ok) throw new Error(errorMessage(data, "Update failed"));
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
@@ -111,7 +112,7 @@ export function AdminPanel({ open, onClose }: { open: boolean; onClose: () => vo
         body: JSON.stringify({ userId, password: pw }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Reset failed");
+      if (!res.ok) throw new Error(errorMessage(data, "Reset failed"));
       window.alert("Password updated.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Reset failed");

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react
 import dynamic from "next/dynamic";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { accessToken, type Profile } from "@/lib/profile";
+import { errorMessage } from "@/lib/api/clientError";
 import { briefToMarkdown } from "../components/BriefView";
 import { listVersions, saveVersion, type SavedVersion, type VersionPayload } from "@/lib/history";
 import { Auth } from "../components/Auth";
@@ -543,7 +544,7 @@ export function StudioApp() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setToneError(data.error || "Could not analyze the page");
+        setToneError(errorMessage(data, "Could not analyze the page"));
         return;
       }
       const toneKeywords = Array.isArray(data.toneKeywords) ? data.toneKeywords.join(", ") : "";
@@ -625,7 +626,7 @@ export function StudioApp() {
       } catch {
         return res.ok ? "Could not read product details" : `Scout failed (HTTP ${res.status})`;
       }
-      if (!res.ok) return data.error || "Could not fetch the page";
+      if (!res.ok) return errorMessage(data, "Could not fetch the page");
       const usps: string[] = data.usps || [];
       const product = data.product && typeof data.product === "object" ? data.product : {};
       const features = Array.isArray(product.highlights) ? product.highlights.filter(Boolean) : [];
@@ -896,12 +897,12 @@ export function StudioApp() {
           return;
         }
         if (!res.ok) {
-          setApiError(data.error || "Generation failed");
+          setApiError(errorMessage(data, "Generation failed"));
           return;
         }
       }
       if (data.error) {
-        setApiError(data.error);
+        setApiError(errorMessage(data));
         if (!data.a && !data.b) return;
       }
       // Success — now it is safe to drop the previous generation's edits/sync state.
@@ -1140,7 +1141,7 @@ export function StudioApp() {
         ...r,
         [key]: res.ok
           ? { id: data.id, editorUrl: data.editorUrl, warnings: data.warnings, blocking: data.blocking, cleanedBytes: data.cleanedBytes }
-          : { error: data.error, warnings: data.warnings, blocking: data.blocking },
+          : { error: data.error ? errorMessage(data) : undefined, warnings: data.warnings, blocking: data.blocking },
       }));
     } catch (e) {
       setSyncResults((r) => ({ ...r, [key]: { error: e instanceof Error ? e.message : "Network error" } }));
@@ -1160,7 +1161,7 @@ export function StudioApp() {
         ...r,
         [key]: res.ok
           ? { templateId: data.templateId, editorUrl: data.editorUrl, warnings: data.warnings, blocking: data.blocking, cleanedBytes: data.cleanedBytes }
-          : { error: data.error, warnings: data.warnings, blocking: data.blocking },
+          : { error: data.error ? errorMessage(data) : undefined, warnings: data.warnings, blocking: data.blocking },
       }));
     } catch (e) {
       setTplResults((r) => ({ ...r, [key]: { error: e instanceof Error ? e.message : "Network error" } }));

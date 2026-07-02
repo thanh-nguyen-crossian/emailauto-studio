@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchPublicHtml, PublicFetchError } from "@/lib/publicFetch";
 import { extractProductPageDetails, extractUSPs } from "@/lib/scrape";
-import { HttpError, requireActiveUser } from "@/lib/supabaseAdmin";
+import { requireActiveUser } from "@/lib/supabaseAdmin";
+import { apiError, apiErrorFromCaught, apiOk, rateLimitedResponse } from "@/lib/api/respond";
+import { createRateLimiter, requestRateKey } from "@/lib/api/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 20;
@@ -9,20 +11,25 @@ export const maxDuration = 20;
 const TIMEOUT_MS = 12000;
 const MAX_HTML_BYTES = 1_500_000;
 
+const scrapeRateLimiter = createRateLimiter({ windowMs: 60_000, max: 10 });
+
 export async function POST(req: NextRequest) {
+  let activeUser: { userId: string } | null = null;
   try {
-    await requireActiveUser(req);
+    activeUser = await requireActiveUser(req);
   } catch (err) {
-    const e = err as HttpError;
-    return NextResponse.json({ error: e.message }, { status: e.status || 401 });
+    return apiErrorFromCaught(err, { status: 401 });
   }
+
+  const rateLimit = scrapeRateLimiter.check(requestRateKey(req, activeUser?.userId));
+  if (rateLimit) return rateLimitedResponse(rateLimit.retryAfter);
 
   let url = "";
   try {
     const body = (await req.json()) as { url?: string };
     url = body.url || "";
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return apiError(400, "bad_request", "Invalid JSON body");
   }
 
   try {
@@ -33,10 +40,9 @@ export async function POST(req: NextRequest) {
     });
     const usps = extractUSPs(html);
     const product = extractProductPageDetails(html, url);
-    return NextResponse.json({ usps, product });
+    return apiOk({ usps, product });
   } catch (e) {
     const status = e instanceof PublicFetchError ? e.status : 502;
-    const error = e instanceof Error ? e.message : "Could not fetch the page";
-    return NextResponse.json({ error }, { status });
+    return apiErrorFromCaught(e, { status, message: "Could not fetch the page" });
   }
 }

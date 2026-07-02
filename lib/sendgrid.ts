@@ -125,3 +125,171 @@ export async function createDynamicTemplate(input: CreateDesignInput): Promise<C
     editorUrl: `https://mc.sendgrid.com/dynamic-templates/${templateId}/version/${versionId}/editor`,
   };
 }
+
+// ---- F1.3/F2.1: Marketing Campaign Stats + Single Send API ----
+// Docs: https://docs.sendgrid.com/api-reference/marketing-campaign-stats/get-single-send-stats-by-id
+//       https://docs.sendgrid.com/api-reference/marketing-campaign-stats/get-single-send-click-tracking-stats-by-id
+// These endpoints need the API key to carry Marketing → Read (Read/Write for create/schedule).
+
+export interface SingleSendStats {
+  delivered: number;
+  uniqueOpens: number;
+  uniqueClicks: number;
+  bounces: number;
+  unsubscribes: number;
+  spamReports: number;
+}
+
+interface SingleSendStatsResultStats {
+  delivered?: number;
+  unique_opens?: number;
+  unique_clicks?: number;
+  bounces?: number;
+  unsubscribes?: number;
+  spam_reports?: number;
+}
+
+/**
+ * GET /v3/marketing/stats/singlesends/{id} — aggregates `stats` across every entry in `results`
+ * (a Single Send with an A/B test has one entry per variation; a plain send has one).
+ */
+export async function getSingleSendStats(singlesendId: string): Promise<SingleSendStats> {
+  let body: unknown;
+  try {
+    [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/stats/singlesends/${singlesendId}` });
+  } catch (err) {
+    throw new Error(describeError(err));
+  }
+  const results = ((body as { results?: { stats?: SingleSendStatsResultStats }[] })?.results) || [];
+  const totals: SingleSendStats = { delivered: 0, uniqueOpens: 0, uniqueClicks: 0, bounces: 0, unsubscribes: 0, spamReports: 0 };
+  for (const r of results) {
+    const s = r.stats || {};
+    totals.delivered += s.delivered || 0;
+    totals.uniqueOpens += s.unique_opens || 0;
+    totals.uniqueClicks += s.unique_clicks || 0;
+    totals.bounces += s.bounces || 0;
+    totals.unsubscribes += s.unsubscribes || 0;
+    totals.spamReports += s.spam_reports || 0;
+  }
+  return totals;
+}
+
+/** GET /v3/marketing/stats/singlesends/{id}/links — per-URL click counts. */
+export async function getSingleSendClickStats(singlesendId: string): Promise<Record<string, number>> {
+  let body: unknown;
+  try {
+    [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/stats/singlesends/${singlesendId}/links` });
+  } catch (err) {
+    throw new Error(describeError(err));
+  }
+  const results = ((body as { results?: { url?: string; unique_clicks?: number; clicks?: number }[] })?.results) || [];
+  const byUrl: Record<string, number> = {};
+  for (const r of results) {
+    if (!r.url) continue;
+    byUrl[r.url] = r.unique_clicks ?? r.clicks ?? 0;
+  }
+  return byUrl;
+}
+
+export interface SingleSendSummary {
+  id: string;
+  name: string;
+  status: string;
+  sendAt: string | null;
+}
+
+/** GET /v3/marketing/singlesends — for the "Link Single Send" picker (F1.2) and F2.1's launcher. */
+export async function listSingleSends(pageSize = 50): Promise<SingleSendSummary[]> {
+  let body: unknown;
+  try {
+    [, body] = await getClient().request({ method: "GET", url: `/v3/marketing/singlesends?page_size=${pageSize}` });
+  } catch (err) {
+    throw new Error(describeError(err));
+  }
+  const result = ((body as { result?: { id?: string; name?: string; status?: string; send_at?: string | null }[] })?.result) || [];
+  return result.map((r) => ({ id: r.id || "", name: r.name || "", status: r.status || "", sendAt: r.send_at || null }));
+}
+
+export interface ContactList {
+  id: string;
+  name: string;
+  contactCount: number;
+}
+
+/** GET /v3/marketing/lists — audience picker for F2.1's "Create Single Send" modal. */
+export async function listContactLists(): Promise<ContactList[]> {
+  let body: unknown;
+  try {
+    [, body] = await getClient().request({ method: "GET", url: "/v3/marketing/lists?page_size=100" });
+  } catch (err) {
+    throw new Error(describeError(err));
+  }
+  const result = ((body as { result?: { id?: string; name?: string; contact_count?: number }[] })?.result) || [];
+  return result.map((r) => ({ id: r.id || "", name: r.name || "", contactCount: r.contact_count || 0 }));
+}
+
+export interface CreateSingleSendInput {
+  name: string;
+  subject: string;
+  html: string;
+  listIds: string[];
+  /** One of designId/templateId must be supplied — a Single Send needs an existing Design or Dynamic Template. */
+  designId?: string;
+  templateId?: string;
+  suppressionGroupId?: number;
+}
+
+export interface CreatedSingleSend {
+  id: string;
+  status: string;
+}
+
+/**
+ * POST /v3/marketing/singlesends — creates a Single Send in draft status. Never called by this
+ * app's own verification (docs/IMPROVEMENT_PLAN-2026-07-02.md F2.1 is code-only per the
+ * maintainer's "never trigger a real send" instruction) — the maintainer tests this against a
+ * real SendGrid account post-merge.
+ */
+export async function createSingleSend(input: CreateSingleSendInput): Promise<CreatedSingleSend> {
+  let body: unknown;
+  try {
+    [, body] = await getClient().request({
+      method: "POST",
+      url: "/v3/marketing/singlesends",
+      body: {
+        name: input.name,
+        send_to: { list_ids: input.listIds },
+        email_config: {
+          subject: input.subject,
+          html_content: input.html,
+          generate_plain_content: true,
+          ...(input.designId ? { design_id: input.designId } : {}),
+          ...(input.templateId ? { template_id: input.templateId } : {}),
+          ...(input.suppressionGroupId ? { suppression_group_id: input.suppressionGroupId } : {}),
+        },
+      },
+    });
+  } catch (err) {
+    throw new Error(describeError(err));
+  }
+  const b = body as { id?: string; status?: string };
+  return { id: b.id || "", status: b.status || "draft" };
+}
+
+/**
+ * PUT /v3/marketing/singlesends/{id}/schedule — `sendAt` of "now" sends immediately, else an ISO
+ * timestamp. Same never-called-in-verification note as `createSingleSend`.
+ */
+export async function scheduleSingleSend(singlesendId: string, sendAt: "now" | string): Promise<{ status: string }> {
+  let body: unknown;
+  try {
+    [, body] = await getClient().request({
+      method: "PUT",
+      url: `/v3/marketing/singlesends/${singlesendId}/schedule`,
+      body: { send_at: sendAt },
+    });
+  } catch (err) {
+    throw new Error(describeError(err));
+  }
+  return { status: (body as { status?: string })?.status || "scheduled" };
+}
