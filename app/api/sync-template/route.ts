@@ -5,6 +5,7 @@ import { requireActiveUser } from "@/lib/supabaseAdmin";
 import { apiError, apiErrorFromCaught, apiOk, rateLimitedResponse } from "@/lib/api/respond";
 import { createRateLimiter, requestRateKey } from "@/lib/api/rateLimit";
 import { captureError } from "@/lib/observability/sentry";
+import { logTemplateRowToSheet } from "@/lib/sheetLog";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -48,8 +49,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const tpl = await createDynamicTemplate({ name, html: clean.html, subject: subject || name });
+    // Task 4 — auto-fill the team tracking sheet ("templates" tab) after a successful push.
+    const sheetLogged = await logTemplateRowToSheet({
+      date: new Date().toISOString().slice(0, 10),
+      name,
+      subject: subject || name,
+      type: "template",
+      template_id: tpl.templateId,
+      sendgrid_url: tpl.editorUrl,
+      status: "created",
+      user_id: activeUser?.userId,
+    });
     return apiOk({
       ...tpl,
+      sheetLogged,
       blocking: clean.blocking,
       warnings: clean.warnings,
       info: clean.info,

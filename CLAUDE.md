@@ -71,6 +71,8 @@ npx tsc --noEmit     # type-check without emitting
 | `AI_SEGMENT_BATCH_SIZE` | server | optional override for adaptive segments per patch call |
 | `AI_SEGMENT_BATCH_CONCURRENCY` | server | optional override for adaptive patch concurrency |
 | `SENDGRID_API_KEY` | server | needs Marketing + Templates scopes for `/v3/designs` |
+| `SHEETS_WEBHOOK_URL` | server | Apps Script Web App `/exec` URL — auto-fills the tracking sheet's `templates` tab after each SendGrid push (`docs/apps-script-sheet-webhook.gs`); unset = off |
+| `SHEETS_WEBHOOK_SECRET` | server | shared secret; must match `SECRET` in the deployed Apps Script |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | anon/publishable key — browser-safe, RLS-gated |
 | `SUPABASE_SERVICE_ROLE_KEY` | **server only** | admin + RLS bypass — never `NEXT_PUBLIC` |

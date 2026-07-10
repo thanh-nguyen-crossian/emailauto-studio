@@ -5,6 +5,7 @@ import { createRateLimiter, requestRateKey } from "@/lib/api/rateLimit";
 import { cleanForTemplate } from "@/lib/cleanEmail";
 import { requireActiveUser, supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createSingleSend, listContactLists, scheduleSingleSend } from "@/lib/sendgrid";
+import { logTemplateRowToSheet } from "@/lib/sheetLog";
 
 export const runtime = "nodejs";
 export const maxDuration = 40;
@@ -107,9 +108,23 @@ export async function POST(req: NextRequest) {
       const { error } = await update;
       if (error) throw new Error(error.message);
     }
+    // Task 4 — auto-fill the team tracking sheet ("templates" tab) after a successful push.
+    const sheetLogged = await logTemplateRowToSheet({
+      date: new Date().toISOString().slice(0, 10),
+      name: input.name,
+      subject: input.subject,
+      type: "singlesend",
+      design_id: input.designId,
+      template_id: input.templateId,
+      singlesend_id: created.id,
+      sendgrid_url: `https://mc.sendgrid.com/single-sends/${created.id}/editor`,
+      status: schedule?.status || created.status,
+      user_id: user?.userId,
+    });
     return apiOk({
       ...created,
       scheduled: schedule?.status || null,
+      sheetLogged,
       blocking: clean.blocking,
       warnings: clean.warnings,
       info: clean.info,
